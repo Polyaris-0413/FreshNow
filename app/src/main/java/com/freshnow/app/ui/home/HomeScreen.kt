@@ -1,7 +1,9 @@
 package com.freshnow.app.ui.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -128,14 +130,12 @@ fun HomeScreen(
             onDismissRequest = { showSheet = false },
             sheetState = sheetState
         ) {
-            Card(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = FreshNowSpacing.sm)
                     .padding(bottom = FreshNowSpacing.sm),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                )
+                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
             ) {
                 SheetMenuItem(
                     text = stringResource(R.string.about),
@@ -150,21 +150,31 @@ fun HomeScreen(
     }
 }
 
+/**
+ * 单个条目自成圆角框；两个条目结构相同，尺寸因此一致
+ */
 @Composable
 private fun SheetMenuItem(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Text(
-        text = text,
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = FreshNowSpacing.sm),
-        style = MaterialTheme.typography.bodyLarge,
-        textAlign = TextAlign.Center
-    )
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = FreshNowSpacing.sm),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 @Composable
