@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.AiVisionClient
+import com.freshnow.app.data.ExpiryCalculator
+import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +27,7 @@ sealed interface ScanStatus {
 
 data class ScanUiState(
     val result: ScanResult = ScanResult(),
+    val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     val status: ScanStatus = ScanStatus.Idle
 )
 
@@ -60,7 +63,17 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                         if (state.status is ScanStatus.Failed) state else state.copy(status = ScanStatus.Analyzing)
                     }
                     val result = client.analyze(settings, jpeg)
-                    _uiState.update { it.copy(result = result, status = ScanStatus.Idle) }
+                    _uiState.update {
+                        it.copy(
+                            result = result,
+                            expiry = ExpiryCalculator.resolve(
+                                printedExpiry = result.expiryDate,
+                                productionDate = result.productionDate,
+                                shelfLife = result.shelfLife
+                            ),
+                            status = ScanStatus.Idle
+                        )
+                    }
                 } else {
                     // 未配置时不要先切到 Analyzing，否则状态会在两种文案之间反复跳动
                     _uiState.update { it.copy(status = ScanStatus.NotConfigured) }

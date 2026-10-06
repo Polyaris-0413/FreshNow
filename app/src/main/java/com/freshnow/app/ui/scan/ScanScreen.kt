@@ -33,6 +33,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
+import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
@@ -91,7 +92,11 @@ fun ScanScreen(
                 )
                 ScanResultRow(
                     label = stringResource(R.string.scan_expiry_date),
-                    value = uiState.result.expiryDate
+                    value = when (val expiry = uiState.expiry) {
+                        is ExpiryOutcome.Resolved -> expiry.date
+                        ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
+                        ExpiryOutcome.InsufficientInput -> stringResource(R.string.scan_value_unknown)
+                    }
                 )
                 ScanResultRow(
                     label = stringResource(R.string.scan_shelf_life),
