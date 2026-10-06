@@ -70,9 +70,18 @@ class ExpiryCalculatorTest {
             ExpiryOutcome.UnparseableShelfLife,
             ExpiryCalculator.resolve("", "2025-01-01", "常温")
         )
+    }
+
+    /** 标签上写中文数字的情况，例如「十八个月」 */
+    @Test
+    fun computesFromChineseNumeralShelfLife() {
         assertEquals(
-            ExpiryOutcome.UnparseableShelfLife,
+            ExpiryOutcome.Resolved("2026-07-01"),
             ExpiryCalculator.resolve("", "2025-01-01", "十八个月")
+        )
+        assertEquals(
+            ExpiryOutcome.Resolved("2026-05-01"),
+            ExpiryCalculator.resolve("", "2025-11-01", "半年")
         )
     }
 
