@@ -46,6 +46,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     // 同时表示"请求进行中"与"冷却期"，避免连续送帧
     private val busy = AtomicBoolean(false)
 
+    // 保存时取此刻最新的一帧作为记录的照片：分析线程写入、主线程读取，故用 @Volatile
+    @Volatile
+    private var latestFrame: ByteArray? = null
+
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
 
@@ -65,6 +69,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     fun submitFrame(jpeg: ByteArray) {
         if (!busy.compareAndSet(false, true)) return
+        latestFrame = jpeg
         Log.d(TAG, "提交一帧，${jpeg.size} 字节")
 
         viewModelScope.launch {
@@ -106,7 +111,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val record = _uiState.value.record
         if (!record.hasAnyValue) return false
 
-        viewModelScope.launch { recordRepository.save(record) }
+        val frame = latestFrame
+        viewModelScope.launch { recordRepository.save(record, frame) }
         clearRecord()
         return true
     }
@@ -115,6 +121,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      * 清空累加记录，开始扫描下一件商品
      */
     fun clearRecord() {
+        latestFrame = null
         _uiState.update { it.withRecord(ScanResult()).copy(reasoning = "") }
     }
 

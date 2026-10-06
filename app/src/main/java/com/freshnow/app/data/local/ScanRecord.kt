@@ -14,5 +14,7 @@ data class ScanRecord(
     val productionDate: String,
     val expiryDate: String,
     val shelfLife: String,
+    /** 扫描照片的文件名，空串表示这条记录没有图片 */
+    val imageName: String,
     val savedAt: Long
 )

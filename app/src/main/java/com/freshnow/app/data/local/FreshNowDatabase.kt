@@ -10,7 +10,7 @@ import androidx.room.RoomDatabase
 // 改表结构就只剩两条路：破坏性迁移（清空用户已存的扫描记录），或凭记忆手写迁移语句。
 // 2) 同时去掉下面的 fallbackToDestructiveMigration：它会在版本升级时丢表重建，
 // 开发期改表方便，但发版后用户升级会直接清空已存的扫描记录，必须换成真正的 Migration。
-@Database(entities = [ScanRecord::class], version = 2, exportSchema = false)
+@Database(entities = [ScanRecord::class], version = 3, exportSchema = false)
 abstract class FreshNowDatabase : RoomDatabase() {
 
     abstract fun scanRecordDao(): ScanRecordDao

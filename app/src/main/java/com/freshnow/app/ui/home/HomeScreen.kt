@@ -246,6 +246,7 @@ private fun HomeScreenPreview() {
                     productionDate = "2025-01-01",
                     expiryDate = "",
                     shelfLife = "18个月",
+                    imageName = "",
                     savedAt = 0
                 )
             ),

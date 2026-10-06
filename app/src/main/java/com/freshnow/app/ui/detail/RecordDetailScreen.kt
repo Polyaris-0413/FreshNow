@@ -1,19 +1,31 @@
 package com.freshnow.app.ui.detail
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,7 +87,49 @@ fun RecordDetailScreen(
                     expiry = uiState.expiry,
                     shelfLife = record.shelfLife
                 )
+
+                ScanPhoto(image = uiState.image)
             }
         }
     }
 }
+
+/**
+ * 记录里的扫描照片。
+ *
+ * 有图时按图片自身比例铺满宽度、不裁剪：照片是日期的凭证，裁掉边缘可能正好裁掉标签。
+ * 没图时（保存时没有可用画面，或图片落盘、解码失败）用占位图标顶上去，高度固定得比照片矮一些，
+ * 它只是占位、不假装是照片。
+ */
+@Composable
+private fun ScanPhoto(image: Bitmap?, modifier: Modifier = Modifier) {
+    val shape = MaterialTheme.shapes.medium
+    val photoModifier = modifier
+        .fillMaxWidth()
+        .clip(shape)
+        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+
+    if (image == null) {
+        Box(
+            modifier = photoModifier.height(PLACEHOLDER_PHOTO_HEIGHT),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_no_image),
+                contentDescription = stringResource(R.string.record_image_missing),
+                modifier = Modifier.size(FreshNowSpacing.xl),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    } else {
+        Image(
+            bitmap = remember(image) { image.asImageBitmap() },
+            contentDescription = stringResource(R.string.record_image),
+            modifier = photoModifier,
+            contentScale = ContentScale.FillWidth
+        )
+    }
+}
+
+// 占位块高度，取设计源最大间距的 3 倍
+private val PLACEHOLDER_PHOTO_HEIGHT = FreshNowSpacing.xl * 3

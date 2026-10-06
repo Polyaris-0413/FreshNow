@@ -23,6 +23,8 @@
     <string name="record_detail">生产 %1$s · 保质期 %2$s</string>
     <string name="record_detail_title">记录详情</string>
     <string name="record_detail_missing">记录不存在</string>
+    <string name="record_image">扫描照片</string>
+    <string name="record_image_missing">无图片</string>
     <string name="scan_status_analyzing">识别中…</string>
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>
     <string name="scan_grant_permission">授予权限</string>
