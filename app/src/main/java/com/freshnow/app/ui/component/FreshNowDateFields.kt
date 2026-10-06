@@ -37,26 +37,26 @@ fun FreshNowDateFields(
         ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
         ExpiryOutcome.InsufficientInput -> ""
     }
-    val largeCorner = MaterialTheme.shapes.large
-    val smallCorner = MaterialTheme.shapes.small
+    val outerCorner = MaterialTheme.shapes.large
+    val innerCorner = MaterialTheme.shapes.extraSmall
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
     ) {
-        FieldSegment(shape = splicedShape(top = largeCorner, bottom = smallCorner)) {
+        FieldSegment(shape = splicedShape(top = outerCorner, bottom = innerCorner)) {
             FreshNowFieldRow(
                 label = stringResource(R.string.scan_production_date),
                 value = productionDate
             )
         }
-        FieldSegment(shape = smallCorner) {
+        FieldSegment(shape = innerCorner) {
             FreshNowFieldRow(
                 label = stringResource(R.string.scan_expiry_date),
                 value = expiryText
             )
         }
-        FieldSegment(shape = splicedShape(top = smallCorner, bottom = largeCorner)) {
+        FieldSegment(shape = splicedShape(top = innerCorner, bottom = outerCorner)) {
             FreshNowFieldRow(
                 label = stringResource(R.string.scan_shelf_life),
                 value = shelfLife
