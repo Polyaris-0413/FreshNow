@@ -11,9 +11,18 @@ import androidx.compose.animation.slideOutHorizontally
 /**
  * 页面切换动画设计源，界面只引用不另定义。
  *
- * 位移取容器宽度的 1/16 而非整屏：等价于 Material 的 shared axis X（淡入淡出 + 轻微横移），
- * 整屏滑动在这种"列表 → 子页"的层级跳转里显得笨重。
- * 参考 book-story 的 ui/theme/Transitions.kt，此处只保留本项目用得到的四条。
+ * 【有意偏离 M3 规范，请勿"按规范"改回去】
+ * 规范对页面过渡给的是 Emphasized 曲线 + 不对称时长（进入 decelerate 400ms、
+ * 退出 accelerate 200ms）。这两套都实测比较过，Emphasized 那套退场偏急、进场偏拖，
+ * 观感不如现在这组，因此保留：tween 默认曲线（FastOutSlowInEasing，即 Material 的
+ * standard 曲线，只是并非 Expressive 的最新推荐）+ 对称 350ms。
+ * 取值与参考项目 book-story 的 ui/theme/Transitions.kt 一致。
+ * 今后若要再调，请先实测对比，不要仅仅因为它"不合规范"就回退。
+ *
+ * 位移取容器宽度的 1/16 而非整屏：等价于 shared axis X 的轻微横移，
+ * 整屏滑动在"列表 → 子页"的层级跳转里显得笨重。
+ *
+ * 淡化与容器颜色的约束见 FreshNowTopAppBar 的注释。
  */
 object FreshNowTransitions {
 
