@@ -43,7 +43,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private val recordRepository = ScanRecordRepository(application)
     private val client = AiVisionClient()
 
-    // 同时表示"请求进行中"与"冷却期"，避免连续送帧
+    // 表示"请求进行中"。请求一回来就放开，让下一帧立刻接上，不再有额外冷却
     private val busy = AtomicBoolean(false)
 
     // 保存时取此刻最新的一帧作为记录的照片：分析线程写入、主线程读取，故用 @Volatile
@@ -97,8 +97,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(status = ScanStatus.Failed(e.message ?: e::class.java.simpleName)) }
+                // 失败时退避一下：平常不留冷却，但请求是失败的话相机每秒几十帧会不停重试，把请求打爆
+                delay(RETRY_DELAY_MS)
             } finally {
-                delay(FRAME_INTERVAL_MS)
                 busy.set(false)
             }
         }
@@ -137,6 +138,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val TAG = "ScanViewModel"
-        const val FRAME_INTERVAL_MS = 2_000L
+
+        // 仅用于请求失败后的退避，正常路径上不额外等待
+        const val RETRY_DELAY_MS = 2_000L
     }
 }

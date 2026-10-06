@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -49,6 +50,9 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.launch
+
+/** 当前打开的是哪个编辑面板，null 表示没打开 */
+private enum class SettingsEditor { BasicConfig, ExtraRequest }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,13 +65,13 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showEditor by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<SettingsEditor?>(null) }
     val savedMessage = stringResource(R.string.settings_saved)
 
     // 收起编辑面板，afterHidden 在收起动画结束后执行
     fun closeEditor(afterHidden: () -> Unit = {}) {
         scope.launch { sheetState.hide() }.invokeOnCompletion {
-            showEditor = false
+            editing = null
             afterHidden()
         }
     }
@@ -83,10 +87,17 @@ fun SettingsScreen(
         if (uiState.loaded) {
             SettingsList(
                 summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
+                extraSummary = uiState.saved.extraRequestJson.ifBlank {
+                    stringResource(R.string.ai_settings_extra_default)
+                },
                 showReasoning = uiState.saved.showReasoning,
                 onBasicConfigClick = {
                     viewModel.startEditing()
-                    showEditor = true
+                    editing = SettingsEditor.BasicConfig
+                },
+                onExtraRequestClick = {
+                    viewModel.startEditingExtra()
+                    editing = SettingsEditor.ExtraRequest
                 },
                 onShowReasoningChange = viewModel::onShowReasoningChange,
                 modifier = Modifier
@@ -97,23 +108,36 @@ fun SettingsScreen(
         }
     }
 
-    if (showEditor) {
+    editing?.let { editor ->
         ModalBottomSheet(
-            onDismissRequest = { showEditor = false },
+            onDismissRequest = { editing = null },
             sheetState = sheetState
         ) {
-            AiBasicConfigEditor(
-                uiState = uiState,
-                onBaseUrlChange = viewModel::onBaseUrlChange,
-                onModelNameChange = viewModel::onModelNameChange,
-                onApiKeyChange = viewModel::onApiKeyChange,
-                onCancel = { closeEditor() },
-                onSave = {
-                    if (viewModel.save()) {
-                        closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
+            when (editor) {
+                SettingsEditor.BasicConfig -> AiBasicConfigEditor(
+                    uiState = uiState,
+                    onBaseUrlChange = viewModel::onBaseUrlChange,
+                    onModelNameChange = viewModel::onModelNameChange,
+                    onApiKeyChange = viewModel::onApiKeyChange,
+                    onCancel = { closeEditor() },
+                    onSave = {
+                        if (viewModel.save()) {
+                            closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
+                        }
                     }
-                }
-            )
+                )
+
+                SettingsEditor.ExtraRequest -> ExtraRequestEditor(
+                    uiState = uiState,
+                    onValueChange = viewModel::onExtraJsonChange,
+                    onCancel = { closeEditor() },
+                    onSave = {
+                        if (viewModel.saveExtra()) {
+                            closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -121,8 +145,10 @@ fun SettingsScreen(
 @Composable
 private fun SettingsList(
     summary: String,
+    extraSummary: String,
     showReasoning: Boolean,
     onBasicConfigClick: () -> Unit,
+    onExtraRequestClick: () -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -172,6 +198,17 @@ private fun SettingsList(
                 role = Role.Switch,
                 onValueChange = onShowReasoningChange
             ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.ai_settings_extra_title))
+            },
+            supportingContent = {
+                Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
+            modifier = Modifier.clickable(onClick = onExtraRequestClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }
@@ -249,9 +286,76 @@ private fun AiBasicConfigEditor(
 }
 
 /**
- * 必填文本项，仅在未填时给出错误文案
+ * 「思考参数」的编辑面板，承载在 ModalBottomSheet 内
  */
 @Composable
+private fun ExtraRequestEditor(
+    uiState: SettingsUiState,
+    onValueChange: (String) -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .imePadding()
+            .padding(horizontal = FreshNowSpacing.sm)
+            .padding(bottom = FreshNowSpacing.sm),
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+    ) {
+        Text(
+            text = stringResource(R.string.ai_settings_extra_title),
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        OutlinedTextField(
+            value = uiState.extraJson,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(text = stringResource(R.string.ai_settings_extra_label)) },
+            placeholder = { Text(text = stringResource(R.string.ai_settings_extra_example)) },
+            supportingText = {
+                Text(
+                    text = if (uiState.extraJsonError) {
+                        stringResource(R.string.error_invalid_json)
+                    } else {
+                        stringResource(R.string.ai_settings_extra_hint)
+                    }
+                )
+            },
+            isError = uiState.extraJsonError,
+            minLines = 3,
+            // 关掉自动更正：JSON 里的半角引号一旦被输入法换成中文引号就解析不了了
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                autoCorrectEnabled = false
+            )
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+        ) {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.action_cancel))
+            }
+            Button(
+                onClick = onSave,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.action_save))
+            }
+        }
+    }
+}
+
+/**
+ * 必填文本项，仅在未填时给出错误文案
+ */@Composable
 private fun RequiredTextField(
     value: String,
     onValueChange: (String) -> Unit,

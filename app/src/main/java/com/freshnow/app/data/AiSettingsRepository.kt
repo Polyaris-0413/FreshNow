@@ -24,7 +24,8 @@ class AiSettingsRepository(private val dataStore: DataStore<Preferences>) {
             baseUrl = preferences[KEY_BASE_URL].orEmpty(),
             modelName = preferences[KEY_MODEL_NAME].orEmpty(),
             apiKey = preferences[KEY_API_KEY].orEmpty(),
-            showReasoning = preferences[KEY_SHOW_REASONING] ?: false
+            showReasoning = preferences[KEY_SHOW_REASONING] ?: false,
+            extraRequestJson = preferences[KEY_EXTRA_REQUEST_JSON].orEmpty()
         )
     }
 
@@ -34,6 +35,7 @@ class AiSettingsRepository(private val dataStore: DataStore<Preferences>) {
             preferences[KEY_MODEL_NAME] = settings.modelName
             preferences[KEY_API_KEY] = settings.apiKey
             preferences[KEY_SHOW_REASONING] = settings.showReasoning
+            preferences[KEY_EXTRA_REQUEST_JSON] = settings.extraRequestJson
         }
     }
 
@@ -42,5 +44,6 @@ class AiSettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_MODEL_NAME = stringPreferencesKey("model_name")
         val KEY_API_KEY = stringPreferencesKey("api_key")
         val KEY_SHOW_REASONING = booleanPreferencesKey("show_reasoning")
+        val KEY_EXTRA_REQUEST_JSON = stringPreferencesKey("extra_request_json")
     }
 }

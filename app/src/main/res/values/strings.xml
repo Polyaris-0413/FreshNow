@@ -37,10 +37,16 @@
     <string name="ai_settings_basic_group_title">基础配置</string>
     <string name="ai_settings_show_reasoning_title">显示思维链</string>
     <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
+    <string name="ai_settings_extra_title">思考参数</string>
+    <string name="ai_settings_extra_label">附加请求参数</string>
+    <string name="ai_settings_extra_example">{\"thinking\":{\"type\":\"disabled\"}}</string>
+    <string name="ai_settings_extra_hint">上面这段 JSON 会原样并入请求体；留空则跟随服务商默认</string>
+    <string name="ai_settings_extra_default">跟随服务商默认</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
     <string name="ai_settings_api_key_label">API Key</string>
     <string name="ai_settings_not_configured">未配置</string>
     <string name="error_required_field">此项为必填项</string>
+    <string name="error_invalid_json">需要是合法的 JSON 对象</string>
     <string name="settings_saved">已保存</string>
 </resources>

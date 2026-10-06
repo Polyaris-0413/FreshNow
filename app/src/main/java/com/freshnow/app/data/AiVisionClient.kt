@@ -34,7 +34,7 @@ class AiVisionClient {
         }
 
         return try {
-            connection.outputStream.use { it.write(buildPayload(settings.modelName, jpeg).toByteArray(Charsets.UTF_8)) }
+            connection.outputStream.use { it.write(buildPayload(settings, jpeg).toByteArray(Charsets.UTF_8)) }
             val code = connection.responseCode
             val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()
@@ -47,32 +47,50 @@ class AiVisionClient {
         }
     }
 
-    private fun buildPayload(model: String, jpeg: ByteArray): String = JSONObject()
-        .put("model", model)
-        .put(
-            "messages",
-            JSONArray().put(
-                JSONObject()
-                    .put("role", "user")
-                    .put(
-                        "content",
-                        JSONArray()
-                            .put(JSONObject().put("type", "text").put("text", PROMPT))
-                            .put(
-                                JSONObject()
-                                    .put("type", "image_url")
-                                    .put(
-                                        "image_url",
-                                        JSONObject().put(
-                                            "url",
-                                            "data:image/jpeg;base64," + Base64.encodeToString(jpeg, Base64.NO_WRAP)
+    /** 提为 internal 是为了能在仪器化测试里直接断言请求体内容，不必真发一次请求 */
+    internal fun buildPayload(settings: AiSettings, jpeg: ByteArray): String {
+        val payload = JSONObject()
+            .put("model", settings.modelName)
+            .put(
+                "messages",
+                JSONArray().put(
+                    JSONObject()
+                        .put("role", "user")
+                        .put(
+                            "content",
+                            JSONArray()
+                                .put(JSONObject().put("type", "text").put("text", PROMPT))
+                                .put(
+                                    JSONObject()
+                                        .put("type", "image_url")
+                                        .put(
+                                            "image_url",
+                                            JSONObject().put(
+                                                "url",
+                                                "data:image/jpeg;base64," + Base64.encodeToString(jpeg, Base64.NO_WRAP)
+                                            )
                                         )
-                                    )
-                            )
-                    )
+                                )
+                        )
+                )
             )
-        )
-        .toString()
+        applyExtraRequestParams(payload, settings.extraRequestJson)
+        return payload.toString()
+    }
+
+    /**
+     * 把用户自定义的附加参数并进请求体。
+     *
+     * 思考开关各家字段名与取值都不一样（OpenAI 系是 reasoning_effort，DeepSeek / 智谱 / 火山是 thinking 对象，
+     * 通义是 enable_thinking），服务商自己也不提供"支持哪些参数"的元数据，所以这里不替用户猜，
+     * 只把他写的原样带上；写坏了（不是合法 JSON）等同于没填。
+     */
+    private fun applyExtraRequestParams(payload: JSONObject, extraJson: String) {
+        val extra = runCatching { JSONObject(extraJson) }.getOrNull() ?: return
+        extra.keys().forEach { key ->
+            if (key !in RESERVED_KEYS) payload.put(key, extra.get(key))
+        }
+    }
 
     private fun parseAnalysis(responseBody: String): AiAnalysis {
         val message = JSONObject(responseBody)
@@ -114,6 +132,9 @@ class AiVisionClient {
         const val CONNECT_TIMEOUT_MS = 15_000
         const val READ_TIMEOUT_MS = 60_000
         const val ERROR_BODY_LIMIT = 300
+
+        // model 与 messages 由应用组装，用户自定义参数里出现这两个键时忽略，避免请求结构被改坏
+        val RESERVED_KEYS = setOf("model", "messages")
 
         // 思维链的键名各家不统一：DeepSeek / 智谱 / 通义 / 火山用 reasoning_content，OpenRouter 系用 reasoning
         val REASONING_KEYS = listOf("reasoning_content", "reasoning")
