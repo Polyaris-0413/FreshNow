@@ -3,6 +3,7 @@ package com.freshnow.app.ui.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -16,6 +17,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,9 +55,17 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showEditor by remember { mutableStateOf(false) }
     val savedMessage = stringResource(R.string.settings_saved)
+
+    // 收起编辑面板，afterHidden 在收起动画结束后执行
+    fun closeEditor(afterHidden: () -> Unit = {}) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            showEditor = false
+            afterHidden()
+        }
+    }
 
     FreshNowSubPage(
         title = stringResource(R.string.settings),
@@ -86,12 +96,10 @@ fun SettingsScreen(
                 onBaseUrlChange = viewModel::onBaseUrlChange,
                 onModelNameChange = viewModel::onModelNameChange,
                 onApiKeyChange = viewModel::onApiKeyChange,
+                onCancel = { closeEditor() },
                 onSave = {
                     if (viewModel.save()) {
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            showEditor = false
-                            scope.launch { snackbarHostState.showSnackbar(savedMessage) }
-                        }
+                        closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
                     }
                 }
             )
@@ -140,6 +148,7 @@ private fun AiBasicConfigEditor(
     onBaseUrlChange: (String) -> Unit,
     onModelNameChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
+    onCancel: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -181,11 +190,22 @@ private fun AiBasicConfigEditor(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
         )
 
-        Button(
-            onClick = onSave,
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
         ) {
-            Text(text = stringResource(R.string.action_save))
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.action_cancel))
+            }
+            Button(
+                onClick = onSave,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.action_save))
+            }
         }
     }
 }
@@ -229,6 +249,7 @@ private fun AiBasicConfigEditorPreview() {
             onBaseUrlChange = {},
             onModelNameChange = {},
             onApiKeyChange = {},
+            onCancel = {},
             onSave = {},
             modifier = Modifier.padding(FreshNowSpacing.sm)
         )

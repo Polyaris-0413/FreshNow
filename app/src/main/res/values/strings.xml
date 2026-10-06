@@ -5,6 +5,7 @@
     <string name="action_more_options">更多选项</string>
     <string name="action_back">返回</string>
     <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
     <string name="about">关于</string>
     <string name="settings">设置</string>
 
