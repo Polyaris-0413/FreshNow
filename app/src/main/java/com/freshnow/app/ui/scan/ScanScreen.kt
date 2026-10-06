@@ -76,8 +76,11 @@ fun ScanScreen(
         modifier = modifier,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         actions = {
-            // 只在已经扫到内容时才给保存/清空入口，避免出现点了没反应的按钮
+            // 只在已经扫到内容时才给清空/保存入口，避免出现点了没反应的按钮
             if (uiState.record.hasAnyValue) {
+                TextButton(onClick = viewModel::clearRecord) {
+                    Text(text = stringResource(R.string.scan_clear))
+                }
                 TextButton(
                     onClick = {
                         if (viewModel.save()) {
@@ -86,9 +89,6 @@ fun ScanScreen(
                     }
                 ) {
                     Text(text = stringResource(R.string.action_save))
-                }
-                TextButton(onClick = viewModel::clearRecord) {
-                    Text(text = stringResource(R.string.scan_clear))
                 }
             }
         }
