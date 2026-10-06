@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onNavigateToScan: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -63,7 +64,7 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { /* TODO: 接入新增业务逻辑 */ }) {
+            FloatingActionButton(onClick = onNavigateToScan) {
                 Icon(
                     painter = painterResource(R.drawable.ic_add),
                     contentDescription = stringResource(R.string.action_add)
@@ -95,6 +96,6 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenPreview() {
     FreshNowTheme {
-        HomeScreen(onNavigateToAbout = {}, onNavigateToSettings = {})
+        HomeScreen(onNavigateToScan = {}, onNavigateToAbout = {}, onNavigateToSettings = {})
     }
 }
