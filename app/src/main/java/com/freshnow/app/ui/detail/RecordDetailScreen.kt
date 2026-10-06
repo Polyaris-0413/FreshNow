@@ -33,6 +33,7 @@ import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.formatSavedAt
+import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 @Composable
@@ -112,13 +113,13 @@ private fun ScanPhoto(image: Bitmap?, modifier: Modifier = Modifier) {
 
     if (image == null) {
         Box(
-            modifier = photoModifier.height(PLACEHOLDER_PHOTO_HEIGHT),
+            modifier = photoModifier.height(FreshNowSize.imagePlaceholderHeight),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_no_image),
                 contentDescription = stringResource(R.string.record_image_missing),
-                modifier = Modifier.size(FreshNowSpacing.xl),
+                modifier = Modifier.size(FreshNowSize.icon),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -131,6 +132,3 @@ private fun ScanPhoto(image: Bitmap?, modifier: Modifier = Modifier) {
         )
     }
 }
-
-// 占位块高度，取设计源最大间距的 3 倍
-private val PLACEHOLDER_PHOTO_HEIGHT = FreshNowSpacing.xl * 3

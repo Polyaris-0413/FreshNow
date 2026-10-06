@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
-import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -36,7 +36,7 @@ import kotlin.math.max
  */
 @Composable
 fun ScanThumbnail(image: File?, modifier: Modifier = Modifier) {
-    val size = FreshNowSpacing.xl
+    val size = FreshNowSize.thumbnail
     val maxPixels = with(LocalDensity.current) { size.roundToPx() }
     val bitmap = rememberThumbnail(image, maxPixels)
     val frame = modifier
