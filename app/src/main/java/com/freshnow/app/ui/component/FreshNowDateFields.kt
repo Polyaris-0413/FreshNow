@@ -18,7 +18,7 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 一次扫描的三项结果（生产日期 / 过期日期 / 保质期）。
+ * 一次扫描的三项结果（生产日期 / 保质期 / 过期日期）。
  *
  * 三项拼接展示：首尾两块朝向页面外的一侧取大圆角、朝向中间的一侧取小圆角，中间一块四角都用小圆角，
  * 块之间留出间距，不使用分隔线。
@@ -43,6 +43,8 @@ fun FreshNowDateFields(
     val outerCorner = MaterialTheme.shapes.medium
     val innerCorner = MaterialTheme.shapes.extraSmall
 
+    // 顺序按推算顺序排：生产日期 + 保质期 是标签上印的两项，过期日期是二者算出来的结论，故排在最后，
+    // 使「生产 + 保质期 → 过期」的顺序可以直接核对
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
@@ -55,14 +57,14 @@ fun FreshNowDateFields(
         }
         FieldSegment(shape = innerCorner) {
             FreshNowFieldRow(
-                label = stringResource(R.string.scan_expiry_date),
-                value = expiryText
+                label = stringResource(R.string.scan_shelf_life),
+                value = shelfLife
             )
         }
         FieldSegment(shape = splicedShape(top = innerCorner, bottom = outerCorner)) {
             FreshNowFieldRow(
-                label = stringResource(R.string.scan_shelf_life),
-                value = shelfLife
+                label = stringResource(R.string.scan_expiry_date),
+                value = expiryText
             )
         }
     }
