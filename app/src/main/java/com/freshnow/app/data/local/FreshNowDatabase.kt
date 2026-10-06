@@ -4,13 +4,13 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.freshnow.app.BuildConfig
 
-// TODO(发版前必须处理): 1) exportSchema 改回 true，并把生成的 schemas/ 目录提交进版本控制。
-// 现在设成 false 只是为了让开发期改表不产生 schema 文件。若拖到发版之后才发现，
-// 改表结构就只剩两条路：破坏性迁移（清空用户已存的扫描记录），或凭记忆手写迁移语句。
-// 2) 同时去掉下面的 fallbackToDestructiveMigration：它会在版本升级时丢表重建，
-// 开发期改表方便，但发版后用户升级会直接清空已存的扫描记录，必须换成真正的 Migration。
-@Database(entities = [ScanRecord::class], version = 3, exportSchema = false)
+// 改表结构时必须补一条 Migration，并把 KSP 导出的 schemas/ 目录一并提交：
+// 只有留下每个版本的表结构，才核对得出迁移前后是否一致、也才写得出正确的迁移语句。
+// 开发期改表频繁，debug 构建允许破坏性迁移（见 getInstance）；
+// release 构建在缺少迁移路径时直接抛异常中止，而不是悄悄清空用户已存的扫描记录。
+@Database(entities = [ScanRecord::class], version = 3, exportSchema = true)
 abstract class FreshNowDatabase : RoomDatabase() {
 
     abstract fun scanRecordDao(): ScanRecordDao
@@ -28,7 +28,12 @@ abstract class FreshNowDatabase : RoomDatabase() {
                     FreshNowDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .apply {
+                        // 仅开发期：改表后丢表重建，省掉每改一列就写一条迁移。
+                        // release 刻意不启用——用户升级时若没有迁移路径，宁可当场报错暴露问题，
+                        // 也不能用清空扫描记录的方式「解决」
+                        if (BuildConfig.DEBUG) fallbackToDestructiveMigration(dropAllTables = true)
+                    }
                     .build()
                     .also { instance = it }
             }

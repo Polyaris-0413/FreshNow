@@ -34,7 +34,14 @@ android {
     }
     buildFeatures {
         compose = true
+        // Room 需要按构建类型区分迁移策略（见 FreshNowDatabase），release 与 debug 走不同分支
+        buildConfig = true
     }
+}
+
+ksp {
+    // Room 导出的表结构，供核对与编写迁移语句用；该目录要提交进版本控制
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
