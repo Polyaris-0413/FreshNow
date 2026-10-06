@@ -23,4 +23,8 @@ Material Symbols 的 SVG 官方坐标系是负 Y 以及 viewBox 从 -960 开始
 
 ## 3. 杂项
 - 禁止私自在真机进行与键盘输入有关的调试 这会导致输入法的BUG 应要求用户进行手动调试
-- baseline profile 无法在真机上录制 原因未知 需要使用虚拟机 
+- baseline profile 无法在真机上录制 原因未知 需要使用虚拟机
+- 跑仪器化测试不要用 Gradle 的 connectedDebugAndroidTest 它会在所有已连接设备上安装并在结束后卸载应用
+  真机被卸载后需手动授权安装 很麻烦 且应用数据会一并丢失
+  应改为指定设备 先 assembleDebugAndroidTest 再把 app 与 test 两个 apk 装到目标设备
+  最后 adb -s <设备> shell am instrument -w com.freshnow.app.test/androidx.test.runner.AndroidJUnitRunner
