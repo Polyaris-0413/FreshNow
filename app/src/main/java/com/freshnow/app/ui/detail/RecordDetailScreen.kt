@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,9 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
-import com.freshnow.app.data.ExpiryCalculator
-import com.freshnow.app.data.ExpiryOutcome
-import com.freshnow.app.ui.component.FreshNowFieldRow
+import com.freshnow.app.ui.component.FreshNowDateFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.formatSavedAt
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -72,24 +69,10 @@ fun RecordDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                FreshNowFieldRow(
-                    label = stringResource(R.string.scan_production_date),
-                    value = record.productionDate,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                FreshNowFieldRow(
-                    label = stringResource(R.string.scan_expiry_date),
-                    value = when (val expiry = uiState.expiry) {
-                        is ExpiryOutcome.Resolved -> expiry.date
-                        ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
-                        ExpiryOutcome.InsufficientInput -> ""
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                FreshNowFieldRow(
-                    label = stringResource(R.string.scan_shelf_life),
-                    value = record.shelfLife,
-                    modifier = Modifier.fillMaxWidth()
+                FreshNowDateFields(
+                    productionDate = record.productionDate,
+                    expiry = uiState.expiry,
+                    shelfLife = record.shelfLife
                 )
             }
         }

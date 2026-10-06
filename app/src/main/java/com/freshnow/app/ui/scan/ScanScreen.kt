@@ -40,9 +40,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
-import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.hasAnyValue
-import com.freshnow.app.ui.component.FreshNowFieldRow
+import com.freshnow.app.ui.component.FreshNowDateFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.launch
@@ -118,29 +117,12 @@ fun ScanScreen(
                 onFrame = viewModel::submitFrame
             )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = FreshNowSpacing.sm),
-                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-            ) {
-                FreshNowFieldRow(
-                    label = stringResource(R.string.scan_production_date),
-                    value = uiState.record.productionDate
-                )
-                FreshNowFieldRow(
-                    label = stringResource(R.string.scan_expiry_date),
-                    value = when (val expiry = uiState.expiry) {
-                        is ExpiryOutcome.Resolved -> expiry.date
-                        ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
-                        ExpiryOutcome.InsufficientInput -> stringResource(R.string.scan_value_unknown)
-                    }
-                )
-                FreshNowFieldRow(
-                    label = stringResource(R.string.scan_shelf_life),
-                    value = uiState.record.shelfLife
-                )
-            }
+            FreshNowDateFields(
+                productionDate = uiState.record.productionDate,
+                expiry = uiState.expiry,
+                shelfLife = uiState.record.shelfLife,
+                modifier = Modifier.padding(top = FreshNowSpacing.sm)
+            )
 
             ScanStatusText(
                 status = uiState.status,
