@@ -32,7 +32,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
-import com.freshnow.app.ui.component.formatSavedAt
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
@@ -77,12 +76,6 @@ fun RecordDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
                 ScanPhoto(image = uiState.image)
-
-                Text(
-                    text = formatSavedAt(record.savedAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
                 FreshNowResultFields(
                     productName = record.productName,
