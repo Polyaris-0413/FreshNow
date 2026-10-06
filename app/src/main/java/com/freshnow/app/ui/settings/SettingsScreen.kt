@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
@@ -135,7 +137,11 @@ private fun SettingsList(
         )
 
         // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
+        // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
         ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
+            },
             headlineContent = {
                 Text(text = stringResource(R.string.ai_settings_basic_group_title))
             },
@@ -147,6 +153,9 @@ private fun SettingsList(
         // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
         // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
         ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
+            },
             headlineContent = {
                 Text(text = stringResource(R.string.ai_settings_show_reasoning_title))
             },
