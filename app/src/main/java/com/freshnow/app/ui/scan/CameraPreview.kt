@@ -10,14 +10,21 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.ByteArrayOutputStream
@@ -28,6 +35,7 @@ import kotlin.math.max
 
 private const val MAX_IMAGE_DIMENSION = 768
 private const val JPEG_QUALITY = 80
+private const val PREVIEW_FADE_IN_MS = 250
 private const val OPAQUE_ALPHA = 0xFF shl 24
 
 /**
@@ -56,7 +64,24 @@ fun CameraPreview(
         }
     }
 
-    AndroidView(factory = { previewView }, modifier = modifier)
+    // 相机从打开到出第一帧要几百毫秒，这段时间预览层是纯黑，画面会"啪"地跳出。
+    // 等预览流真正开始出帧后再淡入，黑屏期间露出的是外层容器的 surfaceContainerHighest 底色
+    var streaming by remember { mutableStateOf(false) }
+    val previewAlpha by animateFloatAsState(
+        targetValue = if (streaming) 1f else 0f,
+        animationSpec = tween(PREVIEW_FADE_IN_MS),
+        label = "previewAlpha"
+    )
+
+    DisposableEffect(previewView, lifecycleOwner) {
+        val observer = Observer<PreviewView.StreamState> { state ->
+            streaming = state == PreviewView.StreamState.STREAMING
+        }
+        previewView.previewStreamState.observe(lifecycleOwner, observer)
+        onDispose { previewView.previewStreamState.removeObserver(observer) }
+    }
+
+    AndroidView(factory = { previewView }, modifier = modifier.alpha(previewAlpha))
 
     DisposableEffect(Unit) {
         onDispose { executor.shutdown() }
