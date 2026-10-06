@@ -5,6 +5,8 @@ package com.freshnow.app.data
  * 由生产日期与保质期推算出的结果不写在这里，见 [ExpiryCalculator]
  */
 data class ScanResult(
+    /** 通用品名，按提示词要求不含品牌 */
+    val productName: String = "",
     val productionDate: String = "",
     val expiryDate: String = "",
     val shelfLife: String = ""
@@ -16,6 +18,7 @@ data class ScanResult(
  * 直接覆盖会让后一帧清掉前一帧刚读到的字段。
  */
 fun ScanResult.mergeObservation(observation: ScanResult) = ScanResult(
+    productName = observation.productName.ifBlank { productName },
     productionDate = observation.productionDate.ifBlank { productionDate },
     expiryDate = observation.expiryDate.ifBlank { expiryDate },
     shelfLife = observation.shelfLife.ifBlank { shelfLife }
@@ -23,4 +26,5 @@ fun ScanResult.mergeObservation(observation: ScanResult) = ScanResult(
 
 /** 是否已经累计到任何内容，用于决定要不要给出「清空」入口 */
 val ScanResult.hasAnyValue: Boolean
-    get() = productionDate.isNotBlank() || expiryDate.isNotBlank() || shelfLife.isNotBlank()
+    get() = productName.isNotBlank() || productionDate.isNotBlank() ||
+        expiryDate.isNotBlank() || shelfLife.isNotBlank()

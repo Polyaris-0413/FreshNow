@@ -37,8 +37,14 @@ fun FreshNowFieldRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = value.ifBlank { stringResource(R.string.scan_value_unknown) },
+            text = scanValueText(value),
             style = MaterialTheme.typography.bodyLarge
         )
     }
 }
+
+/**
+ * 扫描值的统一显示规则：空值表示这一项没读到，显示为「未知」
+ */
+@Composable
+fun scanValueText(value: String): String = value.ifBlank { stringResource(R.string.scan_value_unknown) }

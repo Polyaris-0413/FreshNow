@@ -41,7 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.hasAnyValue
-import com.freshnow.app.ui.component.FreshNowDateFields
+import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.launch
@@ -117,7 +117,8 @@ fun ScanScreen(
                 onFrame = viewModel::submitFrame
             )
 
-            FreshNowDateFields(
+            FreshNowResultFields(
+                productName = uiState.record.productName,
                 productionDate = uiState.record.productionDate,
                 expiry = uiState.expiry,
                 shelfLife = uiState.record.shelfLife,

@@ -242,6 +242,7 @@ private fun HomeScreenPreview() {
             records = listOf(
                 ScanRecord(
                     id = 1,
+                    productName = "纯牛奶",
                     productionDate = "2025-01-01",
                     expiryDate = "",
                     shelfLife = "18个月",

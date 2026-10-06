@@ -87,6 +87,7 @@ class AiVisionClient {
 
         return AiAnalysis(
             result = ScanResult(
+                productName = json.optString("productName"),
                 productionDate = json.optString("productionDate"),
                 expiryDate = json.optString("expiryDate"),
                 shelfLife = json.optString("shelfLife")
@@ -117,10 +118,11 @@ class AiVisionClient {
         // 思维链的键名各家不统一：DeepSeek / 智谱 / 通义 / 火山用 reasoning_content，OpenRouter 系用 reasoning
         val REASONING_KEYS = listOf("reasoning_content", "reasoning")
         val PROMPT = """
-            你是食品标签识别助手。请从这张照片中读取以下三项，只输出 JSON，不要输出解释，也不要使用代码标记：
-            {"productionDate":"","expiryDate":"","shelfLife":""}
+            你是食品标签识别助手。请从这张照片中读取以下四项，只输出 JSON，不要输出解释，也不要使用代码标记：
+            {"productName":"","productionDate":"","expiryDate":"","shelfLife":""}
 
             规则：
+            - productName：这是什么食品，用通用品名称呼，不要带品牌名、厂名和规格。例如标签上是「××牌原味酸奶 200g」，只写「原味酸奶」
             - productionDate：标签上印刷的生产日期，写成 yyyy-MM-dd
             - expiryDate：标签上印刷的过期日期或保质期截止日期，写成 yyyy-MM-dd
             - shelfLife：标签上印刷的保质期，写成「数字+单位」，例如 18个月、180天、2年

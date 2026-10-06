@@ -18,7 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
-import com.freshnow.app.ui.component.FreshNowDateFields
+import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.formatSavedAt
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -69,7 +69,8 @@ fun RecordDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                FreshNowDateFields(
+                FreshNowResultFields(
+                    productName = record.productName,
                     productionDate = record.productionDate,
                     expiry = uiState.expiry,
                     shelfLife = record.shelfLife

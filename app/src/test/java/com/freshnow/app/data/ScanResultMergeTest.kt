@@ -1,6 +1,7 @@
 package com.freshnow.app.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScanResultMergeTest {
@@ -21,7 +22,11 @@ class ScanResultMergeTest {
         val afterThird = afterSecond.mergeObservation(ScanResult(expiryDate = "2026-07-01"))
 
         assertEquals(
-            ScanResult("2025-01-01", "2026-07-01", "18个月"),
+            ScanResult(
+                productionDate = "2025-01-01",
+                expiryDate = "2026-07-01",
+                shelfLife = "18个月"
+            ),
             afterThird
         )
     }
@@ -36,8 +41,27 @@ class ScanResultMergeTest {
 
     @Test
     fun emptyObservationChangesNothing() {
-        val record = ScanResult("2025-01-01", "2026-07-01", "18个月")
+        val record = ScanResult(
+            productionDate = "2025-01-01",
+            expiryDate = "2026-07-01",
+            shelfLife = "18个月"
+        )
 
         assertEquals(record, record.mergeObservation(ScanResult()))
+    }
+
+    @Test
+    fun productNameFollowsSameAccumulateRules() {
+        val record = ScanResult(productName = "纯牛奶")
+        val merged = record.mergeObservation(ScanResult(productionDate = "2025-01-01"))
+
+        assertEquals("纯牛奶", merged.productName)
+        assertEquals("原味酸奶", merged.mergeObservation(ScanResult(productName = "原味酸奶")).productName)
+    }
+
+    /** 只读到品名也算有内容，据此给出「清空 / 保存」入口 */
+    @Test
+    fun productNameAloneCountsAsContent() {
+        assertTrue(ScanResult(productName = "纯牛奶").hasAnyValue)
     }
 }

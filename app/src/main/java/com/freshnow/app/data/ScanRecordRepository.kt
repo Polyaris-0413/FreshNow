@@ -16,6 +16,7 @@ class ScanRecordRepository(context: Context) {
     suspend fun save(result: ScanResult) {
         dao.insert(
             ScanRecord(
+                productName = result.productName,
                 productionDate = result.productionDate,
                 expiryDate = result.expiryDate,
                 shelfLife = result.shelfLife,
