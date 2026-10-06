@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.component
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +20,7 @@ fun FreshNowSubPage(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
@@ -34,7 +36,8 @@ fun FreshNowSubPage(
                             contentDescription = stringResource(R.string.action_back)
                         )
                     }
-                }
+                },
+                actions = actions
             )
         },
         snackbarHost = snackbarHost,

@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
@@ -64,7 +66,15 @@ fun ScanScreen(
     FreshNowSubPage(
         title = stringResource(R.string.scan),
         onBack = onBack,
-        modifier = modifier
+        modifier = modifier,
+        actions = {
+            // 只在已经扫到内容时才给清空入口，避免出现一个点了没反应的按钮
+            if (uiState.record.hasAnyValue) {
+                TextButton(onClick = viewModel::clearRecord) {
+                    Text(text = stringResource(R.string.scan_clear))
+                }
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier

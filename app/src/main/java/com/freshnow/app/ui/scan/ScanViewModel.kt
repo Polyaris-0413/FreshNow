@@ -68,15 +68,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                         // 累加记录：本帧没看到的字段保留已有值，推算也基于累加后的记录
                         val record = state.record.mergeObservation(observation)
                         Log.d(TAG, "本帧读数=$observation 累加记录=$record")
-                        state.copy(
-                            record = record,
-                            expiry = ExpiryCalculator.resolve(
-                                printedExpiry = record.expiryDate,
-                                productionDate = record.productionDate,
-                                shelfLife = record.shelfLife
-                            ),
-                            status = ScanStatus.Idle
-                        )
+                        state.withRecord(record).copy(status = ScanStatus.Idle)
                     }
                 } else {
                     // 未配置时不要先切到 Analyzing，否则状态会在两种文案之间反复跳动
@@ -90,6 +82,23 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * 清空累加记录，开始扫描下一件商品
+     */
+    fun clearRecord() {
+        _uiState.update { it.withRecord(ScanResult()) }
+    }
+
+    /** 记录与推算结果必须一起更新，避免两处状态不同步 */
+    private fun ScanUiState.withRecord(record: ScanResult) = copy(
+        record = record,
+        expiry = ExpiryCalculator.resolve(
+            printedExpiry = record.expiryDate,
+            productionDate = record.productionDate,
+            shelfLife = record.shelfLife
+        )
+    )
 
     private companion object {
         const val TAG = "ScanViewModel"

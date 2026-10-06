@@ -20,3 +20,7 @@ fun ScanResult.mergeObservation(observation: ScanResult) = ScanResult(
     expiryDate = observation.expiryDate.ifBlank { expiryDate },
     shelfLife = observation.shelfLife.ifBlank { shelfLife }
 )
+
+/** 是否已经累计到任何内容，用于决定要不要给出「清空」入口 */
+val ScanResult.hasAnyValue: Boolean
+    get() = productionDate.isNotBlank() || expiryDate.isNotBlank() || shelfLife.isNotBlank()
