@@ -12,14 +12,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import com.freshnow.app.R
 
-// 尚未定义品牌色，静态配色直接引用 Material Design 3 基线；Android 12+ 使用壁纸动态取色
+// 配色直接引用 Material Design 3 基线：尚未定义品牌色，而 M3 规范只给定 baseline 与
+// 「seed → 五条色调板 → 按色调映射角色」的算法，并不提供现成的品牌取值
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
+/**
+ * @param dynamicColor 壁纸动态取色。默认关闭：开启时 Android 12+ 上所有强调色都来自壁纸，
+ * 应用等于没有自己的配色；而且「还剩几天 / 已过期」这类状态色也会跟着壁纸变，可预期性差。
+ * 保留这个开关是为了将来把它做成设置里的一项，而不是留一段死代码。
+ */
 @Composable
 fun FreshNowTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val scheme = when {
