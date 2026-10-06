@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -92,16 +94,12 @@ fun ScanScreen(
         title = stringResource(R.string.scan),
         onBack = { if (hasResult) showSaveDialog = true else onBack() },
         modifier = modifier,
-        actions = {
-            // 只在已经扫到内容时才给清空/保存入口，避免出现点了没反应的按钮
-            if (hasResult) {
-                TextButton(onClick = viewModel::clearRecord) {
-                    Text(text = stringResource(R.string.scan_clear))
-                }
-                TextButton(onClick = { saveAndLeave() }) {
-                    Text(text = stringResource(R.string.action_save))
-                }
-            }
+        bottomBar = {
+            ScanActionBar(
+                enabled = hasResult,
+                onClear = viewModel::clearRecord,
+                onSave = { saveAndLeave() }
+            )
         }
     ) { innerPadding ->
         // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
@@ -193,6 +191,48 @@ fun ScanScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * 底部操作区：清空与保存。
+ *
+ * 放在屏幕底部而非顶栏：这两个是屏幕级上下文操作，M3 给这类操作的位置就是底部的
+ * Bottom App Bar，顶栏则留给返回这类全局导航；底部伸手可及，也比顶栏好按。
+ *
+ * 无内容时按钮置灰而不隐藏。隐藏会让底栏在第一条识别结果到达的瞬间凭空出现、把上方内容顶一下，
+ * 横屏下还会连带让取景框缩一次；而禁用态本身就是 M3 表达「现在还不可用」的方式。
+ * 保存是主操作（填充按钮）、清空是次操作（描边按钮），与设置页的取消/保存同一套主次关系。
+ *
+ * 提为 internal 是为了能在仪器化测试里直接断言置灰与可点两种状态：设备上要出现「已扫到内容」
+ * 得靠相机真的拍到标签，测试里没法复现。
+ */
+@Composable
+internal fun ScanActionBar(
+    enabled: Boolean,
+    onClear: () -> Unit,
+    onSave: () -> Unit
+) {
+    BottomAppBar {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+        ) {
+            OutlinedButton(
+                onClick = onClear,
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.scan_clear))
+            }
+            Button(
+                onClick = onSave,
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.action_save))
+            }
+        }
     }
 }
 

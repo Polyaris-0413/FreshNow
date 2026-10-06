@@ -1,7 +1,6 @@
 package com.freshnow.app.ui.component
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -13,15 +12,15 @@ import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 
 /**
- * 二级页面骨架：分层顶栏 + 返回键，页面内容由 content 填充
+ * 二级页面骨架：分层顶栏 + 返回键，底部操作区与页面内容分别由 bottomBar、content 填充
  */
 @Composable
 fun FreshNowSubPage(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    actions: @Composable RowScope.() -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
     Scaffold(
@@ -36,11 +35,11 @@ fun FreshNowSubPage(
                             contentDescription = stringResource(R.string.action_back)
                         )
                     }
-                },
-                actions = actions
+                }
             )
         },
         snackbarHost = snackbarHost,
+        bottomBar = bottomBar,
         content = content
     )
 }
