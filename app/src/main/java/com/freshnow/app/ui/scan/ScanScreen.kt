@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import kotlinx.coroutines.launch
 
 private const val CAMERA_ASPECT_RATIO = 3f / 4f
 
@@ -49,6 +53,9 @@ fun ScanScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val savedMessage = stringResource(R.string.scan_saved)
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -67,9 +74,19 @@ fun ScanScreen(
         title = stringResource(R.string.scan),
         onBack = onBack,
         modifier = modifier,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         actions = {
-            // 只在已经扫到内容时才给清空入口，避免出现一个点了没反应的按钮
+            // 只在已经扫到内容时才给保存/清空入口，避免出现点了没反应的按钮
             if (uiState.record.hasAnyValue) {
+                TextButton(
+                    onClick = {
+                        if (viewModel.save()) {
+                            scope.launch { snackbarHostState.showSnackbar(savedMessage) }
+                        }
+                    }
+                ) {
+                    Text(text = stringResource(R.string.action_save))
+                }
                 TextButton(onClick = viewModel::clearRecord) {
                     Text(text = stringResource(R.string.scan_clear))
                 }

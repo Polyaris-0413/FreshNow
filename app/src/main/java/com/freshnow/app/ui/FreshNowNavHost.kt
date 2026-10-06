@@ -8,7 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
-import com.freshnow.app.ui.home.HomeScreen
+import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
 
@@ -28,7 +28,7 @@ fun FreshNowNavHost(
         startDestination = FreshNowRoute.HOME
     ) {
         composable(FreshNowRoute.HOME) {
-            HomeScreen(
+            HomeRoute(
                 onNavigateToScan = { navController.navigate(FreshNowRoute.SCAN) },
                 onNavigateToAbout = { navController.navigate(FreshNowRoute.ABOUT) },
                 onNavigateToSettings = { navController.navigate(FreshNowRoute.SETTINGS) }

@@ -8,7 +8,9 @@ import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.AiVisionClient
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.ScanResult
+import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.data.mergeObservation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,7 @@ data class ScanUiState(
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepository = AiSettingsRepository(application)
+    private val recordRepository = ScanRecordRepository(application)
     private val client = AiVisionClient()
 
     // 同时表示"请求进行中"与"冷却期"，避免连续送帧
@@ -81,6 +84,18 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 busy.set(false)
             }
         }
+    }
+
+    /**
+     * 保存当前累加记录，成功后清空以便接着扫描下一件商品。无可保存内容时返回 false
+     */
+    fun save(): Boolean {
+        val record = _uiState.value.record
+        if (!record.hasAnyValue) return false
+
+        viewModelScope.launch { recordRepository.save(record) }
+        clearRecord()
+        return true
     }
 
     /**
