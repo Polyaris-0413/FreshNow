@@ -9,6 +9,7 @@ import com.freshnow.app.data.AiVisionClient
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanResult
+import com.freshnow.app.data.mergeObservation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,7 @@ sealed interface ScanStatus {
 }
 
 data class ScanUiState(
-    val result: ScanResult = ScanResult(),
+    val record: ScanResult = ScanResult(),
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     val status: ScanStatus = ScanStatus.Idle
 )
@@ -62,14 +63,17 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update { state ->
                         if (state.status is ScanStatus.Failed) state else state.copy(status = ScanStatus.Analyzing)
                     }
-                    val result = client.analyze(settings, jpeg)
-                    _uiState.update {
-                        it.copy(
-                            result = result,
+                    val observation = client.analyze(settings, jpeg)
+                    _uiState.update { state ->
+                        // 累加记录：本帧没看到的字段保留已有值，推算也基于累加后的记录
+                        val record = state.record.mergeObservation(observation)
+                        Log.d(TAG, "本帧读数=$observation 累加记录=$record")
+                        state.copy(
+                            record = record,
                             expiry = ExpiryCalculator.resolve(
-                                printedExpiry = result.expiryDate,
-                                productionDate = result.productionDate,
-                                shelfLife = result.shelfLife
+                                printedExpiry = record.expiryDate,
+                                productionDate = record.productionDate,
+                                shelfLife = record.shelfLife
                             ),
                             status = ScanStatus.Idle
                         )

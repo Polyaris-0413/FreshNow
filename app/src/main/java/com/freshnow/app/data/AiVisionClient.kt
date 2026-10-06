@@ -104,14 +104,16 @@ class AiVisionClient {
         const val READ_TIMEOUT_MS = 60_000
         const val ERROR_BODY_LIMIT = 300
         val PROMPT = """
-            你是食品标签识别助手。请从图片中读取以下三项，只输出 JSON，不要输出解释，也不要使用代码块标记：
+            你是食品标签识别助手。请从这张照片中读取以下三项，只输出 JSON，不要输出解释，也不要使用代码标记：
             {"productionDate":"","expiryDate":"","shelfLife":""}
 
             规则：
             - productionDate：标签上印刷的生产日期，写成 yyyy-MM-dd
-            - expiryDate：标签上印刷的过期日期或保质期截止日期，写成 yyyy-MM-dd；标签没有印刷就留空
+            - expiryDate：标签上印刷的过期日期或保质期截止日期，写成 yyyy-MM-dd
             - shelfLife：标签上印刷的保质期，写成「数字+单位」，例如 18个月、180天、2年
-            - 不要做任何日期推算或计算。标签上没有印刷的字段一律填空字符串。
+            - 只填写这张照片里确实看得清的字段；看不清或没拍到的一律留空。
+            - 留空表示「这张照片里没看到这一项」，不会清除此前已识别到的内容，所以不要为了补全而推测或编造。
+            - 不要做任何日期推算或计算。
         """.trimIndent()
     }
 }

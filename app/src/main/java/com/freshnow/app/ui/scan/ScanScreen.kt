@@ -88,7 +88,7 @@ fun ScanScreen(
             ) {
                 ScanResultRow(
                     label = stringResource(R.string.scan_production_date),
-                    value = uiState.result.productionDate
+                    value = uiState.record.productionDate
                 )
                 ScanResultRow(
                     label = stringResource(R.string.scan_expiry_date),
@@ -100,7 +100,7 @@ fun ScanScreen(
                 )
                 ScanResultRow(
                     label = stringResource(R.string.scan_shelf_life),
-                    value = uiState.result.shelfLife
+                    value = uiState.record.shelfLife
                 )
             }
 
