@@ -21,7 +21,10 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
  * 一次扫描的三项结果（生产日期 / 过期日期 / 保质期）。
  *
  * 三项拼接展示：首尾两块朝向页面外的一侧取大圆角、朝向中间的一侧取小圆角，中间一块四角都用小圆角，
- * 块之间留出间距，不使用分隔线。圆角只引用 M3 形状令牌（MaterialTheme.shapes），不另定义数值。
+ * 块之间留出间距，不使用分隔线。
+ *
+ * 外圈取 M3 给卡片类容器的指定档 medium，与页面上其他圆角容器（取景框、思维链面板）保持一致；
+ * 内圈取最小档 extraSmall，让拼接的「外圆内方」更清晰。圆角只引用形状令牌，不另定义数值。
  *
  * 过期日期优先用标签上的印刷值，没有印刷值才由程序按生产日期 + 保质期推算。
  */
@@ -37,7 +40,7 @@ fun FreshNowDateFields(
         ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
         ExpiryOutcome.InsufficientInput -> ""
     }
-    val outerCorner = MaterialTheme.shapes.large
+    val outerCorner = MaterialTheme.shapes.medium
     val innerCorner = MaterialTheme.shapes.extraSmall
 
     Column(
