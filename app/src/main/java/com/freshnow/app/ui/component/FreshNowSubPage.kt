@@ -12,7 +12,7 @@ import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 
 /**
- * 二级页面骨架：分层顶栏 + 返回键，底部操作区与页面内容分别由 bottomBar、content 填充
+ * 二级页面骨架：分层顶栏 + 返回键，页面内容由 content 填充
  */
 @Composable
 fun FreshNowSubPage(
@@ -20,7 +20,6 @@ fun FreshNowSubPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHost: @Composable () -> Unit = {},
-    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
     Scaffold(
@@ -39,7 +38,6 @@ fun FreshNowSubPage(
             )
         },
         snackbarHost = snackbarHost,
-        bottomBar = bottomBar,
         content = content
     )
 }

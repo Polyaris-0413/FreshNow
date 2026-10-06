@@ -21,10 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -93,14 +91,7 @@ fun ScanScreen(
     FreshNowSubPage(
         title = stringResource(R.string.scan),
         onBack = { if (hasResult) showSaveDialog = true else onBack() },
-        modifier = modifier,
-        bottomBar = {
-            ScanActionBar(
-                enabled = hasResult,
-                onClear = viewModel::clearRecord,
-                onSave = { saveAndLeave() }
-            )
-        }
+        modifier = modifier
     ) { innerPadding ->
         // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
         val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
@@ -110,6 +101,17 @@ fun ScanScreen(
                 canAcceptFrame = viewModel::canAcceptFrame,
                 onFrame = viewModel::submitFrame,
                 modifier = sizeConstraint
+            )
+        }
+
+        // 操作区跟着内容走而不是放进 Scaffold 的 bottomBar：横屏时它只占结果栏底部，
+        // 通栏的话会把按高度定尺寸的取景框一并压矮。若交出一半给 bottomBar，
+        // 就会出现两个「当前是不是横屏」的判据（版式看可用空间、bottomBar 看窗口尺寸），可能互相矛盾。
+        val actionBar: @Composable () -> Unit = {
+            ScanActionBar(
+                enabled = hasResult,
+                onClear = viewModel::clearRecord,
+                onSave = { saveAndLeave() }
             )
         }
 
@@ -133,34 +135,50 @@ fun ScanScreen(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                 ) {
-                    // 先定高再定宽：边长即取可用高度，宽度不够时 aspectRatio 会按宽度回落
+                    // 先定高再定宽：边长即取可用高度，宽度不够时 aspectRatio 会按宽度回落。
+                    // 操作区在右侧栏内，因此这里的可用高度不受它影响
                     cameraBox(
                         Modifier
                             .fillMaxHeight()
                             .aspectRatio(CAMERA_ASPECT_RATIO)
                     )
-                    ScanResultColumn(
-                        uiState = uiState,
+                    Column(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState())
-                    )
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+                    ) {
+                        ScanResultColumn(
+                            uiState = uiState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                        )
+                        actionBar()
+                    }
                 }
             } else {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    // 相机与结果列之间同样要留段间距：ScanResultColumn 内部的 spacedBy 只管它自己的子项
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                 ) {
-                    cameraBox(
-                        Modifier
+                    // 竖屏下相机跟着结果一起滚动；横屏下它在滚动区之外，滚动时保持可见
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
                             .fillMaxWidth()
-                            .aspectRatio(CAMERA_ASPECT_RATIO)
-                    )
-                    ScanResultColumn(uiState = uiState)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+                    ) {
+                        cameraBox(
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(CAMERA_ASPECT_RATIO)
+                        )
+                        ScanResultColumn(uiState = uiState)
+                    }
+                    actionBar()
                 }
             }
         }
@@ -197,12 +215,16 @@ fun ScanScreen(
 /**
  * 底部操作区：清空与保存。
  *
- * 放在屏幕底部而非顶栏：这两个是屏幕级上下文操作，M3 给这类操作的位置就是底部的
- * Bottom App Bar，顶栏则留给返回这类全局导航；底部伸手可及，也比顶栏好按。
+ * 放在底部而非顶栏：这两个是屏幕级上下文操作，M3 给这类操作的位置就是底部，顶栏留给返回这类
+ * 全局导航；底部伸手可及，也比顶栏好按。
  *
- * 无内容时按钮置灰而不隐藏。隐藏会让底栏在第一条识别结果到达的瞬间凭空出现、把上方内容顶一下，
- * 横屏下还会连带让取景框缩一次；而禁用态本身就是 M3 表达「现在还不可用」的方式。
- * 保存是主操作（填充按钮）、清空是次操作（描边按钮），与设置页的取消/保存同一套主次关系。
+ * 就是一个 Row、不带自己的底色：套 BottomAppBar 会多出一层 surfaceContainer，
+ * 在页面底部压出一条与顶栏不对称的色带——顶栏被刻意设成 background 正是为了避免这种色差。
+ * 两个按钮按内容宽度分靠两端而不各占半屏：等宽按钮在手机上会变成两块巨大的平板，
+ * 描边那块的形状与文字比例尤其失衡。
+ *
+ * 无内容时置灰而不隐藏：隐藏会让它在第一条识别结果到达的瞬间凭空出现、把上方内容顶一下。
+ * 保存是主操作（填充按钮）、清空是次操作（文字按钮），与设置页的取消/保存同一套主次关系。
  *
  * 提为 internal 是为了能在仪器化测试里直接断言置灰与可点两种状态：设备上要出现「已扫到内容」
  * 得靠相机真的拍到标签，测试里没法复现。
@@ -211,27 +233,19 @@ fun ScanScreen(
 internal fun ScanActionBar(
     enabled: Boolean,
     onClear: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    BottomAppBar {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
-        ) {
-            OutlinedButton(
-                onClick = onClear,
-                enabled = enabled,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(text = stringResource(R.string.scan_clear))
-            }
-            Button(
-                onClick = onSave,
-                enabled = enabled,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(text = stringResource(R.string.action_save))
-            }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onClear, enabled = enabled) {
+            Text(text = stringResource(R.string.scan_clear))
+        }
+        Button(onClick = onSave, enabled = enabled) {
+            Text(text = stringResource(R.string.action_save))
         }
     }
 }
