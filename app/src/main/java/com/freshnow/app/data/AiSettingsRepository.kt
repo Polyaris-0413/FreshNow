@@ -12,9 +12,14 @@ import kotlinx.coroutines.flow.map
 
 private val Context.aiSettingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_settings")
 
-class AiSettingsRepository(private val context: Context) {
+/**
+ * [dataStore] 由外部传入，测试可以换成临时文件；直接拿设备上的真实配置做测试会把用户配置覆盖掉
+ */
+class AiSettingsRepository(private val dataStore: DataStore<Preferences>) {
 
-    val aiSettings: Flow<AiSettings> = context.aiSettingsDataStore.data.map { preferences ->
+    constructor(context: Context) : this(context.aiSettingsDataStore)
+
+    val aiSettings: Flow<AiSettings> = dataStore.data.map { preferences ->
         AiSettings(
             baseUrl = preferences[KEY_BASE_URL].orEmpty(),
             modelName = preferences[KEY_MODEL_NAME].orEmpty(),
@@ -24,7 +29,7 @@ class AiSettingsRepository(private val context: Context) {
     }
 
     suspend fun save(settings: AiSettings) {
-        context.aiSettingsDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[KEY_BASE_URL] = settings.baseUrl
             preferences[KEY_MODEL_NAME] = settings.modelName
             preferences[KEY_API_KEY] = settings.apiKey
