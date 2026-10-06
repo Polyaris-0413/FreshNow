@@ -13,6 +13,7 @@
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
     <string name="ai_settings_api_key_label">API Key</string>
+    <string name="ai_settings_not_configured">未配置</string>
     <string name="error_required_field">此项为必填项</string>
     <string name="settings_saved">已保存</string>
 </resources>

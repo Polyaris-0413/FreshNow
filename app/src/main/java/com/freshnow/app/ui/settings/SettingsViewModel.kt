@@ -12,7 +12,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * [saved] 为已落盘的配置，设置项行展示它；其余字段是编辑面板的草稿，仅打开面板时从 [saved] 重置
+ */
 data class SettingsUiState(
+    val saved: AiSettings = AiSettings(),
     val baseUrl: String = "",
     val modelName: String = "",
     val apiKey: String = "",
@@ -31,9 +35,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     init {
         viewModelScope.launch {
             val saved = repository.aiSettings.first()
-            _uiState.update {
-                it.copy(baseUrl = saved.baseUrl, modelName = saved.modelName, apiKey = saved.apiKey)
-            }
+            _uiState.update { it.copy(saved = saved) }
+        }
+    }
+
+    /**
+     * 打开编辑面板时用已落盘的值重置草稿，丢弃上次未保存的改动
+     */
+    fun startEditing() {
+        _uiState.update {
+            it.copy(
+                baseUrl = it.saved.baseUrl,
+                modelName = it.saved.modelName,
+                apiKey = it.saved.apiKey,
+                baseUrlError = false,
+                modelNameError = false,
+                apiKeyError = false
+            )
         }
     }
 
@@ -69,13 +87,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             return false
         }
 
-        viewModelScope.launch {
-            repository.save(
-                AiSettings(
-                    baseUrl = current.baseUrl.trim(),
-                    modelName = current.modelName.trim(),
-                    apiKey = current.apiKey.trim()
-                )
+        val settings = AiSettings(
+            baseUrl = current.baseUrl.trim(),
+            modelName = current.modelName.trim(),
+            apiKey = current.apiKey.trim()
+        )
+        viewModelScope.launch { repository.save(settings) }
+        _uiState.update {
+            it.copy(
+                saved = settings,
+                baseUrl = settings.baseUrl,
+                modelName = settings.modelName,
+                apiKey = settings.apiKey
             )
         }
         return true

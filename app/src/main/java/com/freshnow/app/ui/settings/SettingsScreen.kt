@@ -11,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -66,12 +64,15 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         SettingsList(
-            onBasicConfigClick = { showEditor = true },
+            summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
+            onBasicConfigClick = {
+                viewModel.startEditing()
+                showEditor = true
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = FreshNowSpacing.sm, vertical = FreshNowSpacing.sm)
         )
     }
 
@@ -100,6 +101,7 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsList(
+    summary: String,
     onBasicConfigClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -107,27 +109,25 @@ private fun SettingsList(
         // 分区标题：M3 无专门组件，采用 Settings 惯例的 Title Small + primary
         Text(
             text = stringResource(R.string.ai_settings_section_title),
+            modifier = Modifier.padding(
+                start = FreshNowSpacing.sm,
+                top = FreshNowSpacing.sm,
+                end = FreshNowSpacing.sm,
+                bottom = FreshNowSpacing.xxs
+            ),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary
         )
 
-        // Filled Card：surface-container-highest 填充，corner-medium 圆角，用于归组设置项
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = FreshNowSpacing.xs),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-        ) {
-            ListItem(
-                headlineContent = {
-                    Text(text = stringResource(R.string.ai_settings_basic_group_title))
-                },
-                modifier = Modifier.clickable(onClick = onBasicConfigClick),
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
-        }
+        // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.ai_settings_basic_group_title))
+            },
+            supportingContent = { Text(text = summary) },
+            modifier = Modifier.clickable(onClick = onBasicConfigClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
 }
 
