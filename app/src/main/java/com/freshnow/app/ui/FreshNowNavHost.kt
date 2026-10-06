@@ -11,6 +11,7 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
+import com.freshnow.app.ui.theme.FreshNowTransitions
 
 object FreshNowRoute {
     const val HOME = "home"
@@ -25,7 +26,11 @@ fun FreshNowNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = FreshNowRoute.HOME
+        startDestination = FreshNowRoute.HOME,
+        enterTransition = { FreshNowTransitions.forwardEnter },
+        exitTransition = { FreshNowTransitions.forwardExit },
+        popEnterTransition = { FreshNowTransitions.backEnter },
+        popExitTransition = { FreshNowTransitions.backExit }
     ) {
         composable(FreshNowRoute.HOME) {
             HomeRoute(
