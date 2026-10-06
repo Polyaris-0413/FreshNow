@@ -202,6 +202,9 @@ private fun SettingsList(
         )
 
         ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
+            },
             headlineContent = {
                 Text(text = stringResource(R.string.ai_settings_extra_title))
             },
