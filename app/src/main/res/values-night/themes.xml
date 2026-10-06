@@ -3,5 +3,12 @@
      若始终沿用浅色主题，页面淡入淡出时半透明内容会透出浅色窗口背景（白闪） -->
 <resources>
 
-    <style name="Theme.FreshNow" parent="android:Theme.Material.NoActionBar" />
+    <!-- 说明见 values/themes.xml；这里是 M3 基线的深色 background（darkColorScheme().background） -->
+    <color name="window_background">#141218</color>
+
+    <style name="Theme.FreshNow.Base" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <style name="Theme.FreshNow" parent="Theme.FreshNow.Base" />
 </resources>

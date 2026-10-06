@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- windowSplashScreenBackground 是 API 31 才引入的属性，只能放在带版本限定的目录里，
+         否则 lint 会按 NewApi 报错。它也读同一个 @color，因此深浅两套主题各自成立。
+         windowBackground 只决定窗口底色，覆盖不到 API 31+ 的启动图，所以这条不能省 -->
+    <style name="Theme.FreshNow" parent="Theme.FreshNow.Base">
+        <item name="android:windowSplashScreenBackground">@color/window_background</item>
+    </style>
+</resources>
