@@ -2,6 +2,7 @@ package com.freshnow.app.data
 
 import java.time.LocalDate
 import java.time.Period
+import java.time.temporal.ChronoUnit
 
 sealed interface ExpiryOutcome {
     /** 已得到明确日期：标签印刷值，或由生产日期与保质期推算而来 */
@@ -37,5 +38,18 @@ object ExpiryCalculator {
             ?: return ExpiryOutcome.UnparseableShelfLife
 
         return ExpiryOutcome.Resolved(ScanValueFormat.format(expiry))
+    }
+
+    /**
+     * 距过期还有多少天：正数表示还没过期，0 表示当天到期，负数表示已经过期。
+     *
+     * 过期日期认不出来（推算不出来，或印刷值根本不是日期）时返回 null，怎么说明由界面决定。
+     * [today] 由调用方传入——「今天」是运行时取的值，不在这里固化。
+     */
+    fun daysRemaining(expiry: ExpiryOutcome, today: LocalDate): Long? {
+        val date = (expiry as? ExpiryOutcome.Resolved)
+            ?.let { ScanValueFormat.parseDate(it.date.trim()) }
+            ?: return null
+        return ChronoUnit.DAYS.between(today, date)
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,13 +40,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
-import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.component.FreshNowTopAppBar
-import com.freshnow.app.ui.component.formatSavedAt
+import com.freshnow.app.ui.component.ScanThumbnail
+import com.freshnow.app.ui.component.scanValueText
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Composable
 fun HomeRoute(
@@ -71,7 +76,7 @@ fun HomeRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    records: List<ScanRecord>,
+    records: List<HomeRecordItem>,
     onRecordClick: (Long) -> Unit,
     onNavigateToScan: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -179,7 +184,7 @@ private fun SheetMenuItem(
 
 @Composable
 private fun RecordsList(
-    records: List<ScanRecord>,
+    records: List<HomeRecordItem>,
     onRecordClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -194,44 +199,70 @@ private fun RecordsList(
         return
     }
 
+    val today = rememberToday()
     LazyColumn(modifier = modifier) {
-        items(records, key = { it.id }) { record ->
-            RecordRow(record = record, onClick = { onRecordClick(record.id) })
+        items(records, key = { it.record.id }) { item ->
+            RecordRow(
+                item = item,
+                today = today,
+                onClick = { onRecordClick(item.record.id) }
+            )
         }
     }
 }
 
+/**
+ * 今天的日期，跨过零点会自己更新。
+ *
+ * 剩余天数是按当天算的，「今天」若固化成常量，应用停在列表上过夜后数字就是错的。
+ */
+@Composable
+private fun rememberToday(): LocalDate {
+    var today by remember { mutableStateOf(LocalDate.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val nextMidnight = today.plusDays(1).atStartOfDay()
+            val untilMidnight = Duration.between(LocalDateTime.now(), nextMidnight).toMillis()
+            // 兜底一秒，系统时间被往回拨时不会变成空转
+            delay(untilMidnight.coerceAtLeast(1_000L))
+            today = LocalDate.now()
+        }
+    }
+    return today
+}
+
 @Composable
 private fun RecordRow(
-    record: ScanRecord,
+    item: HomeRecordItem,
+    today: LocalDate,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val unknown = stringResource(R.string.scan_value_unknown)
-    val expiry = remember(record) {
-        ExpiryCalculator.resolve(record.expiryDate, record.productionDate, record.shelfLife)
-    }
-    val expiryText = when (expiry) {
-        is ExpiryOutcome.Resolved -> expiry.date
-        ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
-        ExpiryOutcome.InsufficientInput -> unknown
-    }
+    val days = ExpiryCalculator.daysRemaining(item.expiry, today)
 
     ListItem(
         modifier = modifier.clickable(onClick = onClick),
-        overlineContent = { Text(text = formatSavedAt(record.savedAt)) },
-        headlineContent = { Text(text = stringResource(R.string.record_expiry, expiryText)) },
+        leadingContent = { ScanThumbnail(image = item.image) },
+        headlineContent = { Text(text = scanValueText(item.record.productName)) },
         supportingContent = {
             Text(
-                text = stringResource(
-                    R.string.record_detail,
-                    record.productionDate.ifBlank { unknown },
-                    record.shelfLife.ifBlank { unknown }
-                )
+                text = expiryCountdownText(days),
+                // 已过期值得一眼看见，用错误色；M3 没有单独的警告色，所以只有过期才上色
+                color = if (days != null && days < 0) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
+}
+
+/** 剩余天数写成一句话：算不出就用「未知」，不假装知道 */
+@Composable
+private fun expiryCountdownText(days: Long?): String = when {
+    days == null -> stringResource(R.string.home_expiry_unknown)
+    days > 0 -> stringResource(R.string.home_expiry_days_left, days)
+    days == 0L -> stringResource(R.string.home_expiry_today)
+    else -> stringResource(R.string.home_expiry_expired, -days)
 }
 
 @Preview(showBackground = true)
@@ -248,8 +279,27 @@ private fun HomeScreenPreview() {
                     shelfLife = "18个月",
                     imageName = "",
                     savedAt = 0
+                ),
+                ScanRecord(
+                    id = 2,
+                    productName = "",
+                    productionDate = "2024-01-01",
+                    expiryDate = "",
+                    shelfLife = "保质期见喷码",
+                    imageName = "",
+                    savedAt = 0
                 )
-            ),
+            ).map { record ->
+                HomeRecordItem(
+                    record = record,
+                    expiry = ExpiryCalculator.resolve(
+                        printedExpiry = record.expiryDate,
+                        productionDate = record.productionDate,
+                        shelfLife = record.shelfLife
+                    ),
+                    image = null
+                )
+            },
             onRecordClick = {},
             onNavigateToScan = {},
             onNavigateToAbout = {},

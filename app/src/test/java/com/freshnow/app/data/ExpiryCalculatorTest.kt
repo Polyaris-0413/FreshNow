@@ -1,7 +1,9 @@
 package com.freshnow.app.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.LocalDate
 
 class ExpiryCalculatorTest {
 
@@ -99,5 +101,42 @@ class ExpiryCalculatorTest {
             ExpiryOutcome.Resolved("见包装"),
             ExpiryCalculator.resolve("见包装", "", "")
         )
+    }
+
+    @Test
+    fun countsDaysUntilExpiry() {
+        val today = LocalDate.of(2026, 1, 1)
+
+        assertEquals(9L, ExpiryCalculator.daysRemaining(ExpiryOutcome.Resolved("2026-01-10"), today))
+        assertEquals(0L, ExpiryCalculator.daysRemaining(ExpiryOutcome.Resolved("2026-01-01"), today))
+        assertEquals(-3L, ExpiryCalculator.daysRemaining(ExpiryOutcome.Resolved("2025-12-29"), today))
+    }
+
+    @Test
+    fun countsDaysAcrossLeapDay() {
+        assertEquals(
+            29L,
+            ExpiryCalculator.daysRemaining(
+                ExpiryOutcome.Resolved("2024-03-01"),
+                LocalDate.of(2024, 2, 1)
+            )
+        )
+    }
+
+    /** 中文数字写的保质期也要能一路算到剩余天数，这是「两个月」算不出来的那条链路的回归 */
+    @Test
+    fun countsDaysFromExpiryResolvedOutOfChineseShelfLife() {
+        val expiry = ExpiryCalculator.resolve("", "2025年1月1日", "十八个月")
+
+        assertEquals(0L, ExpiryCalculator.daysRemaining(expiry, LocalDate.of(2026, 7, 1)))
+    }
+
+    @Test
+    fun reportsNoCountdownWhenExpiryUnknown() {
+        val today = LocalDate.of(2026, 1, 1)
+
+        assertNull(ExpiryCalculator.daysRemaining(ExpiryOutcome.InsufficientInput, today))
+        assertNull(ExpiryCalculator.daysRemaining(ExpiryOutcome.UnparseableShelfLife, today))
+        assertNull(ExpiryCalculator.daysRemaining(ExpiryOutcome.Resolved("见包装"), today))
     }
 }

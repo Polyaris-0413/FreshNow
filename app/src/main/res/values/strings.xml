@@ -20,8 +20,10 @@
     <string name="scan_save_dialog_title">保存本次扫描结果？</string>
     <string name="scan_save_dialog_discard">不保存</string>
     <string name="home_records_empty">还没有扫描记录</string>
-    <string name="record_expiry">过期 %1$s</string>
-    <string name="record_detail">生产 %1$s · 保质期 %2$s</string>
+    <string name="home_expiry_days_left">还剩 %1$d 天</string>
+    <string name="home_expiry_today">今天到期</string>
+    <string name="home_expiry_expired">已过期 %1$d 天</string>
+    <string name="home_expiry_unknown">过期时间未知</string>
     <string name="record_detail_title">记录详情</string>
     <string name="record_detail_missing">记录不存在</string>
     <string name="record_image">扫描照片</string>
