@@ -20,6 +20,9 @@ class ScanValueFormatTest {
     @Test
     fun date_withSlashesAndSingleDigits_isPadded() {
         assertEquals("2026-10-06", ScanValueFormat.date("2026/10/6"))
+        // 模型照抄标签简写时会出现这种不补零的写法
+        assertEquals("2026-10-06", ScanValueFormat.date("2026-10-6"))
+        assertEquals("2026-01-06", ScanValueFormat.date("2026-1-6"))
     }
 
     @Test
