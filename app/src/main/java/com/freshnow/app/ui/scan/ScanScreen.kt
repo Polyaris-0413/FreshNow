@@ -153,7 +153,9 @@ fun ScanScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(rememberScrollState()),
+                    // 相机与结果列之间同样要留段间距：ScanResultColumn 内部的 spacedBy 只管它自己的子项
+                    verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                 ) {
                     cameraBox(
                         Modifier
