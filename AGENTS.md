@@ -22,5 +22,5 @@ Material Symbols 的 SVG 官方坐标系是负 Y 以及 viewBox 从 -960 开始
 路径为 C:\Users\Administrator\.pi\agent\skills\material-3
 
 ## 3. 杂项
-- 禁止私自进行与键盘输入有关的调试 这会导致输入法的BUG 应要求用户进行手动调试
+- 禁止私自在真机进行与键盘输入有关的调试 这会导致输入法的BUG 应要求用户进行手动调试
 - baseline profile 无法在真机上录制 原因未知 需要使用虚拟机 
