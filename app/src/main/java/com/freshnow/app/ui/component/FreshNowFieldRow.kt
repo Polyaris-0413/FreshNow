@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
@@ -22,7 +23,8 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 fun FreshNowFieldRow(
     label: String,
     value: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    valueStyle: TextStyle = MaterialTheme.typography.bodyLarge
 ) {
     Row(
         modifier = modifier
@@ -38,7 +40,7 @@ fun FreshNowFieldRow(
         )
         Text(
             text = scanValueText(value),
-            style = MaterialTheme.typography.bodyLarge
+            style = valueStyle
         )
     }
 }

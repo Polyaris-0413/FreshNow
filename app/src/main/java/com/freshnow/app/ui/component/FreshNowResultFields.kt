@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -21,8 +20,8 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 /**
  * 一次扫描的结果：品名单独成块放在最上面，下面三项日期与保质期拼接成一组。
  *
- * 品名不与日期组相连（两块之间的间距大于日期组内部的间距）。品名是自由文本、长度不定，
- * 排法也与短值字段不同：日期组是标签在左、值在右，品名块是标题在上、品名在下并左对齐。
+ * 品名不与日期组相连（两块之间的间距大于日期组内部的间距），但块内排法与日期三项一致，
+ * 都是标签在左、值在右；只有值的字阶用 titleMedium 略作强调，因为品名是这组结果的主语。
  *
  * 日期组三块拼接展示：首尾两块朝向页面外的一侧取大圆角、朝向中间的一侧取小圆角，中间一块四角都用小圆角。
  * 外圈取规范给卡片类容器的 medium，与页面上其他圆角容器保持一致；内圈取最小档 extraSmall，
@@ -82,23 +81,12 @@ fun FreshNowResultFields(
  */
 @Composable
 private fun ProductNameBlock(productName: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest
-    ) {
-        Column(modifier = Modifier.padding(FreshNowSpacing.sm)) {
-            Text(
-                text = stringResource(R.string.scan_product_name),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = scanValueText(productName),
-                modifier = Modifier.padding(top = FreshNowSpacing.xxs),
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
+    FieldSegment(shape = MaterialTheme.shapes.medium, modifier = modifier) {
+        FreshNowFieldRow(
+            label = stringResource(R.string.scan_product_name),
+            value = productName,
+            valueStyle = MaterialTheme.typography.titleMedium
+        )
     }
 }
 
@@ -118,10 +106,11 @@ private fun splicedShape(top: CornerBasedShape, bottom: CornerBasedShape) = Roun
 @Composable
 private fun FieldSegment(
     shape: Shape,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
