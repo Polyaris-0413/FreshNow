@@ -104,11 +104,12 @@ class AiVisionClient {
             ?: throw IllegalStateException("模型未返回 JSON：${content.take(ERROR_BODY_LIMIT)}")
 
         return AiAnalysis(
+            // 模型每帧独立作答，同一项的写法规整一遍，免得换了一帧就变成另一种写法
             result = ScanResult(
                 productName = json.optString("productName"),
-                productionDate = json.optString("productionDate"),
-                expiryDate = json.optString("expiryDate"),
-                shelfLife = json.optString("shelfLife")
+                productionDate = ScanValueFormat.date(json.optString("productionDate")),
+                expiryDate = ScanValueFormat.date(json.optString("expiryDate")),
+                shelfLife = ScanValueFormat.shelfLife(json.optString("shelfLife"))
             ),
             reasoning = REASONING_KEYS
                 .firstNotNullOfOrNull { key -> message.optString(key).trim().takeIf { it.isNotEmpty() } }

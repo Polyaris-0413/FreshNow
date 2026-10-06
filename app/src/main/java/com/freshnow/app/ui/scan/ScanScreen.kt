@@ -263,8 +263,8 @@ private fun ScanStatusText(
     modifier: Modifier = Modifier
 ) {
     val text = when (status) {
-        ScanStatus.Idle -> null
-        ScanStatus.Analyzing -> stringResource(R.string.scan_status_analyzing)
+        // 识别中不显示文案：实时扫描下这个状态每隔一两秒就在识别与空闲之间来回切，文字会不停闪现
+        ScanStatus.Idle, ScanStatus.Analyzing -> null
         ScanStatus.NotConfigured -> stringResource(R.string.scan_ai_not_configured)
         is ScanStatus.Failed -> status.detail
     }

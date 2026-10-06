@@ -26,7 +26,6 @@
     <string name="record_detail_missing">记录不存在</string>
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
-    <string name="scan_status_analyzing">识别中…</string>
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>
     <string name="scan_grant_permission">授予权限</string>
     <string name="scan_ai_not_configured">尚未配置 AI，请先在「设置 → 基础配置」中填写</string>
