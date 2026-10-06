@@ -1,7 +1,6 @@
 package com.freshnow.app.data
 
 import java.time.LocalDate
-import java.time.Period
 import java.time.temporal.ChronoUnit
 
 sealed interface ExpiryOutcome {

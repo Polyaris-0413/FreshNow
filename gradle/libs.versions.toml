@@ -3,6 +3,8 @@ agp = "9.4.1"
 coreKtx = "1.19.1"
 junit = "4.13.2"
 junitVersion = "1.3.0"
+# 应用代码未直接用 Espresso，但这条声明把传递依赖里的 espresso-core 从 3.5.0 钉到 3.7.0，
+# 删掉会静默降级，因此保留（见 app/build.gradle.kts 的 androidTestImplementation）
 espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
