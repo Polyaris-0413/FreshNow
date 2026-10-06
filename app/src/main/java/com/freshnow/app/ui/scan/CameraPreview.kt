@@ -127,6 +127,17 @@ private suspend fun Context.awaitCameraProvider(): ProcessCameraProvider =
         )
     }
 
+/** 居中正方形裁剪区域 */
+internal data class SquareCrop(val left: Int, val top: Int, val side: Int)
+
+/**
+ * 算出居中的正方形裁剪区域。抽成纯函数是为了几何部分能直接单测，不必起相机或模拟器
+ */
+internal fun squareCrop(width: Int, height: Int): SquareCrop {
+    val side = minOf(width, height)
+    return SquareCrop(left = (width - side) / 2, top = (height - side) / 2, side = side)
+}
+
 /**
  * RGBA_8888 输出的字节序是 R,G,B,A（见 ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888），
  * 而 Bitmap 的 ARGB_8888 内存序是 B,G,R,A，直接 copyPixelsFromBuffer 会红蓝互换，
@@ -168,6 +179,14 @@ private fun ImageProxy.toUprightJpeg(): ByteArray? {
             Matrix().apply { postRotate(rotation.toFloat()) },
             true
         ).also { bitmap.recycle() }
+    }
+
+    // 取景框是正方形、预览也是居中裁剪填满的，所以整帧同样裁成中间的正方形：
+    // 看到什么就存什么、也就识别什么，三者画面一致
+    val crop = squareCrop(bitmap.width, bitmap.height)
+    if (crop.side != bitmap.width || crop.side != bitmap.height) {
+        bitmap = Bitmap.createBitmap(bitmap, crop.left, crop.top, crop.side, crop.side)
+            .also { bitmap.recycle() }
     }
 
     val longSide = max(bitmap.width, bitmap.height)

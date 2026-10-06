@@ -75,6 +75,8 @@ fun RecordDetailScreen(
                     .padding(FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
+                ScanPhoto(image = uiState.image)
+
                 Text(
                     text = formatSavedAt(record.savedAt),
                     style = MaterialTheme.typography.bodySmall,
@@ -87,8 +89,6 @@ fun RecordDetailScreen(
                     expiry = uiState.expiry,
                     shelfLife = record.shelfLife
                 )
-
-                ScanPhoto(image = uiState.image)
             }
         }
     }
@@ -97,7 +97,8 @@ fun RecordDetailScreen(
 /**
  * 记录里的扫描照片。
  *
- * 有图时按图片自身比例铺满宽度、不裁剪：照片是日期的凭证，裁掉边缘可能正好裁掉标签。
+ * 照片在采集时就已按取景框裁成正方形，这里按图片自身比例铺满宽度即可，不做二次裁剪
+ * （旧记录里可能存着更早期未裁方的图，同样按原比例显示）。
  * 没图时（保存时没有可用画面，或图片落盘、解码失败）用占位图标顶上去，高度固定得比照片矮一些，
  * 它只是占位、不假装是照片。
  */
