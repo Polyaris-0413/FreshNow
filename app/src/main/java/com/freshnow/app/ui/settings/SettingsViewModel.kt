@@ -14,8 +14,10 @@ import kotlinx.coroutines.launch
 
 /**
  * [saved] 为已落盘的配置，设置项行展示它；其余字段是编辑面板的草稿，仅打开面板时从 [saved] 重置
+ * [loaded] 表示 [saved] 是否已从 DataStore 读出，为 false 时界面不应渲染设置项
  */
 data class SettingsUiState(
+    val loaded: Boolean = false,
     val saved: AiSettings = AiSettings(),
     val baseUrl: String = "",
     val modelName: String = "",
@@ -35,7 +37,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     init {
         viewModelScope.launch {
             val saved = repository.aiSettings.first()
-            _uiState.update { it.copy(saved = saved) }
+            _uiState.update { it.copy(loaded = true, saved = saved) }
         }
     }
 

@@ -78,19 +78,23 @@ fun SettingsScreen(
         modifier = modifier,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
-        SettingsList(
-            summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
-            showReasoning = uiState.saved.showReasoning,
-            onBasicConfigClick = {
-                viewModel.startEditing()
-                showEditor = true
-            },
-            onShowReasoningChange = viewModel::onShowReasoningChange,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-        )
+        // 落盘值到达前不渲染设置项：开关若先按默认值（false）组合出来，随后读到的真值会让
+        // Switch 播一次关→开的动画，观感上就是「每次进设置页开关动画都重播」
+        if (uiState.loaded) {
+            SettingsList(
+                summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
+                showReasoning = uiState.saved.showReasoning,
+                onBasicConfigClick = {
+                    viewModel.startEditing()
+                    showEditor = true
+                },
+                onShowReasoningChange = viewModel::onShowReasoningChange,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+            )
+        }
     }
 
     if (showEditor) {
