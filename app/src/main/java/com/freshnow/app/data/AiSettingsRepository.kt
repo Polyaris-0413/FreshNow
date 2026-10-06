@@ -1,0 +1,37 @@
+package com.freshnow.app.data
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+private val Context.aiSettingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_settings")
+
+class AiSettingsRepository(private val context: Context) {
+
+    val aiSettings: Flow<AiSettings> = context.aiSettingsDataStore.data.map { preferences ->
+        AiSettings(
+            baseUrl = preferences[KEY_BASE_URL].orEmpty(),
+            modelName = preferences[KEY_MODEL_NAME].orEmpty(),
+            apiKey = preferences[KEY_API_KEY].orEmpty()
+        )
+    }
+
+    suspend fun save(settings: AiSettings) {
+        context.aiSettingsDataStore.edit { preferences ->
+            preferences[KEY_BASE_URL] = settings.baseUrl
+            preferences[KEY_MODEL_NAME] = settings.modelName
+            preferences[KEY_API_KEY] = settings.apiKey
+        }
+    }
+
+    private companion object {
+        val KEY_BASE_URL = stringPreferencesKey("base_url")
+        val KEY_MODEL_NAME = stringPreferencesKey("model_name")
+        val KEY_API_KEY = stringPreferencesKey("api_key")
+    }
+}

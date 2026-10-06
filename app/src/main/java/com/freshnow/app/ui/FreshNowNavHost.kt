@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.home.HomeScreen
+import com.freshnow.app.ui.settings.SettingsScreen
 
 object FreshNowRoute {
     const val HOME = "home"
@@ -37,10 +38,7 @@ fun FreshNowNavHost(
             )
         }
         composable(FreshNowRoute.SETTINGS) {
-            FreshNowSubPage(
-                title = stringResource(R.string.settings),
-                onBack = { navController.navigateUp() }
-            )
+            SettingsScreen(onBack = { navController.navigateUp() })
         }
     }
 }

@@ -4,6 +4,18 @@
     <string name="action_add">添加</string>
     <string name="action_more_options">更多选项</string>
     <string name="action_back">返回</string>
+    <string name="action_save">保存</string>
     <string name="about">关于</string>
     <string name="settings">设置</string>
+
+    <string name="ai_settings_section_title">AI 配置</string>
+    <string name="ai_settings_required_note">以下三项均为必填</string>
+    <string name="ai_settings_base_url_label">API Base URL</string>
+    <string name="ai_settings_base_url_hint">例如 https://api.example.com/v1</string>
+    <string name="ai_settings_model_name_label">模型名</string>
+    <string name="ai_settings_model_name_hint">服务商提供的模型 ID</string>
+    <string name="ai_settings_api_key_label">API Key</string>
+    <string name="ai_settings_api_key_hint">服务商提供的密钥</string>
+    <string name="error_required_field">此项为必填项</string>
+    <string name="settings_saved">已保存</string>
 </resources>
