@@ -2,11 +2,12 @@
 <resources>
 
     <!-- 窗口与启动图的底色。窗口在系统解析主题时就要用到它，远早于 Compose 运行，
-         因此引用不到 MaterialTheme.colorScheme，只能在这里再写一份 M3 基线的 background。
-         ThemeWindowBackgroundTest 会断言两边一致，只改 Compose 侧而忘了这里就会测试失败。
+         因此引用不到 MaterialTheme.colorScheme，只能在这里再写一份。取值必须等于
+         ui/theme/Color.kt 里 LightColorScheme 的 background（seed #4285F4 生成的 neutral tone 99）。
+         ThemeWindowBackgroundTest 断言两者相等，只改 Compose 侧而忘了这里就会测试失败。
 
          不指定的话会落到平台父主题的底色（#FAFAFA），与页面背景存在色差。 -->
-    <color name="window_background">#FEF7FF</color>
+    <color name="window_background">#FEFBFF</color>
 
     <!-- 底色放在 Base 里，好让 values-v31 只追加启动图那一条，不必把整个 style 重抄一遍 -->
     <style name="Theme.FreshNow.Base" parent="android:Theme.Material.Light.NoActionBar">

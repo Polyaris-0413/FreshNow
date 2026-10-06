@@ -18,3 +18,8 @@ local.properties
 
 # ZCode 客户端生成的忽略清单，上半段由客户端从 .gitignore 同步而来，属机器维护的文件，不入库
 .zcodeignore
+
+# tools/generate-color-scheme.cjs 需要 material-color-utilities（仅生成配色时用，不参与 Android 构建）
+/node_modules
+/package.json
+/package-lock.json

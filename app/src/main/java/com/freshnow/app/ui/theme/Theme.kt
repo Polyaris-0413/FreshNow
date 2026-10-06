@@ -3,19 +3,12 @@ package com.freshnow.app.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import com.freshnow.app.R
-
-// 配色直接引用 Material Design 3 基线：尚未定义品牌色，而 M3 规范只给定 baseline 与
-// 「seed → 五条色调板 → 按色调映射角色」的算法，并不提供现成的品牌取值
-private val DarkColorScheme = darkColorScheme()
-private val LightColorScheme = lightColorScheme()
 
 /**
  * @param dynamicColor 壁纸动态取色。默认关闭：开启时 Android 12+ 上所有强调色都来自壁纸，
