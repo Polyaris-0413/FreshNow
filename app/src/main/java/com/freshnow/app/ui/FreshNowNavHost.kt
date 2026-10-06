@@ -6,11 +6,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.detail.RecordDetailScreen
 import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
@@ -21,6 +24,11 @@ object FreshNowRoute {
     const val SCAN = "scan"
     const val ABOUT = "about"
     const val SETTINGS = "settings"
+
+    const val RECORD_ID_ARG = "recordId"
+    const val RECORD_DETAIL = "record/{$RECORD_ID_ARG}"
+
+    fun recordDetail(id: Long) = "record/$id"
 }
 
 @Composable
@@ -42,11 +50,21 @@ fun FreshNowNavHost(
             HomeRoute(
                 onNavigateToScan = { navController.navigate(FreshNowRoute.SCAN) },
                 onNavigateToAbout = { navController.navigate(FreshNowRoute.ABOUT) },
-                onNavigateToSettings = { navController.navigate(FreshNowRoute.SETTINGS) }
+                onNavigateToSettings = { navController.navigate(FreshNowRoute.SETTINGS) },
+                onNavigateToRecord = { id -> navController.navigate(FreshNowRoute.recordDetail(id)) }
             )
         }
         composable(FreshNowRoute.SCAN) {
             ScanScreen(onBack = { navController.navigateUp() })
+        }
+        composable(
+            route = FreshNowRoute.RECORD_DETAIL,
+            arguments = listOf(navArgument(FreshNowRoute.RECORD_ID_ARG) { type = NavType.LongType })
+        ) { entry ->
+            RecordDetailScreen(
+                recordId = entry.arguments?.getLong(FreshNowRoute.RECORD_ID_ARG) ?: 0L,
+                onBack = { navController.navigateUp() }
+            )
         }
         composable(FreshNowRoute.ABOUT) {
             FreshNowSubPage(

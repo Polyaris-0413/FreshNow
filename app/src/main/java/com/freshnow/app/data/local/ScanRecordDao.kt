@@ -13,4 +13,7 @@ interface ScanRecordDao {
 
     @Query("SELECT * FROM scan_records ORDER BY savedAt DESC")
     fun observeAll(): Flow<List<ScanRecord>>
+
+    @Query("SELECT * FROM scan_records WHERE id = :id")
+    suspend fun findById(id: Long): ScanRecord?
 }

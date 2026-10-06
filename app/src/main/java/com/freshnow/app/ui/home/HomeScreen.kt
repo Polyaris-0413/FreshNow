@@ -42,20 +42,17 @@ import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.component.FreshNowTopAppBar
+import com.freshnow.app.ui.component.formatSavedAt
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
-
-private val SAVED_AT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
 @Composable
 fun HomeRoute(
     onNavigateToScan: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToRecord: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
@@ -63,6 +60,7 @@ fun HomeRoute(
 
     HomeScreen(
         records = records,
+        onRecordClick = onNavigateToRecord,
         onNavigateToScan = onNavigateToScan,
         onNavigateToAbout = onNavigateToAbout,
         onNavigateToSettings = onNavigateToSettings,
@@ -74,6 +72,7 @@ fun HomeRoute(
 @Composable
 fun HomeScreen(
     records: List<ScanRecord>,
+    onRecordClick: (Long) -> Unit,
     onNavigateToScan: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -119,6 +118,7 @@ fun HomeScreen(
     ) { innerPadding ->
         RecordsList(
             records = records,
+            onRecordClick = onRecordClick,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -180,6 +180,7 @@ private fun SheetMenuItem(
 @Composable
 private fun RecordsList(
     records: List<ScanRecord>,
+    onRecordClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (records.isEmpty()) {
@@ -195,7 +196,7 @@ private fun RecordsList(
 
     LazyColumn(modifier = modifier) {
         items(records, key = { it.id }) { record ->
-            RecordRow(record)
+            RecordRow(record = record, onClick = { onRecordClick(record.id) })
         }
     }
 }
@@ -203,6 +204,7 @@ private fun RecordsList(
 @Composable
 private fun RecordRow(
     record: ScanRecord,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val unknown = stringResource(R.string.scan_value_unknown)
@@ -216,7 +218,7 @@ private fun RecordRow(
     }
 
     ListItem(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         overlineContent = { Text(text = formatSavedAt(record.savedAt)) },
         headlineContent = { Text(text = stringResource(R.string.record_expiry, expiryText)) },
         supportingContent = {
@@ -232,9 +234,6 @@ private fun RecordRow(
     )
 }
 
-private fun formatSavedAt(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(SAVED_AT_FORMATTER)
-
 @Preview(showBackground = true)
 @Composable
 private fun HomeScreenPreview() {
@@ -249,6 +248,7 @@ private fun HomeScreenPreview() {
                     savedAt = 0
                 )
             ),
+            onRecordClick = {},
             onNavigateToScan = {},
             onNavigateToAbout = {},
             onNavigateToSettings = {}

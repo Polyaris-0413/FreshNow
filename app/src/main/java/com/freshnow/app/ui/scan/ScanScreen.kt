@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.hasAnyValue
+import com.freshnow.app.ui.component.FreshNowFieldRow
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.launch
@@ -113,11 +114,11 @@ fun ScanScreen(
                     .padding(top = FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
-                ScanResultRow(
+                FreshNowFieldRow(
                     label = stringResource(R.string.scan_production_date),
                     value = uiState.record.productionDate
                 )
-                ScanResultRow(
+                FreshNowFieldRow(
                     label = stringResource(R.string.scan_expiry_date),
                     value = when (val expiry = uiState.expiry) {
                         is ExpiryOutcome.Resolved -> expiry.date
@@ -125,7 +126,7 @@ fun ScanScreen(
                         ExpiryOutcome.InsufficientInput -> stringResource(R.string.scan_value_unknown)
                     }
                 )
-                ScanResultRow(
+                FreshNowFieldRow(
                     label = stringResource(R.string.scan_shelf_life),
                     value = uiState.record.shelfLife
                 )
@@ -179,25 +180,6 @@ private fun CameraBox(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ScanResultRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value.ifBlank { stringResource(R.string.scan_value_unknown) },
-            style = MaterialTheme.typography.bodyLarge
-        )
     }
 }
 

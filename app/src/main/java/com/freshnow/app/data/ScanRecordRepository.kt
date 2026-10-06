@@ -11,6 +11,8 @@ class ScanRecordRepository(context: Context) {
 
     val records: Flow<List<ScanRecord>> = dao.observeAll()
 
+    suspend fun find(id: Long): ScanRecord? = dao.findById(id)
+
     suspend fun save(result: ScanResult) {
         dao.insert(
             ScanRecord(
