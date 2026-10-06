@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -31,7 +32,9 @@ sealed interface ScanStatus {
 data class ScanUiState(
     val record: ScanResult = ScanResult(),
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
-    val status: ScanStatus = ScanStatus.Idle
+    val status: ScanStatus = ScanStatus.Idle,
+    val reasoning: String = "",
+    val showReasoning: Boolean = false
 )
 
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
@@ -45,6 +48,15 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
+
+    init {
+        // 订阅而非每帧读一次：在设置里开关思维链后，回到本页立即生效
+        viewModelScope.launch {
+            settingsRepository.aiSettings.collect { settings ->
+                _uiState.update { it.copy(showReasoning = settings.showReasoning) }
+            }
+        }
+    }
 
     /**
      * 由相机分析线程调用；返回 false 时直接丢弃该帧，省掉一次 JPEG 编码
@@ -66,12 +78,13 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update { state ->
                         if (state.status is ScanStatus.Failed) state else state.copy(status = ScanStatus.Analyzing)
                     }
-                    val observation = client.analyze(settings, jpeg)
+                    val analysis = client.analyze(settings, jpeg)
                     _uiState.update { state ->
                         // 累加记录：本帧没看到的字段保留已有值，推算也基于累加后的记录
-                        val record = state.record.mergeObservation(observation)
-                        Log.d(TAG, "本帧读数=$observation 累加记录=$record")
-                        state.withRecord(record).copy(status = ScanStatus.Idle)
+                        val record = state.record.mergeObservation(analysis.result)
+                        Log.d(TAG, "本帧读数=${analysis.result} 累加记录=$record 思维链${analysis.reasoning.length}字")
+                        state.withRecord(record)
+                            .copy(status = ScanStatus.Idle, reasoning = analysis.reasoning)
                     }
                 } else {
                     // 未配置时不要先切到 Analyzing，否则状态会在两种文案之间反复跳动
@@ -102,7 +115,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      * 清空累加记录，开始扫描下一件商品
      */
     fun clearRecord() {
-        _uiState.update { it.withRecord(ScanResult()) }
+        _uiState.update { it.withRecord(ScanResult()).copy(reasoning = "") }
     }
 
     /** 记录与推算结果必须一起更新，避免两处状态不同步 */

@@ -3,6 +3,7 @@ package com.freshnow.app.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -17,7 +18,8 @@ class AiSettingsRepository(private val context: Context) {
         AiSettings(
             baseUrl = preferences[KEY_BASE_URL].orEmpty(),
             modelName = preferences[KEY_MODEL_NAME].orEmpty(),
-            apiKey = preferences[KEY_API_KEY].orEmpty()
+            apiKey = preferences[KEY_API_KEY].orEmpty(),
+            showReasoning = preferences[KEY_SHOW_REASONING] ?: false
         )
     }
 
@@ -26,6 +28,7 @@ class AiSettingsRepository(private val context: Context) {
             preferences[KEY_BASE_URL] = settings.baseUrl
             preferences[KEY_MODEL_NAME] = settings.modelName
             preferences[KEY_API_KEY] = settings.apiKey
+            preferences[KEY_SHOW_REASONING] = settings.showReasoning
         }
     }
 
@@ -33,5 +36,6 @@ class AiSettingsRepository(private val context: Context) {
         val KEY_BASE_URL = stringPreferencesKey("base_url")
         val KEY_MODEL_NAME = stringPreferencesKey("model_name")
         val KEY_API_KEY = stringPreferencesKey("api_key")
+        val KEY_SHOW_REASONING = booleanPreferencesKey("show_reasoning")
     }
 }

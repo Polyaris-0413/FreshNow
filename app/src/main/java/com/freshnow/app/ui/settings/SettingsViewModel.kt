@@ -68,6 +68,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
+     * 开关是即时生效项，不经过编辑面板：先更新界面再落盘
+     */
+    fun onShowReasoningChange(value: Boolean) {
+        val updated = _uiState.value.saved.copy(showReasoning = value)
+        _uiState.update { it.copy(saved = updated) }
+        viewModelScope.launch { repository.save(updated) }
+    }
+
+    /**
      * 校验三项必填，未通过时在对应字段上标错并返回 false；通过则落盘并返回 true
      */
     fun save(): Boolean {
@@ -90,7 +99,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val settings = AiSettings(
             baseUrl = current.baseUrl.trim(),
             modelName = current.modelName.trim(),
-            apiKey = current.apiKey.trim()
+            apiKey = current.apiKey.trim(),
+            showReasoning = current.saved.showReasoning
         )
         viewModelScope.launch { repository.save(settings) }
         _uiState.update {

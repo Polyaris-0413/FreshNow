@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -21,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -75,10 +78,12 @@ fun SettingsScreen(
     ) { innerPadding ->
         SettingsList(
             summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
+            showReasoning = uiState.saved.showReasoning,
             onBasicConfigClick = {
                 viewModel.startEditing()
                 showEditor = true
             },
+            onShowReasoningChange = viewModel::onShowReasoningChange,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -110,7 +115,9 @@ fun SettingsScreen(
 @Composable
 private fun SettingsList(
     summary: String,
+    showReasoning: Boolean,
     onBasicConfigClick: () -> Unit,
+    onShowReasoningChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -134,6 +141,24 @@ private fun SettingsList(
             },
             supportingContent = { Text(text = summary) },
             modifier = Modifier.clickable(onClick = onBasicConfigClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
+        // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.ai_settings_show_reasoning_title))
+            },
+            supportingContent = { Text(text = stringResource(R.string.ai_settings_show_reasoning_support)) },
+            trailingContent = {
+                Switch(checked = showReasoning, onCheckedChange = null)
+            },
+            modifier = Modifier.toggleable(
+                value = showReasoning,
+                role = Role.Switch,
+                onValueChange = onShowReasoningChange
+            ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }

@@ -10,12 +10,17 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
+ * 一次识别的完整返回：日期字段，外加模型给出的思维链（模型没有思考过程时为空串）
+ */
+data class AiAnalysis(val result: ScanResult, val reasoning: String)
+
+/**
  * 调用 OpenAI 兼容的 /chat/completions 接口，把一帧 JPEG 交给带识图能力的模型并解析出日期字段
  */
 class AiVisionClient {
 
-    suspend fun analyze(settings: AiSettings, jpeg: ByteArray): ScanResult = withContext(Dispatchers.IO) {
-        parseResult(requestCompletion(settings, jpeg))
+    suspend fun analyze(settings: AiSettings, jpeg: ByteArray): AiAnalysis = withContext(Dispatchers.IO) {
+        parseAnalysis(requestCompletion(settings, jpeg))
     }
 
     private fun requestCompletion(settings: AiSettings, jpeg: ByteArray): String {
@@ -69,21 +74,26 @@ class AiVisionClient {
         )
         .toString()
 
-    private fun parseResult(responseBody: String): ScanResult {
-        val content = JSONObject(responseBody)
+    private fun parseAnalysis(responseBody: String): AiAnalysis {
+        val message = JSONObject(responseBody)
             .getJSONArray("choices")
             .getJSONObject(0)
             .getJSONObject("message")
-            .optString("content")
+        val content = message.optString("content")
         Log.d(TAG, "模型返回内容：$content")
 
         val json = extractJsonObject(content)
             ?: throw IllegalStateException("模型未返回 JSON：${content.take(ERROR_BODY_LIMIT)}")
 
-        return ScanResult(
-            productionDate = json.optString("productionDate"),
-            expiryDate = json.optString("expiryDate"),
-            shelfLife = json.optString("shelfLife")
+        return AiAnalysis(
+            result = ScanResult(
+                productionDate = json.optString("productionDate"),
+                expiryDate = json.optString("expiryDate"),
+                shelfLife = json.optString("shelfLife")
+            ),
+            reasoning = REASONING_KEYS
+                .firstNotNullOfOrNull { key -> message.optString(key).trim().takeIf { it.isNotEmpty() } }
+                .orEmpty()
         )
     }
 
@@ -103,6 +113,9 @@ class AiVisionClient {
         const val CONNECT_TIMEOUT_MS = 15_000
         const val READ_TIMEOUT_MS = 60_000
         const val ERROR_BODY_LIMIT = 300
+
+        // 思维链的键名各家不统一：DeepSeek / 智谱 / 通义 / 火山用 reasoning_content，OpenRouter 系用 reasoning
+        val REASONING_KEYS = listOf("reasoning_content", "reasoning")
         val PROMPT = """
             你是食品标签识别助手。请从这张照片中读取以下三项，只输出 JSON，不要输出解释，也不要使用代码标记：
             {"productionDate":"","expiryDate":"","shelfLife":""}

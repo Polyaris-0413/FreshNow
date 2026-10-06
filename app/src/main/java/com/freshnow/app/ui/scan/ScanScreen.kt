@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -45,6 +46,9 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.launch
 
 private const val CAMERA_ASPECT_RATIO = 3f / 4f
+
+// 思维链面板的高度上限，取设计源最大间距的 4 倍（约 12 行正文），超出部分面板内滚动
+private val REASONING_MAX_HEIGHT = FreshNowSpacing.xl * 4
 
 @Composable
 fun ScanScreen(
@@ -135,6 +139,49 @@ fun ScanScreen(
             ScanStatusText(
                 status = uiState.status,
                 modifier = Modifier.padding(top = FreshNowSpacing.sm)
+            )
+
+            if (uiState.showReasoning) {
+                ReasoningPanel(
+                    reasoning = uiState.reasoning,
+                    modifier = Modifier.padding(top = FreshNowSpacing.sm)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 模型思维链面板，由「设置 → 显示思维链」控制是否出现。
+ *
+ * 定高 + 内部滚动是有意的：实时扫描每两秒换一帧，思维链长度每帧都在变，
+ * 不设上限的话下方内容会跟着上下跳动，识别结果也会被挤出可视区。
+ */
+@Composable
+private fun ReasoningPanel(
+    reasoning: String,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.scan_reasoning_title),
+            modifier = Modifier.padding(bottom = FreshNowSpacing.xxs),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = REASONING_MAX_HEIGHT)
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .verticalScroll(rememberScrollState())
+                .padding(FreshNowSpacing.sm)
+        ) {
+            Text(
+                text = reasoning.ifBlank { stringResource(R.string.scan_reasoning_empty) },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -26,9 +26,13 @@
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>
     <string name="scan_grant_permission">授予权限</string>
     <string name="scan_ai_not_configured">尚未配置 AI，请先在「设置 → 基础配置」中填写</string>
+    <string name="scan_reasoning_title">思维链</string>
+    <string name="scan_reasoning_empty">模型未返回思维链</string>
 
     <string name="ai_settings_section_title">AI</string>
     <string name="ai_settings_basic_group_title">基础配置</string>
+    <string name="ai_settings_show_reasoning_title">显示思维链</string>
+    <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
     <string name="ai_settings_api_key_label">API Key</string>
