@@ -144,7 +144,7 @@ class AiVisionClient {
             {"productName":"","productionDate":"","expiryDate":"","shelfLife":""}
 
             规则：
-            - productName：这是什么食品，用最简的通用品名称呼，不要带品牌名、厂名和规格
+            - productName：这是什么食品，用最简的通用品名，只写品类本身
             - productionDate：标签上印刷的生产日期，写成 yyyy-MM-dd
             - expiryDate：标签上印刷的过期日期或保质期截止日期，写成 yyyy-MM-dd
             - shelfLife：标签上印刷的保质期，一律用阿拉伯数字写成「数字+单位」，标签上写的是中文数字也要换算成阿拉伯数字
