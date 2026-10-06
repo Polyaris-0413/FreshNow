@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -45,7 +47,11 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.launch
 
-private const val CAMERA_ASPECT_RATIO = 3f / 4f
+// 正方形取景框。取景框只决定预览怎么裁切显示，送给 AI 分析的始终是整帧，所以改比例不影响识别
+private const val CAMERA_ASPECT_RATIO = 1f
+
+// 取景框描边宽度，取 M3 描边容器（outlined card）的 1dp
+private val CAMERA_FRAME_WIDTH = 1.dp
 
 // 思维链面板的高度上限，取设计源最大间距的 4 倍（约 12 行正文），超出部分面板内滚动
 private val REASONING_MAX_HEIGHT = FreshNowSpacing.xl * 4
@@ -227,6 +233,17 @@ private fun CameraBox(
                 }
             }
         }
+
+        // 描边要盖在预览之上：Box 自身的 border 会先于子级绘制，被预览层整个遮住
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(
+                    width = CAMERA_FRAME_WIDTH,
+                    color = MaterialTheme.colorScheme.outline,
+                    shape = MaterialTheme.shapes.medium
+                )
+        )
     }
 }
 
