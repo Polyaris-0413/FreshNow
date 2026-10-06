@@ -49,6 +49,10 @@ fun CameraPreview(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             scaleType = PreviewView.ScaleType.FILL_CENTER
+            // 默认的 PERFORMANCE 模式用 SurfaceView，其内容由系统合成器单独合成，
+            // 不参与 Compose 的位移/淡出，页面退出时预览会慢半拍；
+            // COMPATIBLE 用 TextureView，作为普通 View 跟随页面一起动
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
 

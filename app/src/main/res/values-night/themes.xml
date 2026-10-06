@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色模式必须换成深色父主题：Window 背景色由主题决定，
+     若始终沿用浅色主题，页面淡入淡出时半透明内容会透出浅色窗口背景（白闪） -->
+<resources>
+
+    <style name="Theme.FreshNow" parent="android:Theme.Material.NoActionBar" />
+</resources>

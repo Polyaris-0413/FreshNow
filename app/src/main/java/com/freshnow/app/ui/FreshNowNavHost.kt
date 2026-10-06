@@ -1,6 +1,9 @@
 package com.freshnow.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -27,6 +30,9 @@ fun FreshNowNavHost(
     NavHost(
         navController = navController,
         startDestination = FreshNowRoute.HOME,
+        // 转场期间两个页面同时处于半透明，这里垫上主题背景色，
+        // 否则透出的是窗口背景（深色模式下偏亮，表现为一下白闪）
+        modifier = Modifier.background(MaterialTheme.colorScheme.background),
         enterTransition = { FreshNowTransitions.forwardEnter },
         exitTransition = { FreshNowTransitions.forwardExit },
         popEnterTransition = { FreshNowTransitions.backEnter },
