@@ -9,8 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -34,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,16 +44,15 @@ import com.freshnow.app.R
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowStroke
 
 // 正方形取景框。取景框只决定预览怎么裁切显示，送给 AI 分析的始终是整帧，所以改比例不影响识别
 private const val CAMERA_ASPECT_RATIO = 1f
 
-// 取景框描边宽度，取 M3 描边容器（outlined card）的 1dp
-private val CAMERA_FRAME_WIDTH = 1.dp
-
-// 思维链面板的高度上限，取设计源最大间距的 4 倍（约 12 行正文），超出部分面板内滚动
-private val REASONING_MAX_HEIGHT = FreshNowSpacing.xl * 4
+// 思维链面板的高度上限，约 12 行正文，超出部分面板内滚动
+private val REASONING_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight
 
 @Composable
 fun ScanScreen(
@@ -103,38 +104,64 @@ fun ScanScreen(
             }
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(FreshNowSpacing.sm)
-        ) {
+        // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
+        val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
             CameraBox(
                 hasCameraPermission = hasCameraPermission,
                 onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                 canAcceptFrame = viewModel::canAcceptFrame,
-                onFrame = viewModel::submitFrame
+                onFrame = viewModel::submitFrame,
+                modifier = sizeConstraint
             )
+        }
 
-            FreshNowResultFields(
-                productName = uiState.record.productName,
-                productionDate = uiState.record.productionDate,
-                expiry = uiState.expiry,
-                shelfLife = uiState.record.shelfLife,
-                modifier = Modifier.padding(top = FreshNowSpacing.sm)
-            )
-
-            ScanStatusText(
-                status = uiState.status,
-                modifier = Modifier.padding(top = FreshNowSpacing.sm)
-            )
-
-            if (uiState.showReasoning) {
-                ReasoningPanel(
-                    reasoning = uiState.reasoning,
-                    modifier = Modifier.padding(top = FreshNowSpacing.sm)
-                )
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(FreshNowSpacing.sm)
+        ) {
+            // 【有意偏离 M3 规范，请勿「按规范」改回去】
+            // M3 要求 600dp 起切换多窗格、并给大屏内容加 840dp 宽度上限。本项目只面向手机形态
+            // （竖屏与横屏），不做平板/折叠屏多窗格，也不做宽度约束——全应用没有窗口尺寸类分支。
+            // 因此这里唯一的尺寸判断只针对「高度比宽度更紧张」这一种情况。
+            //
+            // 宽不小于高（横屏，或接近方形的分屏）时高度才是稀缺资源：上下排布会把正方形取景框
+            // 撑成远高于可视区的长条，取景框只露出顶部一截、识别结果被顶到屏幕外，
+            // 且露出的画面对不上「看到什么就裁什么」的裁剪假设。此时改为左右并排，
+            // 取景框按可用高度取正方形，结果在右侧单独滚动，相机在滚动时保持可见。
+            if (maxWidth >= maxHeight) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+                ) {
+                    // 先定高再定宽：边长即取可用高度，宽度不够时 aspectRatio 会按宽度回落
+                    cameraBox(
+                        Modifier
+                            .fillMaxHeight()
+                            .aspectRatio(CAMERA_ASPECT_RATIO)
+                    )
+                    ScanResultColumn(
+                        uiState = uiState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .verticalScroll(rememberScrollState())
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    cameraBox(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(CAMERA_ASPECT_RATIO)
+                    )
+                    ScanResultColumn(uiState = uiState)
+                }
             }
         }
     }
@@ -168,17 +195,44 @@ fun ScanScreen(
 }
 
 /**
+ * 识别结果一列：结果字段、状态文案、可选的思维链面板。
+ *
+ * 只负责排布，不决定滚动方式——竖屏时它跟着相机一起滚，横屏时占右半屏单独滚，由调用方给。
+ * 块间距用 spacedBy 统一给出；状态文案在无需提示时不产生布局节点，因此不会多留一道空档。
+ */
+@Composable
+private fun ScanResultColumn(
+    uiState: ScanUiState,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+    ) {
+        FreshNowResultFields(
+            productName = uiState.record.productName,
+            productionDate = uiState.record.productionDate,
+            expiry = uiState.expiry,
+            shelfLife = uiState.record.shelfLife
+        )
+
+        ScanStatusText(status = uiState.status)
+
+        if (uiState.showReasoning) {
+            ReasoningPanel(reasoning = uiState.reasoning)
+        }
+    }
+}
+
+/**
  * 模型思维链面板，由「设置 → 显示思维链」控制是否出现。
  *
  * 定高 + 内部滚动是有意的：实时扫描每两秒换一帧，思维链长度每帧都在变，
  * 不设上限的话下方内容会跟着上下跳动，识别结果也会被挤出可视区。
  */
 @Composable
-private fun ReasoningPanel(
-    reasoning: String,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
+private fun ReasoningPanel(reasoning: String) {
+    Column {
         Text(
             text = stringResource(R.string.scan_reasoning_title),
             modifier = Modifier.padding(bottom = FreshNowSpacing.xxs),
@@ -249,7 +303,7 @@ private fun CameraBox(
             modifier = Modifier
                 .matchParentSize()
                 .border(
-                    width = CAMERA_FRAME_WIDTH,
+                    width = FreshNowStroke.outline,
                     color = MaterialTheme.colorScheme.outline,
                     shape = MaterialTheme.shapes.medium
                 )
@@ -258,10 +312,7 @@ private fun CameraBox(
 }
 
 @Composable
-private fun ScanStatusText(
-    status: ScanStatus,
-    modifier: Modifier = Modifier
-) {
+private fun ScanStatusText(status: ScanStatus) {
     val text = when (status) {
         // 识别中不显示文案：实时扫描下这个状态每隔一两秒就在识别与空闲之间来回切，文字会不停闪现
         ScanStatus.Idle, ScanStatus.Analyzing -> null
@@ -273,7 +324,6 @@ private fun ScanStatusText(
     val isProblem = status is ScanStatus.Failed || status == ScanStatus.NotConfigured
     Text(
         text = text,
-        modifier = modifier,
         style = MaterialTheme.typography.bodySmall,
         color = if (isProblem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     )
