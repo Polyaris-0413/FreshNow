@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -36,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -224,25 +226,38 @@ fun HomeScreen(
     }
 
     if (showSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSheet = false },
-            sheetState = sheetState
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = FreshNowSpacing.sm)
-                    .padding(bottom = FreshNowSpacing.sm),
-                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+        // M3 把拖动手柄整个槽（一块 32×48 的触摸区）包了一层不带形状的 clickable，涟漪于是按那块
+        // 矩形铺开，与里面 4dp 的胶囊完全不是一回事。手柄这里本来也不需要按压反馈——「点它收起
+        // 面板」没有歧义——所以直接关掉：给 `LocalRippleConfiguration` 传 null 就是 M3 为这件事留的
+        // 开关（见 Ripple.kt 的 KDoc）。手柄的点击、长按提示与无障碍语义都不受影响。
+        val defaultRippleConfiguration = LocalRippleConfiguration.current
+
+        CompositionLocalProvider(LocalRippleConfiguration provides null) {
+            ModalBottomSheet(
+                onDismissRequest = { showSheet = false },
+                sheetState = sheetState
             ) {
-                SheetMenuItem(
-                    text = stringResource(R.string.about),
-                    onClick = { dismissSheetThen(onNavigateToAbout) }
-                )
-                SheetMenuItem(
-                    text = stringResource(R.string.settings),
-                    onClick = { dismissSheetThen(onNavigateToSettings) }
-                )
+                // 面板内部把默认配置恢复回去，否则两张菜单卡片的按压反馈也会一起被关掉
+                CompositionLocalProvider(
+                    LocalRippleConfiguration provides defaultRippleConfiguration
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = FreshNowSpacing.sm)
+                            .padding(bottom = FreshNowSpacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+                    ) {
+                        SheetMenuItem(
+                            text = stringResource(R.string.about),
+                            onClick = { dismissSheetThen(onNavigateToAbout) }
+                        )
+                        SheetMenuItem(
+                            text = stringResource(R.string.settings),
+                            onClick = { dismissSheetThen(onNavigateToSettings) }
+                        )
+                    }
+                }
             }
         }
     }
