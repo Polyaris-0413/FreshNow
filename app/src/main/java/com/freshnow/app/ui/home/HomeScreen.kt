@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
@@ -66,6 +67,7 @@ import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import com.freshnow.app.ui.theme.countRoll
 import com.freshnow.app.ui.theme.warningColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -142,12 +144,22 @@ fun HomeScreen(
             // 标题本身要右移，分开淡会让它在两个位置之间跳；整条换则位置变化也是淡出来的。
             Crossfade(
                 targetState = inSelectionMode,
-                animationSpec = FreshNowTransitions.stateChange,
+                animationSpec = FreshNowTransitions.stateChange(),
                 label = "topBar"
             ) { selecting ->
                 if (selecting) {
                     FreshNowTopAppBar(
-                        title = stringResource(R.string.home_selected_count, selectedIds.size),
+                        title = {
+                            // 计数是这一屏里唯一会变的数字，直接跳变会让人怀疑是不是自己点错了。
+                            // 滚一下既看得出变了、也看得出往哪个方向变
+                            AnimatedContent(
+                                targetState = selectedIds.size,
+                                transitionSpec = { countRoll() },
+                                label = "selectedCount"
+                            ) { count ->
+                                Text(text = stringResource(R.string.home_selected_count, count))
+                            }
+                        },
                         navigationIcon = {
                             IconButton(onClick = onExitSelection) {
                                 Icon(
@@ -167,7 +179,7 @@ fun HomeScreen(
                     )
                 } else {
                     FreshNowTopAppBar(
-                        title = stringResource(R.string.app_name),
+                        title = { Text(text = stringResource(R.string.app_name)) },
                         actions = {
                             IconButton(onClick = { showSheet = true }) {
                                 Icon(
@@ -185,8 +197,8 @@ fun HomeScreen(
             // 与顶栏同一步调淡出，否则顶栏在淡、它在"啪"地消失
             AnimatedVisibility(
                 visible = !inSelectionMode,
-                enter = fadeIn(FreshNowTransitions.stateChange),
-                exit = fadeOut(FreshNowTransitions.stateChange)
+                enter = fadeIn(FreshNowTransitions.stateChange()),
+                exit = fadeOut(FreshNowTransitions.stateChange())
             ) {
                 FloatingActionButton(onClick = onNavigateToScan) {
                     Icon(
@@ -369,7 +381,7 @@ private fun RecordRow(
     // 透明度交给动画，描边的出现与消失才是淡入淡出，而不是硬切。
     val outlineAlpha by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
-        animationSpec = FreshNowTransitions.stateChange,
+        animationSpec = FreshNowTransitions.stateChange(),
         label = "selectionOutlineAlpha"
     )
 

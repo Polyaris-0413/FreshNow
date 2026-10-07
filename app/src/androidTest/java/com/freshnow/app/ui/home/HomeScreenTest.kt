@@ -3,6 +3,7 @@ package com.freshnow.app.ui.home
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.assertCountEquals
@@ -202,6 +203,44 @@ class HomeScreenTest {
         assertEquals(2, countRuns(hasOutline))
     }
 
+    /**
+     * 计数变化是滚动的，不是直接跳。
+     *
+     * 自己拿一份选中状态而不是走 [setContent]：这里要手动改状态、还要把动画时钟停在半路，
+     * 与其它用例只摆一个静态状态不同。
+     */
+    @Test
+    fun countChange_rollsInsteadOfJumping() {
+        val selectedIds = mutableStateOf(setOf(1L))
+        composeRule.setContent {
+            FreshNowTheme(dynamicColor = false) {
+                HomeScreen(
+                    records = records(),
+                    selectedIds = selectedIds.value,
+                    onRecordClick = {},
+                    onRecordToggle = {},
+                    onExitSelection = {},
+                    onDeleteSelected = {},
+                    onNavigateToScan = {},
+                    onNavigateToAbout = {},
+                    onNavigateToSettings = {}
+                )
+            }
+        }
+        composeRule.onNodeWithText("已选 1 项").assertIsDisplayed()
+
+        // 停掉自动推进，改完状态把时钟停在动画走到一半的位置
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread { selectedIds.value = setOf(1L, 2L) }
+        composeRule.mainClock.advanceTimeBy(COUNT_ROLL_HALF_MS)
+
+        // 滚到一半时新旧两个计数同时在——说明是在滚，而不是直接跳过去
+        composeRule.onNodeWithText("已选 1 项").assertExists()
+        composeRule.onNodeWithText("已选 2 项").assertExists()
+
+        savePreview(COUNT_ROLL_PREVIEW_NAME)
+    }
+
     /** 选中框是实心描边，只有边缘会被抗锯齿磨淡，所以容一点通道差即可 */
     private fun isPrimary(pixel: Int): Boolean = abs(Color.red(pixel) - Color.red(primaryArgb)) <= CHANNEL_TOLERANCE &&
         abs(Color.green(pixel) - Color.green(primaryArgb)) <= CHANNEL_TOLERANCE &&
@@ -282,6 +321,10 @@ class HomeScreenTest {
     private companion object {
         const val PREVIEW_NAME = "home_list_preview.png"
         const val SELECTION_PREVIEW_NAME = "home_selection_preview.png"
+        const val COUNT_ROLL_PREVIEW_NAME = "home_count_roll_preview.png"
         const val CHANNEL_TOLERANCE = 8
+
+        /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short3 对应 */
+        const val COUNT_ROLL_HALF_MS = 75L
     }
 }

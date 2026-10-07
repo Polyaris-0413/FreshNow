@@ -1,5 +1,7 @@
 package com.freshnow.app.ui.theme
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -7,7 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 
 /**
  * 动画设计源，界面只引用不另定义。
@@ -27,19 +32,10 @@ import androidx.compose.animation.slideOutHorizontally
  */
 object FreshNowTransitions {
 
+    // ---- 页面切换 ----
+
     private const val DURATION_MS = 350
     private const val SLIDE_FRACTION = 16
-    private const val STATE_CHANGE_MS = 150
-
-    /**
-     * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失。
-     *
-     * 取 M3 时长令牌 short3（150ms，技能 typography-and-shape.md 的 Duration Scale 表里
-     * 归为「小转场」，正对这类变化），不与页面切换共用 350ms：那些是整页进出屏幕，
-     * 这些只是同一页里的局部变化，沿用页面时长按下去要等一会儿才看得出选中了。
-     * 曲线仍用 tween 默认的 standard 曲线，与页面切换一致。
-     */
-    val stateChange: FiniteAnimationSpec<Float> = tween(STATE_CHANGE_MS)
 
     /** 前进（进入子页）：新页面自右轻微移入 */
     val forwardEnter: EnterTransition = fadeIn(tween(DURATION_MS)) +
@@ -56,4 +52,44 @@ object FreshNowTransitions {
     /** 返回：旧页面向右轻微移出 */
     val backExit: ExitTransition = fadeOut(tween(DURATION_MS)) +
         slideOutHorizontally(tween(DURATION_MS)) { width -> width / SLIDE_FRACTION }
+
+    // ---- 页内状态切换 ----
+
+    private const val STATE_CHANGE_MS = 150
+
+    /**
+     * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失、
+     * 选中计数的滚动。
+     *
+     * 取 M3 时长令牌 short3（150ms，技能 typography-and-shape.md 的 Duration Scale 表里
+     * 归为「小转场」，正对这类变化），不与页面切换共用 350ms：那些是整页进出屏幕，
+     * 这些只是同一页里的局部变化，沿用页面时长按下去要等一会儿才看得出选中了。
+     * 曲线仍用 tween 默认的 standard 曲线，与页面切换一致。
+     *
+     * 返回类型不写死：淡入淡出要 FiniteAnimationSpec<Float>，位移要 FiniteAnimationSpec<IntOffset>，
+     * 由调用处决定，省得同一组时长与曲线在多处各写一遍、日后改一处漏一处。
+     */
+    fun <T> stateChange(): FiniteAnimationSpec<T> = tween(STATE_CHANGE_MS)
+}
+
+private const val COUNT_ROLL_FRACTION = 3
+
+/**
+ * 选中计数滚动：变多往上滚、变少往下滚。方向由数量本身决定，与界面无关，因此判据在这里。
+ *
+ * 不做成 [FreshNowTransitions] 的成员：它要在 transitionSpec 里直接调用，而那个 lambda 的
+ * 接收者是 AnimatedContentTransitionScope，成员形式的扩展函数在那里调不到。
+ *
+ * 位移刻意取得小于行高（COUNT_ROLL_FRACTION 分之一）：AnimatedContent 会把内容裁在自己的
+ * 范围内，整行偏移时新旧两行都落在可见范围外，中间空一拍，看起来是「先消失再出现」而不是滚动。
+ */
+fun AnimatedContentTransitionScope<Int>.countRoll(): ContentTransform {
+    val roll = if (targetState > initialState) 1 else -1
+    return (
+        slideInVertically(FreshNowTransitions.stateChange()) { height -> roll * height / COUNT_ROLL_FRACTION } +
+            fadeIn(FreshNowTransitions.stateChange())
+        ).togetherWith(
+        slideOutVertically(FreshNowTransitions.stateChange()) { height -> -roll * height / COUNT_ROLL_FRACTION } +
+            fadeOut(FreshNowTransitions.stateChange())
+    )
 }
