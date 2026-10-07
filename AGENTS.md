@@ -19,7 +19,7 @@ Material Symbols 的 SVG 官方坐标系是负 Y 以及 viewBox 从 -960 开始
 ## 2. 设计规范
 项目所使用的设计语言为 Material Design
 在设计界面时 需遵循 Material 3 技能的规范
-路径为 C:\Users\Administrator\.zcode\skills\material-3
+路径为 C:\Users\Administrator\.pi\agent\skills\material-3
 
 ## 3. 杂项
 - 禁止私自在真机进行与键盘输入有关的调试 这会导致输入法的BUG 应要求用户进行手动调试
