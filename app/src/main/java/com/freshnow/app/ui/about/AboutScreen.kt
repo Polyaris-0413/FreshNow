@@ -69,28 +69,19 @@ internal fun AboutList(
     val issueUrl = stringResource(R.string.project_issue_url)
 
     Column(modifier = modifier) {
-        // 法律声明放在最前：GPL-3.0 第 0 条要的是界面上有个「方便且显眼」的位置来说这四件事
-        // ——版权、无担保、可依本协议转发、以及怎么看协议全文。它不属于任何分区，先于分区列出。
-        Text(
-            text = stringResource(R.string.legal_notice),
-            modifier = Modifier.padding(
-                start = FreshNowSpacing.sm,
-                top = FreshNowSpacing.sm,
-                end = FreshNowSpacing.sm
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         SectionHeading(
             text = stringResource(R.string.app_settings_section_title),
+            // 与页面顶端的距离
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
             // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下
             // （supporting-text）、短值在右（trailing-supporting-text），这里没有要解释的东西，
             // 因此只给值、不给说明。
-            // 这一行不可点：看完就知道版本，没有可做的动作，尾部也就不给箭头。
+            //
+            // 这一行先接一个空的点击：动作（复制版本号之类）还没定，但按压反馈要有——同页其余
+            // 几行都可点，唯独它按下去毫无反应，看着像坏了。代价是读屏软件会把它读成可点项，
+            // 而定下动作后这个代价就自动消失，所以先这么放着。
             ListItem(
                 leadingContent = {
                     Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
@@ -105,11 +96,12 @@ internal fun AboutList(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
+                modifier = Modifier.clickable { },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
-            // 占位：检查更新尚未实现，所以这一行现在不接点击（接了也没有可做的事）。落地时要补的是
-            // 检查中的状态、最新/有新版本的结果，以及「有新版本」时的去处。
+            // 检查更新：动作尚未实现（要补的是检查中的状态、最新/有新版本的结果，以及「有新版本」
+            // 时的去处），这里同样先只给出按压反馈，与其余各行一致。
             ListItem(
                 leadingContent = {
                     Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)
@@ -117,6 +109,7 @@ internal fun AboutList(
                 headlineContent = {
                     Text(text = stringResource(R.string.app_settings_check_update_title))
                 },
+                modifier = Modifier.clickable { },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 

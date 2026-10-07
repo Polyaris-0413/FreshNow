@@ -11,6 +11,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.BuildConfig
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -104,21 +106,22 @@ class AboutScreenTest {
     }
 
     /**
-     * 法律声明在第 0 条要求的位置（界面上方便显眼处），且四件事都在：版权、无担保、
-     * 可依本协议转发、怎么看协议全文。它不属于任何分区，排在第一个分区标题之前。
+     * 版本与检查更新两行要可点（有按压反馈），动作还没定、先留空。
+     *
+     * 判据取「点了不跳任何地方」：这两行先只为与同页其余各行保持一致的反馈，不承担跳转；
+     * 动作定下来之后这条会换成对那个动作的断言。
      */
     @Test
-    fun legalNoticeComesFirstAndCarriesTheFourItems() {
-        setAboutList()
+    fun versionAndCheckUpdateAreTappable() {
+        val opened = mutableListOf<String>()
+        var navigated = false
+        setAboutList(onOpenUrl = { opened += it }, onOpenSourceClick = { navigated = true })
 
-        val notice = composeRule
-            .onNodeWithText("本应用以 GNU GPL-3.0 发布", substring = true)
-            .getBoundsInRoot()
-        assertTrue("法律声明应当排在第一个分区之前：notice=", notice.top < top("应用"))
+        composeRule.onNodeWithText("版本").performClick()
+        composeRule.onNodeWithText("检查更新").performClick()
 
-        composeRule.onNodeWithText("不提供任何担保", substring = true).assertExists()
-        composeRule.onNodeWithText("Acclorite", substring = true).assertExists()
-        composeRule.onNodeWithText("LICENSE", substring = true).assertExists()
+        assertEquals("这两行不该跳任何链接", emptyList<String>(), opened)
+        assertFalse("这两行不该导航", navigated)
     }
 
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top

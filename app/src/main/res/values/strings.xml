@@ -53,7 +53,6 @@
     <string name="project_issue_title">问题反馈</string>
     <string name="legal_settings_section_title">法律信息</string>
     <string name="legal_open_source_title">开源声明</string>
-    <string name="legal_notice">本应用以 GNU GPL-3.0 发布，包含对 Book’s Story（Copyright © 2024–2025 Acclorite）的修改。本程序不提供任何担保。协议全文见本应用仓库的 LICENSE。</string>
     <string name="project_repository_url" translatable="false">https://github.com/Polyaris-0413/FreshNow</string>
     <string name="project_issue_url" translatable="false">https://github.com/Polyaris-0413/FreshNow/issues</string>
     <string name="ai_settings_basic_group_title">基础配置</string>
