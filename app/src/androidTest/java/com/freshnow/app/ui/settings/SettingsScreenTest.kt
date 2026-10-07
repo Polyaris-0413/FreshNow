@@ -1,10 +1,12 @@
 package com.freshnow.app.ui.settings
 
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.freshnow.app.BuildConfig
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -54,6 +56,29 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("显示思维链").performClick()
 
         assertEquals(listOf(false), changes)
+    }
+
+    /**
+     * 应用分区：版本号是这一行的「值」，与标题同一行、在右端，而不是落在标题下面当说明。
+     *
+     * 判据用纵向交叠：同一行时两者的纵向区间重叠（值的顶在标题的底之上），放到下面则不重叠。
+     */
+    @Test
+    fun appSectionShowsVersionBesideItsLabel() {
+        setContent()
+
+        val debugTitle = top("调试")
+        val appTitle = top("应用")
+        assertTrue("「应用」分区应当排在原有分区之后：debug=$debugTitle app=$appTitle", appTitle > debugTitle)
+
+        composeRule.onNodeWithText("检查更新").assertIsDisplayed()
+
+        val label = composeRule.onNodeWithText("版本").getBoundsInRoot()
+        val value = composeRule.onNodeWithText(BuildConfig.VERSION_NAME).getBoundsInRoot()
+        assertTrue(
+            "版本号应当与「版本」同一行（在右端）：label=$label value=$value",
+            value.top < label.bottom
+        )
     }
 
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top

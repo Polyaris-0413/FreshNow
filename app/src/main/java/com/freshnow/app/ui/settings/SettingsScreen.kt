@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.freshnow.app.BuildConfig
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -214,6 +215,38 @@ internal fun SettingsList(
                 role = Role.Switch,
                 onValueChange = onShowReasoningChange
             ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        SectionTitle(
+            text = stringResource(R.string.app_settings_section_title),
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
+
+        // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下
+        // （supporting-text）、短值在右（trailing-supporting-text），这里没有要解释的东西，
+        // 因此只给值、不给说明。
+        // 这一行不可点：看完就知道版本，没有可做的动作，尾部也就不给箭头。
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.app_settings_version_title))
+            },
+            trailingContent = {
+                Text(
+                    text = BuildConfig.VERSION_NAME,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        // 占位：检查更新尚未实现，所以这一行现在不接点击（接了也没有可做的事）。落地时要补的是
+        // 检查中的状态、最新/有新版本的结果，以及「有新版本」时的去处。
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(R.string.app_settings_check_update_title))
+            },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }
