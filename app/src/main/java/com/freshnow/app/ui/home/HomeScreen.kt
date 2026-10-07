@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -493,18 +494,28 @@ private fun EmptyRecordsHint(modifier: Modifier = Modifier) {
  * animate 只在第一次合成时读一次：演到一半时上游若又更新（比如又存了一条），动画不会被中途掐断。
  */
 @Composable
-private fun Modifier.appearFadeIn(animate: Boolean): Modifier {
+private fun Modifier.appearFadeIn(
+    animate: Boolean,
+    spec: FiniteAnimationSpec<Float> = FreshNowTransitions.stateChange()
+): Modifier {
     val shouldAnimate = remember { animate }
     if (!shouldAnimate) return this
 
     val alpha = remember { Animatable(0f) }
-    LaunchedEffect(alpha) { alpha.animateTo(1f, FreshNowTransitions.stateChange()) }
+    LaunchedEffect(alpha) { alpha.animateTo(1f, spec) }
     return graphicsLayer { this.alpha = alpha.value }
 }
 
-/** 每次都淡入，用于只出现一次、没有滚动可言的条目（空态文案） */
+/**
+ * 每次出现都淡入，用于只出现一次、没有滚动可言的条目（空态）。
+ *
+ * 晚一拍开始（见 [FreshNowTransitions.stateChangeDelayed]）：它出现时往往正是列表刚被删空，
+ * 而确认删除的对话框也在这段时间退场——跟着条目淡出同时开始的话，前半段整段被对话框盖住，
+ * 用户看到的是「对话框一关，它已经在那儿了」；等条目退场结束再淡入，才看得出是淡进来的。
+ */
 @Composable
-private fun Modifier.appearFadeIn(): Modifier = appearFadeIn(animate = true)
+private fun Modifier.appearFadeIn(): Modifier =
+    appearFadeIn(animate = true, spec = FreshNowTransitions.stateChangeDelayed())
 
 /**
  * 今天的日期，跨过零点会自己更新。

@@ -345,11 +345,11 @@ class HomeScreenTest {
     )
 
     /**
-     * 删掉最后一条时，空态文案要淡入，不能硬出现。
+     * 删掉最后一条时，空态要淡入，而且**不是紧接着条目淡出就淡**。
      *
-     * 判据取文案那一块里"与页面底色差得最远的那个像素"（记作对比度）：淡到一半时它应当
-     * 已经看得见（大于 0），但还没到最终的样子（小于走完后的对比度）。两条同时成立才是淡入；
-     * 若是一步到位，中途的对比度会直接等于最终值。
+     * 判据分三段：条目还在淡出的那半程里它必须还看不见——确认删除的对话框正是在这段时间退场，
+     * 跟着一起淡等于前半段整段被对话框盖住，用户看到的就是「对话框一关它已经在那儿」；
+     * 等过这一拍才开始淡入，半途看得见但没到最终的样子。
      */
     @Test
     fun emptyHint_fadesInAfterLastRowIsDeleted() {
@@ -360,26 +360,30 @@ class HomeScreenTest {
 
         composeRule.mainClock.autoAdvance = false
         composeRule.runOnUiThread { records.value = emptyList() }
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
 
+        // 条目淡出的半程：空态这时候还不该看得见
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
+        assertEquals("条目淡出没结束前不该已经看得见：${maxContrast(region)}", 0, maxContrast(region))
+
+        // 等过这一拍，它才开始淡入
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS)
         val middle = maxContrast(region)
 
         // 再走一段，越过整段时长让动画收尾
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
         val end = maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
-        assertTrue("半途应当已经看得见：middle=$middle", middle > 0)
-        assertTrue("半途应当还没到最终的样子：middle=$middle end=$end", middle < end)
+        assertTrue("半途应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
     }
 
     /**
-     * 本页重新合成时（转场返回、转屏、冷启动），列表整片淡入，而不是直接出现。
+     * 本页重新合成时（转场返回、转屏、冷启动），空态也要淡入，而不是直接出现。
      *
-     * 用空态那一屏来验：冷启动时列表先是空的，空态文案正是「跟着这次合成一起出现」的东西，
-     * 而它恰好是 LazyLayout 认不出、animateItem 演不出来的那一种。时钟停在合成处，
-     * 第一帧它还不该看得见；走到一半应当看得见、但还没到最终的样子。
+     * 用空态那一屏来验：冷启动且一条记录都没有时，空态正是「跟着这次合成一起出现」的东西，
+     * 而它恰好是 animateItem 认不出（手里没有上一轮可比）的那一种，只能自己演。
+     * 它比别人晚一拍开始（见 appearFadeIn），所以第一拍上还看不见。
      */
     @Test
     fun listFadesInOnFirstComposition() {
@@ -387,19 +391,20 @@ class HomeScreenTest {
         setContent(emptyList())
 
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
+
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS)
         val atStart = maxContrast(region)
 
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val middle = maxContrast(region)
 
         // 再走一段，越过整段时长让动画收尾
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
         val end = maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
-        assertEquals("合成后的第一帧还不该看得见：atStart=$atStart", 0, atStart)
-        assertTrue("半途应当已经看得见：middle=$middle", middle > 0)
-        assertTrue("半途应当还没到最终的样子：middle=$middle end=$end", middle < end)
+        assertEquals("刚出现的那一拍还不该看得见：atStart=$atStart", 0, atStart)
+        assertTrue("半途应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
     }
 
     /**
@@ -744,6 +749,9 @@ class HomeScreenTest {
 
         /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short4（200ms）对应 */
         const val STATE_CHANGE_HALF_MS = 100L
+
+        /** 页内状态切换的整段时长，用来把时钟推过"等一拍"那道延迟 */
+        const val STATE_CHANGE_MS = STATE_CHANGE_HALF_MS * 2
 
         /** 新记录慢一帧进列表，取样前要越过这一帧；两帧是因为写完状态还要等下一帧重新合成 */
         const val DEFER_FRAME_MS = 32L

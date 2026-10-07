@@ -81,6 +81,20 @@ object FreshNowTransitions {
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> = tween(STATE_CHANGE_MS)
 
+    /**
+     * 与 [stateChange] 同一档时长，但晚一拍才开始。
+     *
+     * 用于「前一件事演完才轮到它」的地方，目前只有一处：列表被删空后空态的出现。它紧跟在条目
+     * 淡出之后，而确认删除的对话框也正好在这段时间退场——两者同时开始的话，它的前半段整段被
+     * 对话框盖着，用户看到的是「对话框一关，它已经在那儿了」，等于没有淡入。等一拍再淡入，
+     * 才看得出它是淡进来的。
+     *
+     * 延迟取同一档时长而不是另取一个数：要等的那件事（条目淡出）就是用 [stateChange] 演的，
+     * 它结束的时刻就是这个数。
+     */
+    fun <T> stateChangeDelayed(): FiniteAnimationSpec<T> =
+        tween(STATE_CHANGE_MS, delayMillis = STATE_CHANGE_MS)
+
     /** 页内淡入淡出换装：新旧内容各淡各的，不位移 */
     fun fadeSwap(): ContentTransform =
         fadeIn(stateChange()) togetherWith fadeOut(stateChange())
