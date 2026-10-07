@@ -323,11 +323,14 @@ private fun ExtraRequestEditor(
             modifier = Modifier.fillMaxWidth(),
             label = { Text(text = stringResource(R.string.ai_settings_extra_label)) },
             placeholder = { Text(text = stringResource(R.string.ai_settings_extra_example)) },
-            supportingText = if (uiState.extraJsonError) {
-                // 只在填错时出现：不合法的 JSON 会被拒存，不给提示的话这一下就成了死按钮
-                { Text(text = stringResource(R.string.error_invalid_json)) }
-            } else {
-                null
+            supportingText = {
+                Text(
+                    text = if (uiState.extraJsonError) {
+                        stringResource(R.string.error_invalid_json)
+                    } else {
+                        stringResource(R.string.ai_settings_extra_hint)
+                    }
+                )
             },
             isError = uiState.extraJsonError,
             minLines = 3,
