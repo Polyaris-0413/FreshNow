@@ -44,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -410,12 +411,19 @@ private fun RecordRow(
         label = "selectionOutlineAlpha"
     )
 
+    val rowShape = MaterialTheme.shapes.extraSmall
+
     ListItem(
         modifier = modifier
+            // 这四边留白 + 裁剪是描边与涟漪共用的那一块区域：涟漪只能在这块圆角矩形里铺开，
+            // 描边也画在同一处，两者因此完全重合。它同时决定了相邻两条选中框之间的缝，
+            // 所以改这一个数，两者的位置与形状会一起变，不会再各算各的。
+            .padding(ROW_INSET)
+            .clip(rowShape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .selectionOutline(
                 color = MaterialTheme.colorScheme.primary,
-                cornerSize = MaterialTheme.shapes.extraSmall.topStart,
+                cornerSize = rowShape.topStart,
                 width = FreshNowSize.selectionOutlineWidth,
                 alpha = outlineAlpha
             ),
@@ -438,19 +446,15 @@ private fun RecordRow(
     )
 }
 
-/** 选中描边外沿与条目边界的距离 */
-private val SELECTION_OUTLINE_INSET = FreshNowSpacing.xxs
+/** 条目四周的留白：描边与涟漪共用这一块区域的边界，去掉它两者都会胀回整行大小 */
+private val ROW_INSET = FreshNowSpacing.xxs
 
 /**
- * 选中描边：一圈圆角矩形，画在条目边界之内。
+ * 选中描边：一圈圆角矩形，正好画在条目（也就是留白之后那一块）的边界上。
  *
- * 不用 Modifier.border —— 它只能贴着条目的边界画，上下相邻两条都选中时，
- * 上面那条的下边和下面那条的上边会直接叠在一起，看起来是一条 4dp 的粗线。
- * 这里把描边往里收 [SELECTION_OUTLINE_INSET]，两条之间就留出了缝，
- * 顺带也不至于让描边压在屏幕最边上。
- *
- * 自己画还有一个原因：这样透明度能交给调用方，描边的出现与消失才可能是淡入淡出。
- * 它只是画、不参与布局，所以选中前后条目不会跳动。
+ * 不用 Modifier.border 而自己画，是为了把透明度交给动画，描边的出现与消失才是淡入淡出。
+ * 它只是画、不参与布局，所以选中前后条目不会跳动；位置与形状则完全交给外层的留白与裁剪
+ * （见 RecordRow），描边因此和涟漪必然落在同一块区域的同一条边上。
  */
 private fun Modifier.selectionOutline(
     color: Color,
@@ -462,9 +466,8 @@ private fun Modifier.selectionOutline(
     if (alpha <= 0f) return@drawWithContent
 
     val stroke = width.toPx()
-    // Stroke 以矩形路径为中心向两侧各扩半个线宽，因此路径要再往里让半个线宽，
-    // 描边的外沿才正好落在 SELECTION_OUTLINE_INSET 处
-    val edge = SELECTION_OUTLINE_INSET.toPx() + stroke / 2f
+    // Stroke 以矩形路径为中心向两侧各扩半个线宽，路径要让开半个线宽，描边的外沿才正好压在边界上
+    val edge = stroke / 2f
     drawRoundRect(
         color = color,
         topLeft = Offset(edge, edge),
