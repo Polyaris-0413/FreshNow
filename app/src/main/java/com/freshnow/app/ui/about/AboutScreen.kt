@@ -69,11 +69,23 @@ internal fun AboutList(
     val issueUrl = stringResource(R.string.project_issue_url)
 
     Column(modifier = modifier) {
-            SectionHeading(
-                text = stringResource(R.string.app_settings_section_title),
-                // 与页面顶端的距离
-                modifier = Modifier.padding(top = FreshNowSpacing.sm)
-            )
+        // 法律声明放在最前：GPL-3.0 第 0 条要的是界面上有个「方便且显眼」的位置来说这四件事
+        // ——版权、无担保、可依本协议转发、以及怎么看协议全文。它不属于任何分区，先于分区列出。
+        Text(
+            text = stringResource(R.string.legal_notice),
+            modifier = Modifier.padding(
+                start = FreshNowSpacing.sm,
+                top = FreshNowSpacing.sm,
+                end = FreshNowSpacing.sm
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        SectionHeading(
+            text = stringResource(R.string.app_settings_section_title),
+            modifier = Modifier.padding(top = FreshNowSpacing.sm)
+        )
 
             // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下
             // （supporting-text）、短值在右（trailing-supporting-text），这里没有要解释的东西，

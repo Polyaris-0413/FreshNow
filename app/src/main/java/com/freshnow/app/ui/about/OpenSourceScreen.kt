@@ -30,12 +30,7 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 private data class OpenSourceProject(
     val name: String,
     val license: String,
-    val url: String,
-    /**
-     * 本应用的实现取自该项目。GPL-3.0 第 5 条要求衍生作品写明出处、以及相关日期，
-     * 逐条改动记在本应用仓库的提交记录里，页面上也照此写。
-     */
-    val derived: Boolean = false
+    val url: String
 )
 
 private const val APACHE = "Apache License 2.0"
@@ -59,11 +54,15 @@ private val PROJECTS = listOf(
         APACHE,
         "https://developer.android.com/media/camera/camerax"
     ),
-    OpenSourceProject("book-story", GPL, "https://github.com/Acclorite/book-story", derived = true)
+    OpenSourceProject("book-story", GPL, "https://github.com/Acclorite/book-story")
 )
 
 /**
  * 开源声明：列出用到的开源项目。
+ *
+ * 这份清单是给那几个 Apache-2.0 依赖用的——该协议要求分发时保留它们的版权与署名，惯例就是
+ * 这样列出来。book-story 是 GPL-3.0，它那边的义务不在这里：改过的声明与日期写在仓库的
+ * README/源码头（第 5a、5b 条），界面上那一份法律声明在关于页（第 0 条）。
  *
  * 没有用 OSS licenses 那类插件自动生成：它们靠依赖的 POM 出清单，覆盖不到「抄进来的源码」——
  * 本项目确实用到了 book-story 的源码，它必须由人来写清楚。
@@ -90,19 +89,6 @@ fun OpenSourceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     modifier = Modifier.clickable { openInBrowser(context, project.url) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
-                if (project.derived) {
-                    // 取自该项目的部分要写明出处与改动去处（GPL-3.0 第 5 条）
-                    Text(
-                        text = stringResource(R.string.open_source_derived_notice),
-                        modifier = Modifier.padding(
-                            start = FreshNowSpacing.sm,
-                            end = FreshNowSpacing.sm,
-                            bottom = FreshNowSpacing.xs
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
         }
     }

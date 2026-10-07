@@ -95,12 +95,30 @@ class AboutScreenTest {
         }
 
         composeRule.onNodeWithText("book-story").assertIsDisplayed()
-        composeRule.onNodeWithText("本应用的界面与动画实现取自该项目", substring = true).assertExists()
+        composeRule.onNodeWithText("GNU General Public License v3.0").assertExists()
         // 页面只列清单，不铺许可全文（副本由仓库的 LICENSE 承担）：全文里有独有句，清单里没有
         composeRule.onAllNodesWithText("Version 2.0, January 2004", substring = true)
             .assertCountEquals(0)
         // 5 个依赖都是 Apache-2.0，一行一个，所以按数量而不是「存在」断言
         composeRule.onAllNodesWithText("Apache License 2.0").assertCountEquals(5)
+    }
+
+    /**
+     * 法律声明在第 0 条要求的位置（界面上方便显眼处），且四件事都在：版权、无担保、
+     * 可依本协议转发、怎么看协议全文。它不属于任何分区，排在第一个分区标题之前。
+     */
+    @Test
+    fun legalNoticeComesFirstAndCarriesTheFourItems() {
+        setAboutList()
+
+        val notice = composeRule
+            .onNodeWithText("本应用以 GNU GPL-3.0 发布", substring = true)
+            .getBoundsInRoot()
+        assertTrue("法律声明应当排在第一个分区之前：notice=", notice.top < top("应用"))
+
+        composeRule.onNodeWithText("不提供任何担保", substring = true).assertExists()
+        composeRule.onNodeWithText("Acclorite", substring = true).assertExists()
+        composeRule.onNodeWithText("LICENSE", substring = true).assertExists()
     }
 
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top
