@@ -400,41 +400,62 @@ class HomeScreenTest {
     }
 
     /**
-     * 本页重新合成时（转场返回、转屏）列表里已经有的条目也要淡入，而不是跟着整页一起硬出现。
-     *
-     * 判据与 [newRow_fadesInAndPushesRowsBelowDown] 同源：取缩略图中心那一个像素，中途它
-     * 既不是底色也不是淡完后的照片色。这一条盯的是「合成时就在场」的那一批，
-     * 与「后加入」的那一批（由 animateItem 负责）是两条不同的路径。
+     * 回到主页时新记录已经在列表里了（`WhileSubscribed` 那 5 秒窗口内保存的就是这种），
+     * 它仍要淡入——这一条是「有时能演、有时不能」的正主：原来的判据落在合成时机上，
+     * 条目跟着列表一起首次合成时 animateItem 认不出它是新的，于是整片列表只有整页在淡。
      */
     @Test
-    fun rowsFadeInOnFirstComposition() {
+    fun newRowAlreadyInListAtComposition_fadesIn() {
         composeRule.mainClock.autoAdvance = false
         setContent(
-            listOf(item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31", withImage = true))
+            items = listOf(
+                item(id = 3, productName = "新扫的酸奶", printedExpiry = "2026-12-31"),
+                item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31")
+            ),
+            newRecordIds = setOf(3L)
         )
 
-        // 第一帧上照片还没解码完（解码是异步的），改取同一块缩略图格子里的占位图标：
-        // 两者尺寸位置相同，拿到的是同一个像素
-        val thumbnail = composeRule
-            .onAllNodesWithContentDescription("无图片", useUnmergedTree = true)[0]
-            .getBoundsInRoot()
-        val x = with(composeRule.density) { (thumbnail.left + thumbnail.width / 2).roundToPx() }
-        val y = with(composeRule.density) { (thumbnail.top + thumbnail.height / 2).roundToPx() }
-        fun samplePixel() = composeRule.onRoot().captureToImage().asAndroidBitmap().getPixel(x, y)
-
-        val atStart = samplePixel()
+        val region = composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot()
+        val atStart = maxContrast(region)
 
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
-        val middle = samplePixel()
+        val middle = maxContrast(region)
 
         // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
-        val end = samplePixel()
+        val end = maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
-        assertTrue("第一帧还不该看得见：atStart=$atStart end=$end", differs(atStart, end))
-        assertTrue("半途应当还没淡完：atStart=$atStart middle=$middle end=$end", differs(middle, end))
-        assertTrue("半途应当已经淡出来一些：atStart=$atStart middle=$middle", differs(middle, atStart))
+        assertEquals("合成后的第一帧还不该看得见：atStart=$atStart", 0, atStart)
+        assertTrue("半途应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
+    }
+
+    /**
+     * 已经露过面的条目不该再淡一遍，它们跟着整页出现就行。
+     *
+     * 若这里也淡，用户看到的是"整片列表在淡"，恰恰看不出是哪一条新加进来的——上一版就是
+     * 用整片淡入盖住了出现的差异，问题看着像"有时有动画、有时没有"。
+     */
+    @Test
+    fun alreadyShownRows_doNotFade() {
+        composeRule.mainClock.autoAdvance = false
+        setContent(
+            items = listOf(
+                item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"),
+                item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31")
+            )
+        )
+
+        val region = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot()
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = maxContrast(region)
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val end = maxContrast(region)
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("中途不该有半透明的时候：middle=$middle end=$end", abs(middle - end) <= 1)
     }
 
     /**
@@ -492,7 +513,9 @@ class HomeScreenTest {
                 item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31")
             )
         )
-        setContentTracking(records, mutableStateOf(emptySet()))
+        // 新记录是随这次数据更新一起被标成"刚存进来的"，与 HomeViewModel 里同一步
+        val newRecordIds = mutableStateOf(emptySet<Long>())
+        setContentTracking(records, mutableStateOf(emptySet()), newRecordIds)
 
         val firstThumbnail = composeRule
             .onAllNodesWithContentDescription("无图片", useUnmergedTree = true)[0]
@@ -509,6 +532,7 @@ class HomeScreenTest {
             records.value = listOf(
                 item(id = 3, productName = "新扫的酸奶", printedExpiry = "2026-12-31", withImage = true)
             ) + records.value
+            newRecordIds.value = setOf(3L)
         }
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val middle = samplePixel()
@@ -529,12 +553,14 @@ class HomeScreenTest {
     /** 需要一个改得动列表或选中状态的容器，与其它用例只摆一个静态状态不同 */
     private fun setContentTracking(
         records: MutableState<List<HomeRecordItem>>,
-        selectedIds: MutableState<Set<Long>>
+        selectedIds: MutableState<Set<Long>>,
+        newRecordIds: MutableState<Set<Long>> = mutableStateOf(emptySet())
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 HomeScreen(
                     records = records.value,
+                    newRecordIds = newRecordIds.value,
                     selectedIds = selectedIds.value,
                     onRecordClick = {},
                     onRecordToggle = {},
@@ -584,6 +610,7 @@ class HomeScreenTest {
 
     private fun setContent(
         items: List<HomeRecordItem>?,
+        newRecordIds: Set<Long> = emptySet(),
         selectedIds: Set<Long> = emptySet(),
         onRecordClick: (Long) -> Unit = {},
         onRecordToggle: (Long) -> Unit = {},
@@ -596,6 +623,7 @@ class HomeScreenTest {
                 primaryArgb = MaterialTheme.colorScheme.primary.toArgb()
                 HomeScreen(
                     records = items,
+                    newRecordIds = newRecordIds,
                     selectedIds = selectedIds,
                     onRecordClick = onRecordClick,
                     onRecordToggle = onRecordToggle,

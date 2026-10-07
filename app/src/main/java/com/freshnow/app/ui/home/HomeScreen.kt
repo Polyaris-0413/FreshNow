@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,13 +92,21 @@ fun HomeRoute(
     viewModel: HomeViewModel = viewModel()
 ) {
     val records by viewModel.records.collectAsStateWithLifecycle()
+    val newRecordIds by viewModel.newRecordIds.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
 
+    // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
+    // 清在这里而不是合成里，是因为此刻那些条目已经不存在了，清早了也漏不掉谁
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onRecordsShown() }
+    }
+
     HomeScreen(
-        // 第一次查库还没回来时是 null：列表位置先空着，等数据到了再整片淡入。
+        // 第一次查库还没回来时是 null：列表位置先空着，等数据到了才合成并淡入。
         // 不把 null 与「确实一条都没有」都折成空列表，否则冷启动会先给一句
         // 「还没有扫描记录」再把记录硬切上来，中途换一次结论
         records = records,
+        newRecordIds = newRecordIds,
         selectedIds = selectedIds,
         onRecordClick = onNavigateToRecord,
         onRecordToggle = viewModel::toggleSelection,
@@ -114,6 +123,8 @@ fun HomeRoute(
 @Composable
 fun HomeScreen(
     records: List<HomeRecordItem>?,
+    /** 刚存进来、还没演过淡入的那几条，见 HomeViewModel.newRecordIds */
+    newRecordIds: Set<Long>,
     selectedIds: Set<Long>,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
@@ -220,6 +231,7 @@ fun HomeScreen(
     ) { innerPadding ->
         RecordsList(
             records = records,
+            newRecordIds = newRecordIds,
             selectedIds = selectedIds,
             inSelectionMode = inSelectionMode,
             onRecordClick = onRecordClick,
@@ -352,6 +364,7 @@ private fun SheetMenuItem(
 @Composable
 private fun RecordsList(
     records: List<HomeRecordItem>?,
+    newRecordIds: Set<Long>,
     selectedIds: Set<Long>,
     inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
@@ -364,31 +377,24 @@ private fun RecordsList(
     // 转场返回、转屏时这批条目则已经缓存好了，这里拿到的直接就是内容
     while (records == null) return
 
-    // 列表整片淡入，本页每次重新合成都演一次（转场返回、转屏、以及照上面那句在数据到达时才
-    // 合成的冷启动）。
-    //
-    // 跟着这次合成一起出现的条目，LazyLayout 没有上一轮的键表可比，animateItem 的淡入认不出
-    // 它们是"刚出现的"，演不出来；后面才加入列表的条目则由 animateItem 的 fadeInSpec 负责，
-    // 那里认得出来。两处合起来，条目"出现"就有淡入，与删除时的淡出对称。
-    // 整片淡入而不是一行一个动画对象：这一批本来就是同时出现的，逐条演看不出差别。
-    val fillAlpha = remember { Animatable(0f) }
-    LaunchedEffect(fillAlpha) {
-        fillAlpha.animateTo(1f, FreshNowTransitions.stateChange())
-    }
-
     // 增删与位移的时长取页内状态切换（见 FreshNowTransitions.stateChange）：删除时选中框也按
     // 同一时长淡出（见 RecordRow），两者同时收尾，不会一个已经没了另一个还在淡。
     //
     // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
     // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
-    LazyColumn(modifier = modifier.graphicsLayer { alpha = fillAlpha.value }) {
+    LazyColumn(modifier = modifier) {
         if (records.isEmpty()) {
             item(key = EMPTY_LIST_KEY) {
                 Box(
                     modifier = Modifier
                         .fillParentMaxSize()
+                        // 空态文案每次出现都淡入一次：它只在这一个条目里，没有滚动可言，
+                        // 每次列表变空都是一次新的出现
+                        .appearFadeIn()
                         .animateItem(
-                            fadeInSpec = FreshNowTransitions.stateChange(),
+                            // 出现的淡入自己演（见 appearFadeIn），animateItem 那条通道只在
+                            // 「列表已在场、条目后加入」时认得出来，覆盖不到首次合成
+                            fadeInSpec = null,
                             placementSpec = FreshNowTransitions.stateChange(),
                             fadeOutSpec = FreshNowTransitions.stateChange()
                         ),
@@ -416,11 +422,14 @@ private fun RecordsList(
                 onLongClick = { onRecordToggle(item.record.id) },
                 // 被删的条目停在原位淡出，其余的滑到新位置。key 已经在 items 上给好，
                 // 谁走了谁留下由它认领，这里只负责把过程演出来
-                modifier = Modifier.animateItem(
-                    fadeInSpec = FreshNowTransitions.stateChange(),
-                    placementSpec = FreshNowTransitions.stateChange(),
-                    fadeOutSpec = FreshNowTransitions.stateChange()
-                )
+                modifier = Modifier
+                    // 刚存进来的那几条自己淡入；已经在列表里的条目不动，跟着整页出现
+                    .appearFadeIn(animate = item.record.id in newRecordIds)
+                    .animateItem(
+                        fadeInSpec = null,
+                        placementSpec = FreshNowTransitions.stateChange(),
+                        fadeOutSpec = FreshNowTransitions.stateChange()
+                    )
             )
         }
     }
@@ -428,6 +437,31 @@ private fun RecordsList(
 
 /** 空态条目的 key。记录 id 都是 Long，与它不会撞 */
 private const val EMPTY_LIST_KEY = "empty"
+
+/**
+ * 出现时淡入一次。
+ *
+ * 出现的淡入刻意不交给 `animateItem` 的 `fadeInSpec`：那条通道的判据落在合成时机上——LazyLayout
+ * 要先有上一轮的键表，才认得出「这条是后加入的」。而条目跟着列表首次合成的情形（转场返回、转屏、
+ * 冷启动，以及新记录回到主页时已经在缓存里）它一律认不出来，那些时候就只有整页在淡，看不出
+ * 是新条目加进来。判据换到这里：谁该淡入由调用方按数据给（[RecordsList] 用「刚存进来的那几条」，
+ * 空态文案则是每次出现都算），与合成时机无关，于是"有时能演、有时不能"没有了。
+ *
+ * animate 只在第一次合成时读一次：演到一半时上游若又更新（比如又存了一条），动画不会被中途掐断。
+ */
+@Composable
+private fun Modifier.appearFadeIn(animate: Boolean): Modifier {
+    val shouldAnimate = remember { animate }
+    if (!shouldAnimate) return this
+
+    val alpha = remember { Animatable(0f) }
+    LaunchedEffect(alpha) { alpha.animateTo(1f, FreshNowTransitions.stateChange()) }
+    return graphicsLayer { this.alpha = alpha.value }
+}
+
+/** 每次都淡入，用于只出现一次、没有滚动可言的条目（空态文案） */
+@Composable
+private fun Modifier.appearFadeIn(): Modifier = appearFadeIn(animate = true)
 
 /**
  * 今天的日期，跨过零点会自己更新。
@@ -555,6 +589,7 @@ private fun HomeScreenPreview() {
     FreshNowTheme {
         HomeScreen(
             records = previewRecords(),
+            newRecordIds = emptySet(),
             selectedIds = emptySet(),
             onRecordClick = {},
             onRecordToggle = {},
@@ -573,6 +608,7 @@ private fun HomeScreenSelectionPreview() {
     FreshNowTheme {
         HomeScreen(
             records = previewRecords(),
+            newRecordIds = emptySet(),
             selectedIds = setOf(1L),
             onRecordClick = {},
             onRecordToggle = {},

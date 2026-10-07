@@ -44,10 +44,36 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * 这里宁可把「未知」显式表达出来，也不假装已经查完了。
      */
     val records: StateFlow<List<HomeRecordItem>?> = repository.records
-        .map { records -> records.map(::toItem) }
+        .map { records ->
+            val ids = records.map { it.id }.toSet()
+            // 与上一次查库相比多出来的就是「刚存进去的」。这一步在数据到达的那一刻定下来，
+            // 界面是这一刻之后才读的，所以不论它读得早还是晚、列表是整棵重新合成还是条目后加，
+            // 结论都一样——这正是「逐条淡入时有时无」的根子：原来的判据落在合成时机上
+            _newRecordIds.value = ids - knownIds
+            knownIds = ids
+            records.map(::toItem)
+        }
         // 逐条查照片文件是否存在是盘上操作，挪到 IO 线程
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /** 上一次查库见到的 id，用来挑出刚存进来的那几条 */
+    private var knownIds: Set<Long> = emptySet()
+
+    private val _newRecordIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    /** 见 [onRecordsShown]。与 [records] 分开一条流：合成的时机不受它影响，只影响条目要不要演淡入 */
+    val newRecordIds: StateFlow<Set<Long>> = _newRecordIds.asStateFlow()
+
+    /**
+     * 界面已经把「刚存进来的」这几条演过了，清掉。
+     *
+     * 从主页离开时调用：下次回来（转场返回、转屏）重新合成的是同一批记录，不必再演一遍。
+     * 记录是在离开期间存下来的（保存后立即返回扫描页那一侧），清空发生在它之前，因此不受影响。
+     */
+    fun onRecordsShown() {
+        _newRecordIds.value = emptySet()
+    }
 
     private fun toItem(record: ScanRecord) = HomeRecordItem(
         record = record,
