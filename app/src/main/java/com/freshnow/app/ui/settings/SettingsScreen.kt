@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -48,6 +49,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.BuildConfig
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.SectionHeading
+import com.freshnow.app.ui.openInBrowser
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.launch
@@ -59,12 +62,14 @@ private enum class SettingsEditor { BasicConfig, ExtraRequest }
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onNavigateToOpenSource: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var editing by remember { mutableStateOf<SettingsEditor?>(null) }
     val savedMessage = stringResource(R.string.settings_saved)
@@ -101,6 +106,8 @@ fun SettingsScreen(
                     editing = SettingsEditor.ExtraRequest
                 },
                 onShowReasoningChange = viewModel::onShowReasoningChange,
+                onOpenUrl = { url -> openInBrowser(context, url) },
+                onOpenSourceClick = onNavigateToOpenSource,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -154,10 +161,16 @@ internal fun SettingsList(
     onBasicConfigClick: () -> Unit,
     onExtraRequestClick: () -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
+    onOpenUrl: (String) -> Unit,
+    onOpenSourceClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 链接在合成期解析好：clickable 的 lambda 不是 composable，里面取不了资源
+    val repositoryUrl = stringResource(R.string.project_repository_url)
+    val issueUrl = stringResource(R.string.project_issue_url)
+
     Column(modifier = modifier) {
-        SectionTitle(
+        SectionHeading(
             text = stringResource(R.string.ai_settings_section_title),
             // 与页面顶端的距离
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
@@ -191,7 +204,7 @@ internal fun SettingsList(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
-        SectionTitle(
+        SectionHeading(
             text = stringResource(R.string.debug_settings_section_title),
             // 与上一段之间留段间距（设计源的 24），两个分区才分得开
             modifier = Modifier.padding(top = FreshNowSpacing.md)
@@ -218,7 +231,7 @@ internal fun SettingsList(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
-        SectionTitle(
+        SectionHeading(
             text = stringResource(R.string.app_settings_section_title),
             modifier = Modifier.padding(top = FreshNowSpacing.md)
         )
@@ -228,6 +241,9 @@ internal fun SettingsList(
         // 因此只给值、不给说明。
         // 这一行不可点：看完就知道版本，没有可做的动作，尾部也就不给箭头。
         ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
+            },
             headlineContent = {
                 Text(text = stringResource(R.string.app_settings_version_title))
             },
@@ -244,28 +260,65 @@ internal fun SettingsList(
         // 占位：检查更新尚未实现，所以这一行现在不接点击（接了也没有可做的事）。落地时要补的是
         // 检查中的状态、最新/有新版本的结果，以及「有新版本」时的去处。
         ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)
+            },
             headlineContent = {
                 Text(text = stringResource(R.string.app_settings_check_update_title))
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
+
+        SectionHeading(
+            text = stringResource(R.string.project_settings_section_title),
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
+
+        // 两行都去浏览器：链接从资源取，行本身不知道具体地址
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_repository), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.project_repository_title))
+            },
+            modifier = Modifier.clickable {
+                onOpenUrl(repositoryUrl)
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_issue), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.project_issue_title))
+            },
+            modifier = Modifier.clickable {
+                onOpenUrl(issueUrl)
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        SectionHeading(
+            text = stringResource(R.string.legal_settings_section_title),
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_open_source), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.legal_open_source_title))
+            },
+            modifier = Modifier.clickable(onClick = onOpenSourceClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
 }
 
-/** 分区标题：M3 无专门组件，采用 Settings 惯例的 Title Small + primary */
-@Composable
-private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        modifier = modifier.padding(
-            start = FreshNowSpacing.sm,
-            end = FreshNowSpacing.sm,
-            bottom = FreshNowSpacing.xxs
-        ),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary
-    )
-}
 
 /**
  * 「基础配置」的编辑面板，承载在 ModalBottomSheet 内

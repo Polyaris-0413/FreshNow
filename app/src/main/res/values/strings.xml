@@ -48,6 +48,18 @@
     <string name="app_settings_section_title">应用</string>
     <string name="app_settings_version_title">版本</string>
     <string name="app_settings_check_update_title">检查更新</string>
+    <string name="project_settings_section_title">项目</string>
+    <string name="project_repository_title">访问仓库</string>
+    <string name="project_issue_title">问题反馈</string>
+    <string name="legal_settings_section_title">法律信息</string>
+    <string name="legal_open_source_title">开源声明</string>
+    <string name="open_source_intro">本应用使用了以下开源项目。</string>
+    <string name="open_source_derived_notice">本应用的界面与动画实现取自该项目，改动与日期见本应用仓库的提交记录（GPL-3.0 第 5 条）。</string>
+    <string name="open_source_licenses_title">许可全文</string>
+    <string name="open_source_apache_license">Apache License 2.0</string>
+    <string name="open_source_gpl_license">GNU General Public License v3.0</string>
+    <string name="project_repository_url" translatable="false">https://github.com/Polyaris-0413/FreshNow</string>
+    <string name="project_issue_url" translatable="false">https://github.com/Polyaris-0413/FreshNow/issues</string>
     <string name="ai_settings_basic_group_title">基础配置</string>
     <string name="ai_settings_show_reasoning_title">显示思维链</string>
     <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
