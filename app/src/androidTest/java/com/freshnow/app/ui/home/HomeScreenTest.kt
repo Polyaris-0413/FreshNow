@@ -362,7 +362,7 @@ class HomeScreenTest {
         /** 选中计数标题里数字之前那一段文字，用来断言它没有跟着数字一起动 */
         const val SELECTED_COUNT_PREFIX = "已选"
 
-        /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short3 对应 */
-        const val COUNT_ROLL_HALF_MS = 75L
+        /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short4（200ms）对应 */
+        const val COUNT_ROLL_HALF_MS = 100L
     }
 }

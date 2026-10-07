@@ -55,16 +55,25 @@ object FreshNowTransitions {
 
     // ---- 页内状态切换 ----
 
-    private const val STATE_CHANGE_MS = 150
+    /**
+     * 页内状态切换的时长，取 M3 时长令牌 short4（200ms）。
+     *
+     * 【按实测观感选的值，请勿只照着技能表改回 short3】
+     * 技能 typography-and-shape.md 的 Duration Scale 表里，short3（150ms）标的是「小转场」、
+     * short4 标的是「退出转场」，照表面意思这类页内变化该取 150ms。真机上试过 150ms，
+     * 反而不行：选中框淡入、数字滚动都是小幅度变化，时长压得太短眼睛跟不上，
+     * 观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡而不是跳变。
+     * 今后若要再调，同样请先实测对比，不要仅仅因为「技能表说 short3」就回退。
+     */
+    private const val STATE_CHANGE_MS = 200
 
     /**
      * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失、
      * 选中计数里数字的滚动。
      *
-     * 取 M3 时长令牌 short3（150ms，技能 typography-and-shape.md 的 Duration Scale 表里
-     * 归为「小转场」，正对这类变化），不与页面切换共用 350ms：那些是整页进出屏幕，
-     * 这些只是同一页里的局部变化，沿用页面时长按下去要等一会儿才看得出选中了。
-     * 曲线仍用 tween 默认的 standard 曲线，与页面切换一致。
+     * 时长与取舍见 STATE_CHANGE_MS。与页面切换的比例关系：一次性的整页进出屏幕用
+     * 上面的 350ms，这些只是同一页里的局部变化，取 200ms。曲线仍用 tween 默认的
+     * standard 曲线，与页面切换一致。
      *
      * 返回类型不写死：淡入淡出要 FiniteAnimationSpec<Float>，位移要 FiniteAnimationSpec<IntOffset>，
      * 由调用处决定，省得同一组时长与曲线在多处各写一遍、日后改一处漏一处。
