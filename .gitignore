@@ -2,28 +2,35 @@
 .gradle
 # Kotlin 2.x 的编译器会话数据；官方文档明确要求不入库（kotlinlang.org 的 Configure a Gradle project）
 .kotlin/
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/misc.xml
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/.idea/deploymentTargetSelector.xml
+local.properties
+
+# IDE 配置用白名单式：只留跨机器共享的项目结构文件。
+# 枚举式（逐个 xml 忽略）会让 Android Studio 新生成的文件以「未跟踪」冒出来而被误提交——
+# 尤其 .idea/deviceManager.xml 含本机设备信息，.idea/compiler.xml 记的是本机 JDK 派生的
+# 字节码目标（本机是 25，而项目编译目标是 Java 11）。
+/.idea/*
+!/.idea/AndroidProjectSystem.xml
+!/.idea/gradle.xml
+!/.idea/runConfigurations.xml
+!/.idea/vcs.xml
+
 .DS_Store
-/build
-/captures
+Thumbs.db
+Desktop.ini
+
+# 构建产物不锚定：这样将来新增模块的 build/ 也自动被忽略
+build/
+captures/
 .externalNativeBuild
 .cxx
-local.properties
+*.hprof
 
 # 发布签名材料：私钥与口令一旦入库即不可撤销
 *.jks
 *.keystore
+*.p12
+*.pk8
 keystore.properties
 
-# tools/generate-color-scheme.cjs 需要 material-color-utilities（仅生成配色时用，不参与 Android 构建）
+# tools/generate-color-scheme.cjs 的依赖：清单入库以便在新机器上复现，依赖本体不入库
 /node_modules
-/package.json
-/package-lock.json
