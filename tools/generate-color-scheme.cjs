@@ -4,7 +4,8 @@
  *
  * 用法（在项目根目录执行）：
  *   npm install @material/material-color-utilities@0.3.0
- *   node tools/generate-color-scheme.cjs '#4285F4'
+ *   node tools/generate-color-scheme.cjs '#4285F4'          # 只换品牌色，警示色沿用默认
+ *   node tools/generate-color-scheme.cjs '#4285F4' '#FFA000' # 品牌色与警示色一起换
  *
  * node_modules 与 npm 生成的 package.json 已在 .gitignore 里，不影响 Android 构建。
  *
@@ -20,18 +21,27 @@
  *   个别角色与实现并不一致（例如 background/surface 该实现取 neutral tone 99，技能表记的是 98）。
  * - surfaceContainer* 五档生成器不提供，按技能 color-system.md:122-128 / :140-146 明文给出的
  *   色调，从同一条 neutral 色调板取值。
- * - surfaceDim / surfaceBright / surfaceTint 生成器不提供、技能也未给出色调，故不生成，
- *   留待需要 tonalElevation 时再补，不臆造色值。
+ * - 警示色：标准 ColorScheme 没有 warning 槽位，按 M3 对「标准角色之外的颜色」的做法，
+ *   用同样的 seed -> 色调板方式另生成一组，角色结构镜像 primary（40/100/90/10 与 80/20/30/90）。
  */
 const mcu = require('@material/material-color-utilities');
 const fs = require('fs');
 const path = require('path');
 
-const SEED = process.argv[2] || '#4285F4';
+const BRAND_SEED = process.argv[2] || '#4285F4';
+// 警示色的色相（amber）是产品选择；具体取值是工程选择，依据是它落在 amber 区间、
+// 且色度足够高（tone 40 时仍是明确的橙而非褐）。没有规范出处，所以换掉它没有任何顾虑。
+const WARNING_SEED = process.argv[3] || '#FFA000';
+
 const OUT = path.join(__dirname, '..', 'app', 'src', 'main', 'java', 'com', 'freshnow', 'app', 'ui', 'theme', 'Color.kt');
 
 const hexOf = (v) => mcu.hexFromArgb(v).toUpperCase();
-const theme = mcu.themeFromSourceColor(mcu.argbFromHex(SEED));
+const hctOf = (seed) => {
+  const h = mcu.Hct.fromInt(mcu.argbFromHex(seed));
+  return `H${h.hue.toFixed(1)} C${h.chroma.toFixed(1)} T${h.tone.toFixed(1)}`;
+};
+
+const theme = mcu.themeFromSourceColor(mcu.argbFromHex(BRAND_SEED));
 const light = theme.schemes.light.toJSON();
 const dark = theme.schemes.dark.toJSON();
 
@@ -103,7 +113,21 @@ for (const schemeName of ['light', 'dark']) {
   }
 }
 
-const ORDER = ['Primary', 'Secondary', 'Tertiary', 'Neutral', 'NeutralVariant', 'Error'];
+// ---- 警示色：镜像 primary 的角色结构 ----
+const warnPal = mcu.themeFromSourceColor(mcu.argbFromHex(WARNING_SEED)).palettes.primary;
+const WARNING_TONES = {
+  light: { warning: 40, onWarning: 100, warningContainer: 90, onWarningContainer: 10 },
+  dark: { warning: 80, onWarning: 20, warningContainer: 30, onWarningContainer: 90 },
+};
+const warnRefs = { light: {}, dark: {} };
+for (const schemeName of ['light', 'dark']) {
+  for (const [role, tone] of Object.entries(WARNING_TONES[schemeName])) {
+    consts.set('Warning' + tone, hexOf(warnPal.tone(tone)));
+    warnRefs[schemeName][role] = 'Warning' + tone;
+  }
+}
+
+const ORDER = ['Primary', 'Secondary', 'Tertiary', 'Neutral', 'NeutralVariant', 'Error', 'Warning'];
 const constKeys = [...consts.keys()].sort((a, b) => {
   const pa = ORDER.findIndex((p) => a.startsWith(p));
   const pb = ORDER.findIndex((p) => b.startsWith(p));
@@ -111,9 +135,15 @@ const constKeys = [...consts.keys()].sort((a, b) => {
   return parseInt(a.replace(/\D/g, ''), 10) - parseInt(b.replace(/\D/g, ''), 10);
 });
 
-const schemeText = (fn, name, refMap) =>
+const schemeText = (fn, name, refMap, keys) =>
   `internal val ${name} = ${fn}(\n` +
-  ROLES.filter((r) => refMap[r] !== undefined).map((r) => `    ${r} = ${refMap[r]},`).join('\n') +
+  keys.filter((r) => refMap[r] !== undefined).map((r) => `    ${r} = ${refMap[r]},`).join('\n') +
+  `\n)`;
+
+const warnKeys = ['warning', 'onWarning', 'warningContainer', 'onWarningContainer'];
+const warnText = (name, refMap) =>
+  `internal val ${name} = FreshNowWarningColors(\n` +
+  warnKeys.map((r) => `    ${r} = ${refMap[r]},`).join('\n') +
   `\n)`;
 
 const content = `package com.freshnow.app.ui.theme
@@ -125,12 +155,16 @@ import androidx.compose.ui.graphics.Color
 /*
  * 本文件由 tools/generate-color-scheme.cjs 生成，请勿手改。
  *
- * seed：${SEED}
+ * 品牌 seed：${BRAND_SEED}（${hctOf(BRAND_SEED)}）
+ * 警示 seed：${WARNING_SEED}（${hctOf(WARNING_SEED)}）
  * 生成器：@material/material-color-utilities@0.3.0 的 themeFromSourceColor（经典色调映射）
  *
  * 色调映射完全以生成器为准，不要按 material-3 技能的映射表手改：那张表是设计参考，
  * 与实现在个别角色上并不一致（例如 background/surface 该实现取 neutral tone 99，技能表记的是 98；
  * 深色 surface 该实现取 tone 10，技能表记的是 6）。本文件的值全部来自生成器。
+ *
+ * 警示色的色相（amber）是产品选择，具体 seed 是工程选择，没有规范出处，随时可换：
+ *   node tools/generate-color-scheme.cjs '${BRAND_SEED}' '<新的警示色>'
  *
  * 重新生成：node tools/generate-color-scheme.cjs '<新 seed>'
  * 之后必须同步 res/values/themes.xml 与 res/values-night/themes.xml 的 @color/window_background
@@ -146,13 +180,18 @@ import androidx.compose.ui.graphics.Color
 // 色调板取值，命名规则为 <色调板><色调>
 ${constKeys.map((k) => `internal val ${k} = Color(0xFF${consts.get(k).slice(1)})`).join('\n')}
 
-${schemeText('lightColorScheme', 'LightColorScheme', refs.light)}
+${schemeText('lightColorScheme', 'LightColorScheme', refs.light, ROLES)}
 
-${schemeText('darkColorScheme', 'DarkColorScheme', refs.dark)}
+${schemeText('darkColorScheme', 'DarkColorScheme', refs.dark, ROLES)}
+
+${warnText('LightWarningColors', warnRefs.light)}
+
+${warnText('DarkWarningColors', warnRefs.dark)}
 `;
 
 fs.writeFileSync(OUT, content);
-console.log(`seed ${SEED} -> ${path.relative(process.cwd(), OUT)}`);
+console.log(`品牌 seed ${BRAND_SEED}（${hctOf(BRAND_SEED)}）`);
+console.log(`警示 seed ${WARNING_SEED}（${hctOf(WARNING_SEED)}）`);
 console.log(`色调常量 ${consts.size} 个`);
 console.log(unresolved.length ? `未解决：\n   ${unresolved.join('\n   ')}` : '所有角色均已解决');
 console.log('');

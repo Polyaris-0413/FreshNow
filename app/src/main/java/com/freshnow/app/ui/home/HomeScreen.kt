@@ -46,6 +46,7 @@ import com.freshnow.app.ui.component.ScanThumbnail
 import com.freshnow.app.ui.component.scanValueText
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
+import com.freshnow.app.ui.theme.warningColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -231,6 +232,9 @@ private fun rememberToday(): LocalDate {
     return today
 }
 
+/** 「快过期」的阈值：剩余天数不超过它就走警示色 */
+private const val EXPIRING_SOON_DAYS = 3L
+
 @Composable
 private fun RecordRow(
     item: HomeRecordItem,
@@ -247,9 +251,14 @@ private fun RecordRow(
         supportingContent = {
             Text(
                 text = expiryCountdownText(days),
-                // 已过期值得一眼看见，用错误色；M3 没有单独的警告色，所以只有过期才上色
-                color = if (days != null && days < 0) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurfaceVariant
+                // 三档：已过期用错误色，快过期用警示色（M3 没有 warning 角色，见 FreshNowWarningColors），
+                // 其余保持次要文字色。「算不出天数」不参与分档——不知道就不假装知道
+                color = when {
+                    days == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                    days < 0 -> MaterialTheme.colorScheme.error
+                    days <= EXPIRING_SOON_DAYS -> MaterialTheme.warningColors.warning
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)

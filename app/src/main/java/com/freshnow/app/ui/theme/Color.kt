@@ -7,12 +7,16 @@ import androidx.compose.ui.graphics.Color
 /*
  * 本文件由 tools/generate-color-scheme.cjs 生成，请勿手改。
  *
- * seed：#4285F4
+ * 品牌 seed：#4285F4（H266.0 C62.3 T56.6）
+ * 警示 seed：#FFA000（H68.5 C61.1 T73.8）
  * 生成器：@material/material-color-utilities@0.3.0 的 themeFromSourceColor（经典色调映射）
  *
  * 色调映射完全以生成器为准，不要按 material-3 技能的映射表手改：那张表是设计参考，
  * 与实现在个别角色上并不一致（例如 background/surface 该实现取 neutral tone 99，技能表记的是 98；
  * 深色 surface 该实现取 tone 10，技能表记的是 6）。本文件的值全部来自生成器。
+ *
+ * 警示色的色相（amber）是产品选择，具体 seed 是工程选择，没有规范出处，随时可换：
+ *   node tools/generate-color-scheme.cjs '#4285F4' '<新的警示色>'
  *
  * 重新生成：node tools/generate-color-scheme.cjs '<新 seed>'
  * 之后必须同步 res/values/themes.xml 与 res/values-night/themes.xml 的 @color/window_background
@@ -73,6 +77,13 @@ internal val Error40 = Color(0xFFBA1A1A)
 internal val Error80 = Color(0xFFFFB4AB)
 internal val Error90 = Color(0xFFFFDAD6)
 internal val Error100 = Color(0xFFFFFFFF)
+internal val Warning10 = Color(0xFF2B1700)
+internal val Warning20 = Color(0xFF482A00)
+internal val Warning30 = Color(0xFF663D00)
+internal val Warning40 = Color(0xFF875200)
+internal val Warning80 = Color(0xFFFFB865)
+internal val Warning90 = Color(0xFFFFDDBA)
+internal val Warning100 = Color(0xFFFFFFFF)
 
 internal val LightColorScheme = lightColorScheme(
     primary = Primary40,
@@ -144,4 +155,18 @@ internal val DarkColorScheme = darkColorScheme(
     outline = NeutralVariant60,
     outlineVariant = NeutralVariant30,
     scrim = Neutral0,
+)
+
+internal val LightWarningColors = FreshNowWarningColors(
+    warning = Warning40,
+    onWarning = Warning100,
+    warningContainer = Warning90,
+    onWarningContainer = Warning10,
+)
+
+internal val DarkWarningColors = FreshNowWarningColors(
+    warning = Warning80,
+    onWarning = Warning20,
+    warningContainer = Warning30,
+    onWarningContainer = Warning90,
 )

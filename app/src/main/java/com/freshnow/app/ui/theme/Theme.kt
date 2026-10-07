@@ -38,7 +38,8 @@ fun FreshNowTheme(
 
     MaterialTheme(
         colorScheme = scheme.copy(background = windowBackground),
-        typography = Typography,
-        content = content
-    )
+        typography = Typography
+    ) {
+        ProvideWarningColors(darkTheme, content)
+    }
 }

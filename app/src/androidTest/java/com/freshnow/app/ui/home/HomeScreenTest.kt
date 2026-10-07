@@ -56,7 +56,10 @@ class HomeScreenTest {
                 item(id = 1, productName = "纯牛奶", printedExpiry = today.plusDays(10).toString()),
                 item(id = 2, productName = "", printedExpiry = today.toString()),
                 item(id = 3, productName = "苏打饼干", printedExpiry = today.minusDays(3).toString()),
-                item(id = 4, productName = "酸奶", shelfLife = "见包装")
+                // 快过期两档，含正好卡在阈值上的边界
+                item(id = 4, productName = "快过期酸奶", printedExpiry = today.plusDays(2).toString()),
+                item(id = 5, productName = "临期面包", printedExpiry = today.plusDays(3).toString()),
+                item(id = 6, productName = "酸奶", shelfLife = "见包装")
             )
         )
 
@@ -65,6 +68,9 @@ class HomeScreenTest {
         composeRule.onNodeWithText("今天到期").assertIsDisplayed()
         composeRule.onNodeWithText("苏打饼干").assertIsDisplayed()
         composeRule.onNodeWithText("已过期 3 天").assertIsDisplayed()
+        // 阈值边界本身也算快过期
+        composeRule.onNodeWithText("还剩 2 天").assertIsDisplayed()
+        composeRule.onNodeWithText("还剩 3 天").assertIsDisplayed()
         // 品名为空的记录不能是一片空白
         composeRule.onNodeWithText("未知").assertIsDisplayed()
         composeRule.onNodeWithText("过期时间未知").assertIsDisplayed()
