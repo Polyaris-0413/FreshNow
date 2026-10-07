@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -39,6 +42,8 @@ fun FreshNowResultFields(
         ExpiryOutcome.UnparseableShelfLife -> stringResource(R.string.scan_expiry_unparseable)
         ExpiryOutcome.InsufficientInput -> ""
     }
+    val outerCorner = MaterialTheme.shapes.medium
+    val innerCorner = MaterialTheme.shapes.extraSmall
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -47,22 +52,21 @@ fun FreshNowResultFields(
         ProductNameBlock(productName)
 
         // 顺序按推算顺序排：生产日期 + 保质期 是标签上印的两项，过期日期是二者算出来的结论，故排在最后，
-        // 使「生产 + 保质期 → 过期」的顺序可以直接核对。
-        // 三块拼成一组：形状由 splicedCardShape 按位置给出（见 SplicedCard），缝取 4dp
+        // 使「生产 + 保质期 → 过期」的顺序可以直接核对
         Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)) {
-            FieldSegment(shape = splicedCardShape(index = 0, count = FIELD_COUNT)) {
+            FieldSegment(shape = splicedShape(top = outerCorner, bottom = innerCorner)) {
                 FreshNowFieldRow(
                     label = stringResource(R.string.scan_production_date),
                     value = productionDate
                 )
             }
-            FieldSegment(shape = splicedCardShape(index = 1, count = FIELD_COUNT)) {
+            FieldSegment(shape = innerCorner) {
                 FreshNowFieldRow(
                     label = stringResource(R.string.scan_shelf_life),
                     value = shelfLife
                 )
             }
-            FieldSegment(shape = splicedCardShape(index = 2, count = FIELD_COUNT)) {
+            FieldSegment(shape = splicedShape(top = innerCorner, bottom = outerCorner)) {
                 FreshNowFieldRow(
                     label = stringResource(R.string.scan_expiry_date),
                     value = expiryText
@@ -72,15 +76,12 @@ fun FreshNowResultFields(
     }
 }
 
-/** 拼成一组的三块日期与保质期 */
-private const val FIELD_COUNT = 3
-
 /**
  * 品名块：单独一张卡片，四角都取规范给卡片类容器的 medium
  */
 @Composable
 private fun ProductNameBlock(productName: String, modifier: Modifier = Modifier) {
-    FieldSegment(shape = splicedCardShape(index = 0, count = 1), modifier = modifier) {
+    FieldSegment(shape = MaterialTheme.shapes.medium, modifier = modifier) {
         FreshNowFieldRow(
             label = stringResource(R.string.scan_product_name),
             value = productName,
@@ -90,8 +91,17 @@ private fun ProductNameBlock(productName: String, modifier: Modifier = Modifier)
 }
 
 /**
- * 拼接中的一块字段行：形状来自 [splicedCardShape]，左右留白由这里补——[FreshNowFieldRow]
- * 自身只有上下内边距（它同时被用在不需要左右留白的地方）
+ * 上下各取一档形状令牌，拼成一个四角圆角矩形
+ */
+private fun splicedShape(top: CornerBasedShape, bottom: CornerBasedShape) = RoundedCornerShape(
+    topStart = top.topStart,
+    topEnd = top.topEnd,
+    bottomStart = bottom.bottomStart,
+    bottomEnd = bottom.bottomEnd
+)
+
+/**
+ * 拼接中的单块：填充色与 M3 填充容器一致，左右内边距由容器给出，行本身只负责上下内边距
  */
 @Composable
 private fun FieldSegment(
@@ -99,7 +109,11 @@ private fun FieldSegment(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    SplicedCard(shape = shape, modifier = modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
+    ) {
         Box(modifier = Modifier.padding(horizontal = FreshNowSpacing.sm)) {
             content()
         }
