@@ -26,7 +26,11 @@
     <string name="home_expiry_today">今天到期</string>
     <string name="home_expiry_expired">已过期 %1$d 天</string>
     <string name="home_expiry_unknown">过期时间未知</string>
-    <string name="home_selected_count">已选 %1$d 项</string>
+    <!-- 选中计数拆成数字前后两段：数字要单独滚，合在一条 %d 格式化串里就拆不开。
+         两段各含一个半角空格，Android 会裁掉未加引号的首尾空格，所以都加了引号。
+         代价是词序被固定在这里：将来若要做其他语言，这两段必须成对翻译且保持相邻 -->
+    <string name="home_selected_count_prefix">"已选 "</string>
+    <string name="home_selected_count_suffix">" 项"</string>
     <string name="home_delete_dialog_title">删除选中的 %1$d 条记录？</string>
     <string name="home_delete_dialog_message">记录和扫描照片都会被删除，无法恢复。</string>
     <string name="record_detail_title">记录详情</string>

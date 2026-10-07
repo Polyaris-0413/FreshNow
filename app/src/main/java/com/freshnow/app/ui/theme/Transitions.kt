@@ -59,7 +59,7 @@ object FreshNowTransitions {
 
     /**
      * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失、
-     * 选中计数的滚动。
+     * 选中计数里数字的滚动。
      *
      * 取 M3 时长令牌 short3（150ms，技能 typography-and-shape.md 的 Duration Scale 表里
      * 归为「小转场」，正对这类变化），不与页面切换共用 350ms：那些是整页进出屏幕，
@@ -70,26 +70,30 @@ object FreshNowTransitions {
      * 由调用处决定，省得同一组时长与曲线在多处各写一遍、日后改一处漏一处。
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> = tween(STATE_CHANGE_MS)
+
+    /** 页内淡入淡出换装：新旧内容各淡各的，不位移 */
+    fun fadeSwap(): ContentTransform =
+        fadeIn(stateChange()) togetherWith fadeOut(stateChange())
 }
 
-private const val COUNT_ROLL_FRACTION = 3
-
 /**
- * 选中计数滚动：变多往上滚、变少往下滚。方向由数量本身决定，与界面无关，因此判据在这里。
+ * 选中计数里数字的滚动：变多往上滚、变少往下滚。方向由数量本身决定，与界面无关，
+ * 因此判据在这里而不是调用方。
+ *
+ * 位移取整个行高，而不是留一部分：调用方只把这一个数字放进 AnimatedContent，它的框
+ * 正好一行高，整行偏移配合 AnimatedContent 的裁剪就是一个滚动窗口——旧数字从一侧滑出、
+ * 新数字从另一侧滑入。偏移不足两个数字反而会同时留在框里，看着是重影。
  *
  * 不做成 [FreshNowTransitions] 的成员：它要在 transitionSpec 里直接调用，而那个 lambda 的
  * 接收者是 AnimatedContentTransitionScope，成员形式的扩展函数在那里调不到。
- *
- * 位移刻意取得小于行高（COUNT_ROLL_FRACTION 分之一）：AnimatedContent 会把内容裁在自己的
- * 范围内，整行偏移时新旧两行都落在可见范围外，中间空一拍，看起来是「先消失再出现」而不是滚动。
  */
 fun AnimatedContentTransitionScope<Int>.countRoll(): ContentTransform {
     val roll = if (targetState > initialState) 1 else -1
     return (
-        slideInVertically(FreshNowTransitions.stateChange()) { height -> roll * height / COUNT_ROLL_FRACTION } +
+        slideInVertically(FreshNowTransitions.stateChange()) { height -> roll * height } +
             fadeIn(FreshNowTransitions.stateChange())
         ).togetherWith(
-        slideOutVertically(FreshNowTransitions.stateChange()) { height -> -roll * height / COUNT_ROLL_FRACTION } +
+        slideOutVertically(FreshNowTransitions.stateChange()) { height -> -roll * height } +
             fadeOut(FreshNowTransitions.stateChange())
     )
 }

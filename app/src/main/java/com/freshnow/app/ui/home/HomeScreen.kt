@@ -3,7 +3,6 @@ package com.freshnow.app.ui.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +12,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -136,30 +137,30 @@ fun HomeScreen(
         }
     }
 
+    // 顶栏的两副面孔用一个可空计数表示：null 是普通列表，非 null 是选择模式及其计数。
+    //
+    // 计数放进状态里，而不是在选择模式那一支里现读 selectedIds.size：AnimatedContent 按状态
+    // 缓存内容，退出选择模式时被淡出的那条顶栏拿到的仍是它自己的计数，会停在「已选 1 项」上淡出。
+    // 若现读，它会跟着最新的选中数量先滚一遍「已选 0 项」再淡出，同一件事演两遍。
+    val selectionCount: Int? = selectedIds.size.takeIf { inSelectionMode }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            // 顶栏是「列表」与「选择模式」两副面孔，直接换会很生硬。
-            // 整条一起淡入淡出，而不是分开淡标题与图标：选择模式下标题左边多出退出按钮，
-            // 标题本身要右移，分开淡会让它在两个位置之间跳；整条换则位置变化也是淡出来的。
-            Crossfade(
-                targetState = inSelectionMode,
-                animationSpec = FreshNowTransitions.stateChange(),
+            // 顶栏是「列表」与「选择模式」两副面孔，直接换会很生硬，整条一起淡入淡出。
+            // 整条换而不是分开淡标题与图标：选择模式下标题左边多出退出按钮、标题本身要右移，
+            // 分开淡会让它在两个位置之间跳。
+            AnimatedContent(
+                targetState = selectionCount,
+                // 内容按「是不是选择模式」复用：计数在自己的小框里滚（见 SelectionCountTitle），
+                // 整条顶栏只在进出选择模式时切换
+                contentKey = { it != null },
+                transitionSpec = { FreshNowTransitions.fadeSwap() },
                 label = "topBar"
-            ) { selecting ->
-                if (selecting) {
+            ) { count ->
+                if (count != null) {
                     FreshNowTopAppBar(
-                        title = {
-                            // 计数是这一屏里唯一会变的数字，直接跳变会让人怀疑是不是自己点错了。
-                            // 滚一下既看得出变了、也看得出往哪个方向变
-                            AnimatedContent(
-                                targetState = selectedIds.size,
-                                transitionSpec = { countRoll() },
-                                label = "selectedCount"
-                            ) { count ->
-                                Text(text = stringResource(R.string.home_selected_count, count))
-                            }
-                        },
+                        title = { SelectionCountTitle(count = count) },
                         navigationIcon = {
                             IconButton(onClick = onExitSelection) {
                                 Icon(
@@ -273,6 +274,30 @@ fun HomeScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * 选中计数。前后两段文字不动，只有中间的数字滚——整句一起滚会把「已选」「项」也带着动，
+ * 看着像标题在抖，而这一屏里真正在变的只有数字。
+ *
+ * 三段文字合并成一个语义节点，否则读屏软件会读成「已选」「2」「项」三截。
+ */
+@Composable
+private fun SelectionCountTitle(count: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = stringResource(R.string.home_selected_count_prefix))
+        AnimatedContent(
+            targetState = count,
+            transitionSpec = { countRoll() },
+            label = "selectedCount"
+        ) { current ->
+            Text(text = current.toString())
+        }
+        Text(text = stringResource(R.string.home_selected_count_suffix))
     }
 }
 

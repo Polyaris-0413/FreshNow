@@ -3,6 +3,7 @@ package com.freshnow.app.ui.home
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -150,7 +152,8 @@ class HomeScreenTest {
     fun selectionMode_replacesAppNameWithCountAndMenuWithDelete() {
         setContent(records(), selectedIds = setOf(1L, 3L))
 
-        composeRule.onNodeWithText("已选 2 项").assertIsDisplayed()
+        onCountNode(2).assertIsDisplayed()
+        composeRule.onNodeWithText(SELECTED_COUNT_PREFIX, substring = true).assertExists()
         composeRule.onNodeWithContentDescription("删除").assertIsDisplayed()
         // 应用名与「更多选项」都要让位，否则看不出正在选择
         composeRule.onNodeWithText("FreshNow").assertDoesNotExist()
@@ -212,6 +215,43 @@ class HomeScreenTest {
     @Test
     fun countChange_rollsInsteadOfJumping() {
         val selectedIds = mutableStateOf(setOf(1L))
+        setContentTrackingSelection(selectedIds)
+
+        onCountNode(1).assertIsDisplayed()
+
+        // 停掉自动推进，改完状态把时钟停在动画走到一半的位置
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread { selectedIds.value = setOf(1L, 2L) }
+        composeRule.mainClock.advanceTimeBy(COUNT_ROLL_HALF_MS)
+
+        // 滚到一半时新旧两个数字同时在——说明是在滚，而不是直接跳过去
+        onCountNode(1).assertExists()
+        onCountNode(2).assertExists()
+        // 而前后两段固定文字各只有一个节点：滚的只有数字，整句没有跟着一起动
+        composeRule.onAllNodesWithText(SELECTED_COUNT_PREFIX, substring = true).assertCountEquals(1)
+
+        savePreview(COUNT_ROLL_PREVIEW_NAME)
+    }
+
+    /**
+     * 取消掉最后一个选中项时，正在淡出的顶栏要停在它自己的计数上，
+     * 不能先滚一遍「已选 0 项」再淡出——那是把同一件事演了两遍。
+     */
+    @Test
+    fun deselectingLastItem_keepsLastCountWhileFadingOut() {
+        val selectedIds = mutableStateOf(setOf(1L))
+        setContentTrackingSelection(selectedIds)
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread { selectedIds.value = emptySet() }
+        composeRule.mainClock.advanceTimeBy(COUNT_ROLL_HALF_MS)
+
+        onCountNode(1).assertExists()
+        composeRule.onNodeWithText("0", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    /** 需要一个改得动选中状态的容器，与其它用例只摆一个静态状态不同 */
+    private fun setContentTrackingSelection(selectedIds: MutableState<Set<Long>>) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 HomeScreen(
@@ -227,19 +267,14 @@ class HomeScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithText("已选 1 项").assertIsDisplayed()
-
-        // 停掉自动推进，改完状态把时钟停在动画走到一半的位置
-        composeRule.mainClock.autoAdvance = false
-        composeRule.runOnUiThread { selectedIds.value = setOf(1L, 2L) }
-        composeRule.mainClock.advanceTimeBy(COUNT_ROLL_HALF_MS)
-
-        // 滚到一半时新旧两个计数同时在——说明是在滚，而不是直接跳过去
-        composeRule.onNodeWithText("已选 1 项").assertExists()
-        composeRule.onNodeWithText("已选 2 项").assertExists()
-
-        savePreview(COUNT_ROLL_PREVIEW_NAME)
     }
+
+    /**
+     * 计数标题由「已选」「数字」「项」三段拼成，按未合并的树取数字那一节：
+     * 合并后的父节点拿到的是三段文字的列表，写整句反而匹配不上。
+     */
+    private fun onCountNode(count: Int) =
+        composeRule.onNodeWithText(count.toString(), useUnmergedTree = true)
 
     /** 选中框是实心描边，只有边缘会被抗锯齿磨淡，所以容一点通道差即可 */
     private fun isPrimary(pixel: Int): Boolean = abs(Color.red(pixel) - Color.red(primaryArgb)) <= CHANNEL_TOLERANCE &&
@@ -323,6 +358,9 @@ class HomeScreenTest {
         const val SELECTION_PREVIEW_NAME = "home_selection_preview.png"
         const val COUNT_ROLL_PREVIEW_NAME = "home_count_roll_preview.png"
         const val CHANNEL_TOLERANCE = 8
+
+        /** 选中计数标题里数字之前那一段文字，用来断言它没有跟着数字一起动 */
+        const val SELECTED_COUNT_PREFIX = "已选"
 
         /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short3 对应 */
         const val COUNT_ROLL_HALF_MS = 75L
