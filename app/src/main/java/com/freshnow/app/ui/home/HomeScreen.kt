@@ -94,6 +94,9 @@ fun HomeRoute(
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
 
     HomeScreen(
+        // 第一次查库还没回来时是 null：列表位置先空着，等数据到了再整片淡入。
+        // 不把 null 与「确实一条都没有」都折成空列表，否则冷启动会先给一句
+        // 「还没有扫描记录」再把记录硬切上来，中途换一次结论
         records = records,
         selectedIds = selectedIds,
         onRecordClick = onNavigateToRecord,
@@ -110,7 +113,7 @@ fun HomeRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    records: List<HomeRecordItem>,
+    records: List<HomeRecordItem>?,
     selectedIds: Set<Long>,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
@@ -348,7 +351,7 @@ private fun SheetMenuItem(
 
 @Composable
 private fun RecordsList(
-    records: List<HomeRecordItem>,
+    records: List<HomeRecordItem>?,
     selectedIds: Set<Long>,
     inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
@@ -357,7 +360,12 @@ private fun RecordsList(
 ) {
     val today = rememberToday()
 
-    // 列表整片淡入，本页每次重新合成都演一次（转场返回、转屏、冷启动）。
+    // 第一次查库还没回来，先不占位：此刻还不知道该不该显示「还没有扫描记录」。
+    // 转场返回、转屏时这批条目则已经缓存好了，这里拿到的直接就是内容
+    while (records == null) return
+
+    // 列表整片淡入，本页每次重新合成都演一次（转场返回、转屏、以及照上面那句在数据到达时才
+    // 合成的冷启动）。
     //
     // 跟着这次合成一起出现的条目，LazyLayout 没有上一轮的键表可比，animateItem 的淡入认不出
     // 它们是"刚出现的"，演不出来；后面才加入列表的条目则由 animateItem 的 fadeInSpec 负责，

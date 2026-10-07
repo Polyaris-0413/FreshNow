@@ -437,6 +437,28 @@ class HomeScreenTest {
         assertTrue("半途应当已经淡出来一些：atStart=$atStart middle=$middle", differs(middle, atStart))
     }
 
+    /**
+     * 还没查到记录时不能先下结论说「没有记录」。
+     *
+     * 冷启动时 Flow 的第一条要等查库，若这一段时间按空列表画，用户会先看到一句
+     * 「还没有扫描记录」，等记录到达再被硬切掉——同一屏里前后两个互相矛盾的结论。
+     * 这里把「数据没到」与「确实没有」摆成两屏对比：前者不该出现任何空态文案。
+     */
+    @Test
+    fun loadingRecords_showsNoEmptyHint() {
+        setContent(items = null)
+
+        composeRule.onNodeWithText("还没有扫描记录").assertDoesNotExist()
+    }
+
+    /** 空态文案只在确实没有记录时出现，别被上面那条改动殃及 */
+    @Test
+    fun emptyRecords_showEmptyHint() {
+        setContent(items = emptyList<HomeRecordItem>())
+
+        composeRule.onNodeWithText("还没有扫描记录").assertIsDisplayed()
+    }
+
     /** 该区域里与页面底色差得最远的那个像素差多少：文字淡入时它会从 0 涨到最终值 */
     private fun maxContrast(region: DpRect): Int {
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
@@ -561,7 +583,7 @@ class HomeScreenTest {
     )
 
     private fun setContent(
-        items: List<HomeRecordItem>,
+        items: List<HomeRecordItem>?,
         selectedIds: Set<Long> = emptySet(),
         onRecordClick: (Long) -> Unit = {},
         onRecordToggle: (Long) -> Unit = {},

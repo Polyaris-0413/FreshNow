@@ -35,11 +35,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
 
-    val records: StateFlow<List<HomeRecordItem>> = repository.records
+    /**
+     * 列表内容。null 表示第一次查库还没回来。
+     *
+     * 初始值不用 emptyList()：「数据还没到」与「确实一条都没有」在界面上是两回事，混成同一个值
+     * 的话，冷启动会先显示一句「还没有扫描记录」，等记录到达再把它换成列表——同一屏里前后两个
+     * 互相矛盾的结论，而且记录是硬切上来的（见 HomeScreen 对 records == null 的处理）。
+     * 这里宁可把「未知」显式表达出来，也不假装已经查完了。
+     */
+    val records: StateFlow<List<HomeRecordItem>?> = repository.records
         .map { records -> records.map(::toItem) }
         // 逐条查照片文件是否存在是盘上操作，挪到 IO 线程
         .flowOn(Dispatchers.IO)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     private fun toItem(record: ScanRecord) = HomeRecordItem(
         record = record,
