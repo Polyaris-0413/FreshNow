@@ -20,7 +20,6 @@ fun FreshNowSubPage(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    snackbarHost: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
     Scaffold(
@@ -38,7 +37,6 @@ fun FreshNowSubPage(
                 }
             )
         },
-        snackbarHost = snackbarHost,
         content = content
     )
 }

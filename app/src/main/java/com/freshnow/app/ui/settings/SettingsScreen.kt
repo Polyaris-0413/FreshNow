@@ -21,8 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -63,25 +61,19 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var editing by remember { mutableStateOf<SettingsEditor?>(null) }
-    val savedMessage = stringResource(R.string.settings_saved)
 
-    // 收起编辑面板，afterHidden 在收起动画结束后执行
-    fun closeEditor(afterHidden: () -> Unit = {}) {
-        scope.launch { sheetState.hide() }.invokeOnCompletion {
-            editing = null
-            afterHidden()
-        }
+    // 收起编辑面板。收起动画结束再清 editing：动画期间面板还在，提前清掉会闪一下
+    fun closeEditor() {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { editing = null }
     }
 
     FreshNowSubPage(
         title = stringResource(R.string.settings),
         onBack = onBack,
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        modifier = modifier
     ) { innerPadding ->
         // 落盘值到达前不渲染设置项：开关若先按默认值（false）组合出来，随后读到的真值会让
         // Switch 播一次关→开的动画，观感上就是「每次进设置页开关动画都重播」
@@ -122,9 +114,7 @@ fun SettingsScreen(
                     onApiKeyChange = viewModel::onApiKeyChange,
                     onCancel = { closeEditor() },
                     onSave = {
-                        if (viewModel.save()) {
-                            closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
-                        }
+                        if (viewModel.save()) closeEditor()
                     }
                 )
 
@@ -134,7 +124,7 @@ fun SettingsScreen(
                     onCancel = { closeEditor() },
                     onSave = {
                         viewModel.saveExtra()
-                        closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
+                        closeEditor()
                     }
                 )
             }
