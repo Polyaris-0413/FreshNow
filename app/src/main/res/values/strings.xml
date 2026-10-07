@@ -50,6 +50,9 @@
     <string name="app_settings_section_title">应用</string>
     <string name="app_settings_version_title">版本</string>
     <string name="app_settings_check_update_title">检查更新</string>
+    <!-- 点版本号弹的彩蛋，按原样显示：日期不做本地化 -->
+    <string name="app_settings_version_toast" translatable="false">2026-10-5</string>
+    <string name="app_settings_check_update_toast">敬请期待</string>
     <string name="project_settings_section_title">项目</string>
     <string name="project_repository_title">访问仓库</string>
     <string name="project_issue_title">问题反馈</string>

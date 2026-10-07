@@ -12,6 +12,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +39,9 @@ fun AboutScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    // Toast 要的是结果字符串，在合成期解析好
+    val versionToast = stringResource(R.string.app_settings_version_toast)
+    val checkUpdateToast = stringResource(R.string.app_settings_check_update_toast)
 
     FreshNowSubPage(
         title = stringResource(R.string.about),
@@ -46,6 +51,8 @@ fun AboutScreen(
         AboutList(
             onOpenUrl = { url -> openInBrowser(context, url) },
             onOpenSourceClick = onNavigateToOpenSource,
+            onVersionClick = { showToast(context, versionToast) },
+            onCheckUpdateClick = { showToast(context, checkUpdateToast) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -62,6 +69,8 @@ fun AboutScreen(
 internal fun AboutList(
     onOpenUrl: (String) -> Unit,
     onOpenSourceClick: () -> Unit,
+    onVersionClick: () -> Unit,
+    onCheckUpdateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // 链接在合成期解析好：clickable 的 lambda 不是 composable，里面取不了资源
@@ -70,92 +79,95 @@ internal fun AboutList(
 
     Column(modifier = modifier) {
         SectionHeading(
-            text = stringResource(R.string.app_settings_section_title),
-            // 与页面顶端的距离
-            modifier = Modifier.padding(top = FreshNowSpacing.sm)
+        text = stringResource(R.string.app_settings_section_title),
+        // 与页面顶端的距离
+        modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
-            // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下
-            // （supporting-text）、短值在右（trailing-supporting-text），这里没有要解释的东西，
-            // 因此只给值、不给说明。
-            //
-            // 这一行先接一个空的点击：动作（复制版本号之类）还没定，但按压反馈要有——同页其余
-            // 几行都可点，唯独它按下去毫无反应，看着像坏了。代价是读屏软件会把它读成可点项，
-            // 而定下动作后这个代价就自动消失，所以先这么放着。
-            ListItem(
-                leadingContent = {
-                    Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
-                },
-                headlineContent = {
-                    Text(text = stringResource(R.string.app_settings_version_title))
-                },
-                trailingContent = {
-                    Text(
-                        text = BuildConfig.VERSION_NAME,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                modifier = Modifier.clickable { },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+        // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下
+        // （supporting-text）、短值在右（trailing-supporting-text），这里没有要解释的东西，
+        // 因此只给值、不给说明。
+        //
+        // 点它是彩蛋：弹一个日期。同页其余各行都可点，这一行也不该按下去毫无反应。
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.app_settings_version_title))
+            },
+            trailingContent = {
+                Text(
+                    text = BuildConfig.VERSION_NAME,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.clickable(onClick = onVersionClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            // 检查更新：动作尚未实现（要补的是检查中的状态、最新/有新版本的结果，以及「有新版本」
-            // 时的去处），这里同样先只给出按压反馈，与其余各行一致。
-            ListItem(
-                leadingContent = {
-                    Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)
-                },
-                headlineContent = {
-                    Text(text = stringResource(R.string.app_settings_check_update_title))
-                },
-                modifier = Modifier.clickable { },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+        // 检查更新：动作尚未实现（要补的是检查中的状态、最新/有新版本的结果，以及「有新版本」
+        // 时的去处），这里同样先只给出按压反馈，与其余各行一致。
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.app_settings_check_update_title))
+            },
+            modifier = Modifier.clickable(onClick = onCheckUpdateClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            SectionHeading(
-                text = stringResource(R.string.project_settings_section_title),
-                // 与上一段之间留段间距（设计源的 24），分区才分得开
-                modifier = Modifier.padding(top = FreshNowSpacing.md)
-            )
+        SectionHeading(
+            text = stringResource(R.string.project_settings_section_title),
+            // 与上一段之间留段间距（设计源的 24），分区才分得开
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
 
-            // 两行都去浏览器：链接从资源取，行本身不知道具体地址
-            ListItem(
-                leadingContent = {
-                    Icon(painter = painterResource(R.drawable.ic_repository), contentDescription = null)
-                },
-                headlineContent = {
-                    Text(text = stringResource(R.string.project_repository_title))
-                },
-                modifier = Modifier.clickable { onOpenUrl(repositoryUrl) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+        // 两行都去浏览器：链接从资源取，行本身不知道具体地址
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_repository), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.project_repository_title))
+            },
+            modifier = Modifier.clickable { onOpenUrl(repositoryUrl) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            ListItem(
-                leadingContent = {
-                    Icon(painter = painterResource(R.drawable.ic_issue), contentDescription = null)
-                },
-                headlineContent = {
-                    Text(text = stringResource(R.string.project_issue_title))
-                },
-                modifier = Modifier.clickable { onOpenUrl(issueUrl) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_issue), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.project_issue_title))
+            },
+            modifier = Modifier.clickable { onOpenUrl(issueUrl) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            SectionHeading(
-                text = stringResource(R.string.legal_settings_section_title),
-                modifier = Modifier.padding(top = FreshNowSpacing.md)
-            )
+        SectionHeading(
+            text = stringResource(R.string.legal_settings_section_title),
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
 
-            ListItem(
-                leadingContent = {
-                    Icon(painter = painterResource(R.drawable.ic_open_source), contentDescription = null)
-                },
-                headlineContent = {
-                    Text(text = stringResource(R.string.legal_open_source_title))
-                },
-                modifier = Modifier.clickable(onClick = onOpenSourceClick),
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_open_source), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.legal_open_source_title))
+            },
+            modifier = Modifier.clickable(onClick = onOpenSourceClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
+}
+
+/** 短提示用 Toast：关于页没有 SnackbarHost，而这两句不承载任何可撤销的操作 */
+private fun showToast(context: Context, text: String) {
+    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 }

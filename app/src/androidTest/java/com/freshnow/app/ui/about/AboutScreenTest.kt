@@ -106,21 +106,30 @@ class AboutScreenTest {
     }
 
     /**
-     * 版本与检查更新两行要可点（有按压反馈），动作还没定、先留空。
+     * 版本与检查更新两行各自的点击：前者是彩蛋，后者是「敬请期待」。
      *
-     * 判据取「点了不跳任何地方」：这两行先只为与同页其余各行保持一致的反馈，不承担跳转；
-     * 动作定下来之后这条会换成对那个动作的断言。
+     * 判据取「回调有没有被叫到」而不是「toast 有没有弹出来」——[AboutList] 只负责往外报，
+     * 弹什么由 AboutScreen 决定，这里验的是前者；顺带盯住这两行不去浏览器、也不导航。
      */
     @Test
-    fun versionAndCheckUpdateAreTappable() {
+    fun versionAndCheckUpdateInvokeTheirOwnActions() {
         val opened = mutableListOf<String>()
         var navigated = false
-        setAboutList(onOpenUrl = { opened += it }, onOpenSourceClick = { navigated = true })
+        var versionClicks = 0
+        var checkUpdateClicks = 0
+        setAboutList(
+            onOpenUrl = { opened += it },
+            onOpenSourceClick = { navigated = true },
+            onVersionClick = { versionClicks++ },
+            onCheckUpdateClick = { checkUpdateClicks++ }
+        )
 
         composeRule.onNodeWithText("版本").performClick()
         composeRule.onNodeWithText("检查更新").performClick()
 
-        assertEquals("这两行不该跳任何链接", emptyList<String>(), opened)
+        assertEquals("版本那一行应当报一次自己的动作", 1, versionClicks)
+        assertEquals("检查更新那一行应当报一次自己的动作", 1, checkUpdateClicks)
+        assertEquals("这两行不该去浏览器", emptyList<String>(), opened)
         assertFalse("这两行不该导航", navigated)
     }
 
@@ -128,11 +137,18 @@ class AboutScreenTest {
 
     private fun setAboutList(
         onOpenUrl: (String) -> Unit = {},
-        onOpenSourceClick: () -> Unit = {}
+        onOpenSourceClick: () -> Unit = {},
+        onVersionClick: () -> Unit = {},
+        onCheckUpdateClick: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
-                AboutList(onOpenUrl = onOpenUrl, onOpenSourceClick = onOpenSourceClick)
+                AboutList(
+                    onOpenUrl = onOpenUrl,
+                    onOpenSourceClick = onOpenSourceClick,
+                    onVersionClick = onVersionClick,
+                    onCheckUpdateClick = onCheckUpdateClick
+                )
             }
         }
     }
