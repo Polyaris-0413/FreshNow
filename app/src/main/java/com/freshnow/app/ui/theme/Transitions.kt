@@ -2,6 +2,7 @@ package com.freshnow.app.ui.theme
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,7 +10,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 
 /**
- * 页面切换动画设计源，界面只引用不另定义。
+ * 动画设计源，界面只引用不另定义。
  *
  * 【有意偏离 M3 规范，请勿"按规范"改回去】
  * 规范对页面过渡给的是 Emphasized 曲线 + 不对称时长（进入 decelerate 400ms、
@@ -28,6 +29,17 @@ object FreshNowTransitions {
 
     private const val DURATION_MS = 350
     private const val SLIDE_FRACTION = 16
+    private const val STATE_CHANGE_MS = 200
+
+    /**
+     * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失。
+     *
+     * 与页面切换分开取值：那些是整页进出屏幕，这些只是同一页里的局部变化，
+     * 沿用 350ms 会明显迟钝（按下长按之后要等一会儿才看得出选中了）。
+     * 取 M3 时长令牌 short4（200ms）——「小转场」组里最大的一档，
+     * 因为顶栏是整条换装，不只是单个控件变色；曲线仍用 tween 默认的 standard 曲线，与页面切换一致。
+     */
+    val stateChange: FiniteAnimationSpec<Float> = tween(STATE_CHANGE_MS)
 
     /** 前进（进入子页）：新页面自右轻微移入 */
     val forwardEnter: EnterTransition = fadeIn(tween(DURATION_MS)) +

@@ -2,7 +2,9 @@ package com.freshnow.app.ui.home
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
@@ -29,6 +31,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.time.LocalDate
+import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class HomeScreenTest {
@@ -37,6 +40,9 @@ class HomeScreenTest {
     val composeRule = createComposeRule()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    /** 主题里的 primary，由 [setContent] 在合成里记下来，供描边像素判定用 */
+    private var primaryArgb = 0
 
     // 缩略图要真的解码一次，用临时目录里的合成图，不碰设备上的图片
     private val thumbnailSource = File(context.cacheDir, "home_list_test_thumb.jpg")
@@ -176,6 +182,42 @@ class HomeScreenTest {
         assertTrue(deleted)
     }
 
+    /**
+     * 相邻两条同时选中时，两条描边之间必须留缝。
+     *
+     * 描边贴着条目边界画的话，上一条的下边会和下一条的上边叠在一起，看起来是一条粗线。
+     * 这里不去量具体像素，而是数「有描边像素的 y 连成了几段」：每条选中项各占一段
+     * （左右两条竖边把该段的上下两条横边连起来），两条相邻的选中项中间应当断开。
+     */
+    @Test
+    fun adjacentSelectedRows_leaveGapBetweenOutlines() {
+        setContent(records(), selectedIds = setOf(1L, 2L))
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+
+        val hasOutline = BooleanArray(bitmap.height) { y ->
+            (0 until bitmap.width).any { x -> isPrimary(bitmap.getPixel(x, y)) }
+        }
+
+        // 两段，而不是挤在一起的一段
+        assertEquals(2, countRuns(hasOutline))
+    }
+
+    /** 选中框是实心描边，只有边缘会被抗锯齿磨淡，所以容一点通道差即可 */
+    private fun isPrimary(pixel: Int): Boolean = abs(Color.red(pixel) - Color.red(primaryArgb)) <= CHANNEL_TOLERANCE &&
+        abs(Color.green(pixel) - Color.green(primaryArgb)) <= CHANNEL_TOLERANCE &&
+        abs(Color.blue(pixel) - Color.blue(primaryArgb)) <= CHANNEL_TOLERANCE
+
+    /** 连续 true 的段数 */
+    private fun countRuns(flags: BooleanArray): Int {
+        var runs = 0
+        var previous = false
+        flags.forEach { current ->
+            if (current && !previous) runs++
+            previous = current
+        }
+        return runs
+    }
+
     private fun records() = listOf(
         item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"),
         item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31"),
@@ -192,6 +234,8 @@ class HomeScreenTest {
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
+                // 断言描边颜色要用主题里的 primary，顺手在合成里记下来
+                primaryArgb = MaterialTheme.colorScheme.primary.toArgb()
                 HomeScreen(
                     records = items,
                     selectedIds = selectedIds,
@@ -238,5 +282,6 @@ class HomeScreenTest {
     private companion object {
         const val PREVIEW_NAME = "home_list_preview.png"
         const val SELECTION_PREVIEW_NAME = "home_selection_preview.png"
+        const val CHANNEL_TOLERANCE = 8
     }
 }

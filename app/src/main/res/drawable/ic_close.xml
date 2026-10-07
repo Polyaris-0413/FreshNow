@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols 官方 SVG 视口为 0 -960 960 960，Android vector 视口从 0 起，需整体下移 960 -->
+<!-- 不使用 android:tint（项目无 appcompat），由 Compose Icon 按 LocalContentColor 着色 -->
+<!-- 官方 path 有三处隐式重复参数（"M480-424 284-228" 是 M 后跟一个隐式 L，
+     还有两处 "l" 后跟两组坐标）。这里都展开成显式命令，语义与 SVG 相同，
+     但不依赖 Android PathParser 对隐式重复的支持 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M480-424L284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196l-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196l196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z" />
+    </group>
+</vector>

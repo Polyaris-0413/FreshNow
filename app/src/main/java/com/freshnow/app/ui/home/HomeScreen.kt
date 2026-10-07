@@ -1,8 +1,12 @@
 package com.freshnow.app.ui.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,11 +43,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
@@ -54,6 +65,7 @@ import com.freshnow.app.ui.component.scanValueText
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.theme.warningColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,44 +137,57 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            FreshNowTopAppBar(
-                title = if (inSelectionMode) {
-                    stringResource(R.string.home_selected_count, selectedIds.size)
+            // 顶栏是「列表」与「选择模式」两副面孔，直接换会很生硬。
+            // 整条一起淡入淡出，而不是分开淡标题与图标：选择模式下标题左边多出退出按钮，
+            // 标题本身要右移，分开淡会让它在两个位置之间跳；整条换则位置变化也是淡出来的。
+            Crossfade(
+                targetState = inSelectionMode,
+                animationSpec = FreshNowTransitions.stateChange,
+                label = "topBar"
+            ) { selecting ->
+                if (selecting) {
+                    FreshNowTopAppBar(
+                        title = stringResource(R.string.home_selected_count, selectedIds.size),
+                        navigationIcon = {
+                            IconButton(onClick = onExitSelection) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_close),
+                                    contentDescription = stringResource(R.string.action_exit_selection)
+                                )
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_delete),
+                                    contentDescription = stringResource(R.string.action_delete)
+                                )
+                            }
+                        }
+                    )
                 } else {
-                    stringResource(R.string.app_name)
-                },
-                navigationIcon = {
-                    if (inSelectionMode) {
-                        IconButton(onClick = onExitSelection) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_arrow_back),
-                                contentDescription = stringResource(R.string.action_exit_selection)
-                            )
+                    FreshNowTopAppBar(
+                        title = stringResource(R.string.app_name),
+                        actions = {
+                            IconButton(onClick = { showSheet = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_more_vert),
+                                    contentDescription = stringResource(R.string.action_more_options)
+                                )
+                            }
                         }
-                    }
-                },
-                actions = {
-                    if (inSelectionMode) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_delete),
-                                contentDescription = stringResource(R.string.action_delete)
-                            )
-                        }
-                    } else {
-                        IconButton(onClick = { showSheet = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_more_vert),
-                                contentDescription = stringResource(R.string.action_more_options)
-                            )
-                        }
-                    }
+                    )
                 }
-            )
+            }
         },
         floatingActionButton = {
-            // 选择模式下不给「添加」：它和当前这件事无关，浮在选中项上只会挡住列表和删除按钮
-            if (!inSelectionMode) {
+            // 选择模式下不给「添加」：它和当前这件事无关，浮在选中项上只会挡住列表和删除按钮。
+            // 与顶栏同一步调淡出，否则顶栏在淡、它在"啪"地消失
+            AnimatedVisibility(
+                visible = !inSelectionMode,
+                enter = fadeIn(FreshNowTransitions.stateChange),
+                exit = fadeOut(FreshNowTransitions.stateChange)
+            ) {
                 FloatingActionButton(onClick = onNavigateToScan) {
                     Icon(
                         painter = painterResource(R.drawable.ic_add),
@@ -341,21 +366,22 @@ private fun RecordRow(
 
     // 选中态用主色描边表示。ListItem 本身没有选中外观，而这里「选中」的含义是「待删除」，
     // 既然删除是不可逆的，就不借用「快过期」那套状态色——那是提醒临期，与此无关。
-    // 描边由 Modifier.border 画在行的边界之内，不占布局，选中前后条目不会跳动。
-    val selectionOutline = if (selected) {
-        Modifier.border(
-            width = FreshNowSize.selectionOutlineWidth,
-            color = MaterialTheme.colorScheme.primary,
-            shape = MaterialTheme.shapes.extraSmall
-        )
-    } else {
-        Modifier
-    }
+    // 透明度交给动画，描边的出现与消失才是淡入淡出，而不是硬切。
+    val outlineAlpha by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = FreshNowTransitions.stateChange,
+        label = "selectionOutlineAlpha"
+    )
 
     ListItem(
         modifier = modifier
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .then(selectionOutline),
+            .selectionOutline(
+                color = MaterialTheme.colorScheme.primary,
+                cornerSize = MaterialTheme.shapes.extraSmall.topStart,
+                width = FreshNowSize.selectionOutlineWidth,
+                alpha = outlineAlpha
+            ),
         leadingContent = { ScanThumbnail(image = item.image) },
         headlineContent = { Text(text = scanValueText(item.record.productName)) },
         supportingContent = {
@@ -372,6 +398,43 @@ private fun RecordRow(
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
+
+/** 选中描边外沿与条目边界的距离 */
+private val SELECTION_OUTLINE_INSET = FreshNowSpacing.xxs
+
+/**
+ * 选中描边：一圈圆角矩形，画在条目边界之内。
+ *
+ * 不用 Modifier.border —— 它只能贴着条目的边界画，上下相邻两条都选中时，
+ * 上面那条的下边和下面那条的上边会直接叠在一起，看起来是一条 4dp 的粗线。
+ * 这里把描边往里收 [SELECTION_OUTLINE_INSET]，两条之间就留出了缝，
+ * 顺带也不至于让描边压在屏幕最边上。
+ *
+ * 自己画还有一个原因：这样透明度能交给调用方，描边的出现与消失才可能是淡入淡出。
+ * 它只是画、不参与布局，所以选中前后条目不会跳动。
+ */
+private fun Modifier.selectionOutline(
+    color: Color,
+    cornerSize: CornerSize,
+    width: Dp,
+    alpha: Float
+): Modifier = drawWithContent {
+    drawContent()
+    if (alpha <= 0f) return@drawWithContent
+
+    val stroke = width.toPx()
+    // Stroke 以矩形路径为中心向两侧各扩半个线宽，因此路径要再往里让半个线宽，
+    // 描边的外沿才正好落在 SELECTION_OUTLINE_INSET 处
+    val edge = SELECTION_OUTLINE_INSET.toPx() + stroke / 2f
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(edge, edge),
+        size = Size(size.width - edge * 2f, size.height - edge * 2f),
+        cornerRadius = CornerRadius(cornerSize.toPx(size, this)),
+        style = Stroke(width = stroke),
+        alpha = alpha
     )
 }
 
