@@ -46,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -373,9 +374,21 @@ private fun RecordsList(
 ) {
     val today = rememberToday()
 
-    // 第一次查库还没回来，先不占位：此刻还不知道该不该显示「还没有扫描记录」。
-    // 转场返回、转屏时这批条目则已经缓存好了，这里拿到的直接就是内容
-    while (records == null) return
+    // 第一次查库还没回来，先不占位：此刻还不知道该不该显示「还没有扫描记录」
+    val latest = records ?: return
+
+    // 刚存进来的那几条慢一帧才进列表。
+    //
+    // LazyLayout 的位移比的是"上一轮的键表"：一次合成里就把新记录摆到最终位置，它手里没有可
+    // 比较的过去，只会直接画在预期位置上——位移因此演不出来，看着就是"不走路地出现在该在的地方"。
+    // 先只摆上一批（新记录已经在缓存里时，这一批就是用户上一条看到的内容），下一帧再放新的，
+    // 于是"其余条目从旧位置滑到新位置"这件事有了旧位置可比；新记录自己的淡入照旧由 appearFadeIn 演。
+    var placedIds by remember { mutableStateOf(emptySet<Long>()) }
+    LaunchedEffect(latest, newRecordIds) {
+        withFrameNanos { }
+        placedIds = newRecordIds
+    }
+    val shown = latest.filterNot { it.record.id in newRecordIds && it.record.id !in placedIds }
 
     // 增删与位移的时长取页内状态切换（见 FreshNowTransitions.stateChange）：删除时选中框也按
     // 同一时长淡出（见 RecordRow），两者同时收尾，不会一个已经没了另一个还在淡。
@@ -383,7 +396,9 @@ private fun RecordsList(
     // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
     // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
     LazyColumn(modifier = modifier) {
-        if (records.isEmpty()) {
+        // 判据用 latest 而不是 shown：新记录还没落地的那一帧列表是空的，但数据并不空，
+        // 这时候不该闪一句「还没有扫描记录」
+        if (latest.isEmpty()) {
             item(key = EMPTY_LIST_KEY) {
                 Box(
                     modifier = Modifier
@@ -409,7 +424,7 @@ private fun RecordsList(
             }
         }
 
-        items(records, key = { it.record.id }) { item ->
+        items(shown, key = { it.record.id }) { item ->
             RecordRow(
                 item = item,
                 today = today,

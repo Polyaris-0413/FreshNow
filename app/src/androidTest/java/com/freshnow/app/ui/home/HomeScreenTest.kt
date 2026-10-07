@@ -403,6 +403,8 @@ class HomeScreenTest {
      * 回到主页时新记录已经在列表里了（`WhileSubscribed` 那 5 秒窗口内保存的就是这种），
      * 它仍要淡入——这一条是「有时能演、有时不能」的正主：原来的判据落在合成时机上，
      * 条目跟着列表一起首次合成时 animateItem 认不出它是新的，于是整片列表只有整页在淡。
+     *
+     * 新记录慢一帧才进列表（见 RecordsList），所以取样前要先让那一帧过去。
      */
     @Test
     fun newRowAlreadyInListAtComposition_fadesIn() {
@@ -415,19 +417,57 @@ class HomeScreenTest {
             newRecordIds = setOf(3L)
         )
 
-        val region = composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot()
-        val atStart = maxContrast(region)
+        // 第一帧上它还没落地：新记录要先等上一批摆好
+        composeRule.onNodeWithText("新扫的酸奶").assertDoesNotExist()
 
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
-        val middle = maxContrast(region)
+        // 取样从半程开始：这一帧上旧条目正从上方滑过，取到的对比度是它的，不是新条目的
+        composeRule.mainClock.advanceTimeBy(DEFER_FRAME_MS + STATE_CHANGE_HALF_MS)
+        val middle = maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
 
         // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
-        val end = maxContrast(region)
+        val end = maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
         composeRule.mainClock.autoAdvance = true
 
-        assertEquals("合成后的第一帧还不该看得见：atStart=$atStart", 0, atStart)
-        assertTrue("半途应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
+        assertTrue(
+            "半程应当已经看得见、但还没到最终的样子（在淡，而不是一步到位）：middle=$middle end=$end",
+            middle in 1 until end
+        )
+    }
+
+    /**
+     * 新记录出现时，已在列表里的条目要从旧位置滑到新位置，而不是直接出现在该在的地方。
+     *
+     * 这一条盯的是位移：它和淡入是两件事，判据也不同——淡入看那个条目的对比度变化，
+     * 位移看下面那条的落在这两点之间。新记录慢一帧进列表，正是为了让 LazyLayout 手里有一份
+     * 「上一轮的位置」可比较；没有它，条目只会被直接画在最终位置上。
+     */
+    @Test
+    fun newRowAlreadyInListAtComposition_pushesRowsBelowDown() {
+        composeRule.mainClock.autoAdvance = false
+        setContent(
+            items = listOf(
+                item(id = 3, productName = "新扫的酸奶", printedExpiry = "2026-12-31"),
+                item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"),
+                item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31")
+            ),
+            newRecordIds = setOf(3L)
+        )
+
+        // 第一帧上只有上一批，旧条目还在上面的旧位置
+        val start = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot().top
+
+        // 让新记录进场，再走半程
+        composeRule.mainClock.advanceTimeBy(DEFER_FRAME_MS + STATE_CHANGE_HALF_MS)
+        val middle = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot().top
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val end = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot().top
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("中途应当已经被推下去：start=$start middle=$middle", middle > start)
+        assertTrue("中途应当还没滑到位：middle=$middle end=$end", middle < end)
     }
 
     /**
@@ -534,7 +574,9 @@ class HomeScreenTest {
             ) + records.value
             newRecordIds.value = setOf(3L)
         }
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        // 取样从半程开始：新记录慢一帧才进列表，而它刚进场时旧条目正从上方滑过，
+        // 那一带的像素还不是它的（占位图标与页面底色在深色主题下几乎同色，比也白比）
+        composeRule.mainClock.advanceTimeBy(DEFER_FRAME_MS + STATE_CHANGE_HALF_MS)
         val middle = samplePixel()
         val pushedMiddle = composeRule.onNodeWithText("苏打饼干").getBoundsInRoot().top
 
@@ -676,5 +718,8 @@ class HomeScreenTest {
 
         /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short4（200ms）对应 */
         const val STATE_CHANGE_HALF_MS = 100L
+
+        /** 新记录慢一帧进列表，取样前要越过这一帧；两帧是因为写完状态还要等下一帧重新合成 */
+        const val DEFER_FRAME_MS = 32L
     }
 }
