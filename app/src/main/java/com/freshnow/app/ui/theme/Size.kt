@@ -24,8 +24,9 @@ object FreshNowSize {
     /**
      * 列表选中态的描边宽度。
      *
-     * 取 2dp 而非 M3 描边组件惯用的 1dp：这条线本身就是「这一项将被删除」的唯一提示，
-     * 1dp 摆在列表里更像一条分隔线，读不出「选中」这层意思。
+     * M3 没有「选中描边宽度」这档 token，描边组件的取值是 1dp（技能里 outlined card /
+     * outlined button 的示例都是 1px）。这里取 2dp 是自定值：这条线本身就是「这一项将被删除」
+     * 的唯一提示，1dp 摆在列表里更像一条分隔线，读不出「选中」的意思。
      */
     val selectionOutlineWidth = 2.dp
 }

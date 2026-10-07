@@ -29,15 +29,15 @@ object FreshNowTransitions {
 
     private const val DURATION_MS = 350
     private const val SLIDE_FRACTION = 16
-    private const val STATE_CHANGE_MS = 200
+    private const val STATE_CHANGE_MS = 150
 
     /**
      * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失。
      *
-     * 与页面切换分开取值：那些是整页进出屏幕，这些只是同一页里的局部变化，
-     * 沿用 350ms 会明显迟钝（按下长按之后要等一会儿才看得出选中了）。
-     * 取 M3 时长令牌 short4（200ms）——「小转场」组里最大的一档，
-     * 因为顶栏是整条换装，不只是单个控件变色；曲线仍用 tween 默认的 standard 曲线，与页面切换一致。
+     * 取 M3 时长令牌 short3（150ms，技能 typography-and-shape.md 的 Duration Scale 表里
+     * 归为「小转场」，正对这类变化），不与页面切换共用 350ms：那些是整页进出屏幕，
+     * 这些只是同一页里的局部变化，沿用页面时长按下去要等一会儿才看得出选中了。
+     * 曲线仍用 tween 默认的 standard 曲线，与页面切换一致。
      */
     val stateChange: FiniteAnimationSpec<Float> = tween(STATE_CHANGE_MS)
 
