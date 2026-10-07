@@ -33,7 +33,9 @@ class BaselineProfileGenerator {
 
             pressHome()
             startActivityAndWait()
-            awaitText(HOME_TITLE)
+            // 录制载体是没经 R8 收缩的 nonMinified 构建，冷启动比 release 慢得多，
+            // 首次界面要单独放宽等待，否则会在首帧刚出来前就判超时
+            awaitText(HOME_TITLE, LAUNCH_TIMEOUT_MS)
 
             // 扫描页
             clickDesc(ADD)
@@ -86,8 +88,8 @@ class BaselineProfileGenerator {
         node.click()
     }
 
-    private fun MacrobenchmarkScope.awaitText(text: String) {
-        check(device.wait(Until.hasObject(By.text(text)), TIMEOUT_MS)) { "等不到文案「$text」" }
+    private fun MacrobenchmarkScope.awaitText(text: String, timeoutMs: Long = TIMEOUT_MS) {
+        check(device.wait(Until.hasObject(By.text(text)), timeoutMs)) { "等不到文案「$text」" }
     }
 
     private fun MacrobenchmarkScope.awaitDesc(desc: String) {
@@ -112,7 +114,8 @@ class BaselineProfileGenerator {
         const val LEAVE_SCAN = "离开扫描页？"
         const val DISCARD = "不保存"
 
-        const val TIMEOUT_MS = 10_000L
+        const val TIMEOUT_MS = 30_000L
+        const val LAUNCH_TIMEOUT_MS = 90_000L
         const val SHORT_TIMEOUT_MS = 1_000L
         const val MAX_BACK_STEPS = 3
     }

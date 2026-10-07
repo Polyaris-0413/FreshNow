@@ -30,6 +30,15 @@ android {
                 enable = true
             }
         }
+        // 插件的 nonMinifiedRelease 是 baseline profile 的录制载体：它的名字必须是原始名，
+        // 之后由 R8 按映射改写成 release 的混淆名。但 AGP 9 的 optimization DSL 会被
+        // initWith(release) 一并继承，插件里关混淆的旧开关不起作用，导致录制出来的是混淆名，
+        // R8 改写时按原始名查不到，应用类条目会在 minifyReleaseWithR8 里被整批丢掉。
+        maybeCreate("nonMinifiedRelease").apply {
+            optimization {
+                enable = false
+            }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
