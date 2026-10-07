@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -19,6 +20,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.data.ExpiryCalculator
@@ -107,6 +110,14 @@ class HomeScreenTest {
 
         composeRule.onAllNodesWithContentDescription("扫描照片").assertCountEquals(1)
         composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(2)
+    }
+
+    /** 一条记录都没有时要给一句话。空态现在也是列表里的一个条目（见 RecordsList），别被列表吃掉 */
+    @Test
+    fun emptyRecordList_showsEmptyHint() {
+        setContent(emptyList())
+
+        composeRule.onNodeWithText("还没有扫描记录").assertIsDisplayed()
     }
 
     /** 长按是进入选择模式的唯一入口，只按一下不能选中 */
@@ -222,7 +233,7 @@ class HomeScreenTest {
         // 停掉自动推进，改完状态把时钟停在动画走到一半的位置
         composeRule.mainClock.autoAdvance = false
         composeRule.runOnUiThread { selectedIds.value = setOf(1L, 2L) }
-        composeRule.mainClock.advanceTimeBy(COUNT_ROLL_HALF_MS)
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
 
         // 滚到一半时新旧两个数字同时在——说明是在滚，而不是直接跳过去
         onCountNode(1).assertExists()
@@ -244,18 +255,97 @@ class HomeScreenTest {
 
         composeRule.mainClock.autoAdvance = false
         composeRule.runOnUiThread { selectedIds.value = emptySet() }
-        composeRule.mainClock.advanceTimeBy(COUNT_ROLL_HALF_MS)
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
 
         onCountNode(1).assertExists()
         composeRule.onNodeWithText("0", useUnmergedTree = true).assertDoesNotExist()
     }
 
-    /** 需要一个改得动选中状态的容器，与其它用例只摆一个静态状态不同 */
-    private fun setContentTrackingSelection(selectedIds: MutableState<Set<Long>>) {
+    /**
+     * 删掉一条时，下面的条目要滑上去，而不是直接跳到新位置。
+     *
+     * 「酸奶」排在最后，前面删掉一条后它该落到上一格。动画走到一半时它必须已经离开原位、
+     * 又还没到位——两条同时成立，才说明它在路上，而不是一步跳过去。
+     */
+    @Test
+    fun deletingRow_slidesRowsBelowToNewPosition() {
+        val records = mutableStateOf(records())
+        setContentTracking(records, mutableStateOf(emptySet()))
+
+        val start = composeRule.onNodeWithText("酸奶").getBoundsInRoot().top
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread { records.value = records().drop(1) }
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = composeRule.onNodeWithText("酸奶").getBoundsInRoot().top
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val end = composeRule.onNodeWithText("酸奶").getBoundsInRoot().top
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("中途应当已经离开原位：start=$start middle=$middle", middle < start)
+        assertTrue("中途应当还没到位：middle=$middle end=$end", middle > end)
+    }
+
+    /**
+     * 被删的那条要淡出，不能"啪"地消失。
+     *
+     * 判据取缩略图中心那一个像素，删除前后都在同一处比：淡到一半时它既不是删除前的原色，
+     * 也不是删完后的背景色。两个"都不是"同时成立，才说明它正在淡，而不是一步就没。
+     */
+    @Test
+    fun deletedRow_fadesOutInsteadOfVanishing() {
+        val records = mutableStateOf(
+            listOf(
+                item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31", withImage = true),
+                item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31"),
+                item(id = 3, productName = "酸奶", printedExpiry = "2026-12-31")
+            )
+        )
+        setContentTracking(records, mutableStateOf(emptySet()))
+
+        // 按未合并的树取图片本身：条目是可点击的，它的语义会把里面的文字与图片合并成一行，
+        // 合并后的节点是整行而不是那块缩略图
+        val thumbnail = composeRule
+            .onNodeWithContentDescription("扫描照片", useUnmergedTree = true)
+            .getBoundsInRoot()
+        // 取点要落到像素上，边界是 dp，得按屏幕密度换算
+        val x = with(composeRule.density) { (thumbnail.left + thumbnail.width / 2).roundToPx() }
+        val y = with(composeRule.density) { (thumbnail.top + thumbnail.height / 2).roundToPx() }
+        fun samplePixel() = composeRule.onRoot().captureToImage().asAndroidBitmap().getPixel(x, y)
+
+        val before = samplePixel()
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread { records.value = records.value.drop(1) }
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = samplePixel()
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val after = samplePixel()
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("半途应当还没淡干净：before=$before middle=$middle after=$after", differs(middle, after))
+        assertTrue("半途应当已经淡下去一些：before=$before middle=$middle", differs(middle, before))
+    }
+
+    /** 两个颜色是否看得出差别：通道差超过容差即可，不比较具体颜色，免得把配色写进断言 */
+    private fun differs(a: Int, b: Int): Boolean =
+        abs(Color.red(a) - Color.red(b)) > CHANNEL_TOLERANCE ||
+            abs(Color.green(a) - Color.green(b)) > CHANNEL_TOLERANCE ||
+            abs(Color.blue(a) - Color.blue(b)) > CHANNEL_TOLERANCE
+
+    /** 需要一个改得动列表或选中状态的容器，与其它用例只摆一个静态状态不同 */
+    private fun setContentTracking(
+        records: MutableState<List<HomeRecordItem>>,
+        selectedIds: MutableState<Set<Long>>
+    ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 HomeScreen(
-                    records = records(),
+                    records = records.value,
                     selectedIds = selectedIds.value,
                     onRecordClick = {},
                     onRecordToggle = {},
@@ -267,6 +357,11 @@ class HomeScreenTest {
                 )
             }
         }
+    }
+
+    /** 需要一个改得动选中状态的容器，与其它用例只摆一个静态状态不同 */
+    private fun setContentTrackingSelection(selectedIds: MutableState<Set<Long>>) {
+        setContentTracking(mutableStateOf(records()), selectedIds)
     }
 
     /**
@@ -363,6 +458,6 @@ class HomeScreenTest {
         const val SELECTED_COUNT_PREFIX = "已选"
 
         /** 页内状态切换时长的一半，停在动画中途用；与 FreshNowTransitions 的 short4（200ms）对应 */
-        const val COUNT_ROLL_HALF_MS = 100L
+        const val STATE_CHANGE_HALF_MS = 100L
     }
 }

@@ -353,19 +353,35 @@ private fun RecordsList(
     onRecordToggle: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (records.isEmpty()) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text(
-                text = stringResource(R.string.home_records_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        return
-    }
-
     val today = rememberToday()
+
+    // 增删与位移的时长取页内状态切换（见 FreshNowTransitions.stateChange）：删除时选中框也按
+    // 同一时长淡出（见 RecordRow），两者同时收尾，不会一个已经没了另一个还在淡。
+    //
+    // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
+    // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
     LazyColumn(modifier = modifier) {
+        if (records.isEmpty()) {
+            item(key = EMPTY_LIST_KEY) {
+                Box(
+                    modifier = Modifier
+                        .fillParentMaxSize()
+                        .animateItem(
+                            fadeInSpec = FreshNowTransitions.stateChange(),
+                            placementSpec = FreshNowTransitions.stateChange(),
+                            fadeOutSpec = FreshNowTransitions.stateChange()
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_records_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         items(records, key = { it.record.id }) { item ->
             RecordRow(
                 item = item,
@@ -376,11 +392,21 @@ private fun RecordsList(
                 onClick = {
                     if (inSelectionMode) onRecordToggle(item.record.id) else onRecordClick(item.record.id)
                 },
-                onLongClick = { onRecordToggle(item.record.id) }
+                onLongClick = { onRecordToggle(item.record.id) },
+                // 被删的条目停在原位淡出，其余的滑到新位置。key 已经在 items 上给好，
+                // 谁走了谁留下由它认领，这里只负责把过程演出来
+                modifier = Modifier.animateItem(
+                    fadeInSpec = FreshNowTransitions.stateChange(),
+                    placementSpec = FreshNowTransitions.stateChange(),
+                    fadeOutSpec = FreshNowTransitions.stateChange()
+                )
             )
         }
     }
 }
+
+/** 空态条目的 key。记录 id 都是 Long，与它不会撞 */
+private const val EMPTY_LIST_KEY = "empty"
 
 /**
  * 今天的日期，跨过零点会自己更新。
