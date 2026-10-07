@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -46,7 +45,6 @@ import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
-import com.freshnow.app.ui.theme.FreshNowStroke
 
 // 正方形取景框。取景框只决定预览怎么裁切显示，送给 AI 分析的始终是整帧，所以改比例不影响识别
 private const val CAMERA_ASPECT_RATIO = 1f
@@ -353,17 +351,6 @@ private fun CameraBox(
                 }
             }
         }
-
-        // 描边要盖在预览之上：Box 自身的 border 会先于子级绘制，被预览层整个遮住
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .border(
-                    width = FreshNowStroke.outline,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = MaterialTheme.shapes.medium
-                )
-        )
     }
 }
 
