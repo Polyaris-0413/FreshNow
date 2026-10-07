@@ -322,16 +322,20 @@ private fun ExtraRequestEditor(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(text = stringResource(R.string.ai_settings_extra_label)) },
-            placeholder = { Text(text = stringResource(R.string.ai_settings_extra_example)) },
+            placeholder = {
+                // 建议写在框内：留空时框里就该给出「推荐这么写」以及具体写法。
+                // 各家服务商的字段与取值未必相同，所以后面缀一句「以文档为准」
+                Text(
+                    text = stringResource(R.string.ai_settings_extra_example) + " " +
+                        stringResource(R.string.ai_settings_extra_example_note)
+                )
+            },
             supportingText = {
                 Text(
                     text = if (uiState.extraJsonError) {
                         stringResource(R.string.error_invalid_json)
                     } else {
-                        // 说明与示例都放在这里，不放进 placeholder：框内的字看着像待填内容，
-                        // 示例摆在那儿容易被当成「照抄这个」
-                        stringResource(R.string.ai_settings_extra_hint) + "\n" +
-                            stringResource(R.string.ai_settings_extra_example_meaning)
+                        stringResource(R.string.ai_settings_extra_hint)
                     }
                 )
             },
