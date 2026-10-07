@@ -3,6 +3,7 @@ package com.freshnow.app.ui.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,6 +54,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -355,12 +357,23 @@ private fun RecordsList(
 ) {
     val today = rememberToday()
 
+    // 列表整片淡入，本页每次重新合成都演一次（转场返回、转屏、冷启动）。
+    //
+    // 跟着这次合成一起出现的条目，LazyLayout 没有上一轮的键表可比，animateItem 的淡入认不出
+    // 它们是"刚出现的"，演不出来；后面才加入列表的条目则由 animateItem 的 fadeInSpec 负责，
+    // 那里认得出来。两处合起来，条目"出现"就有淡入，与删除时的淡出对称。
+    // 整片淡入而不是一行一个动画对象：这一批本来就是同时出现的，逐条演看不出差别。
+    val fillAlpha = remember { Animatable(0f) }
+    LaunchedEffect(fillAlpha) {
+        fillAlpha.animateTo(1f, FreshNowTransitions.stateChange())
+    }
+
     // 增删与位移的时长取页内状态切换（见 FreshNowTransitions.stateChange）：删除时选中框也按
     // 同一时长淡出（见 RecordRow），两者同时收尾，不会一个已经没了另一个还在淡。
     //
     // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
     // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
-    LazyColumn(modifier = modifier) {
+    LazyColumn(modifier = modifier.graphicsLayer { alpha = fillAlpha.value }) {
         if (records.isEmpty()) {
             item(key = EMPTY_LIST_KEY) {
                 Box(

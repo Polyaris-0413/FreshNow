@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -332,10 +333,176 @@ class HomeScreenTest {
     }
 
     /** 两个颜色是否看得出差别：通道差超过容差即可，不比较具体颜色，免得把配色写进断言 */
-    private fun differs(a: Int, b: Int): Boolean =
-        abs(Color.red(a) - Color.red(b)) > CHANNEL_TOLERANCE ||
-            abs(Color.green(a) - Color.green(b)) > CHANNEL_TOLERANCE ||
-            abs(Color.blue(a) - Color.blue(b)) > CHANNEL_TOLERANCE
+    private fun differs(a: Int, b: Int): Boolean = channelDifference(a, b) > CHANNEL_TOLERANCE
+
+    private fun channelDifference(a: Int, b: Int): Int = maxOf(
+        abs(Color.red(a) - Color.red(b)),
+        abs(Color.green(a) - Color.green(b)),
+        abs(Color.blue(a) - Color.blue(b))
+    )
+
+    /**
+     * 删掉最后一条时，空态文案要淡入，不能硬出现。
+     *
+     * 判据取文案那一块里"与页面底色差得最远的那个像素"（记作对比度）：淡到一半时它应当
+     * 已经看得见（大于 0），但还没到最终的样子（小于走完后的对比度）。两条同时成立才是淡入；
+     * 若是一步到位，中途的对比度会直接等于最终值。
+     */
+    @Test
+    fun emptyHint_fadesInAfterLastRowIsDeleted() {
+        val records = mutableStateOf(
+            listOf(item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"))
+        )
+        setContentTracking(records, mutableStateOf(emptySet()))
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread { records.value = emptyList() }
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+
+        val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
+        val middle = maxContrast(region)
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val end = maxContrast(region)
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("半途应当已经看得见：middle=$middle", middle > 0)
+        assertTrue("半途应当还没到最终的样子：middle=$middle end=$end", middle < end)
+    }
+
+    /**
+     * 本页重新合成时（转场返回、转屏、冷启动），列表整片淡入，而不是直接出现。
+     *
+     * 用空态那一屏来验：冷启动时列表先是空的，空态文案正是「跟着这次合成一起出现」的东西，
+     * 而它恰好是 LazyLayout 认不出、animateItem 演不出来的那一种。时钟停在合成处，
+     * 第一帧它还不该看得见；走到一半应当看得见、但还没到最终的样子。
+     */
+    @Test
+    fun listFadesInOnFirstComposition() {
+        composeRule.mainClock.autoAdvance = false
+        setContent(emptyList())
+
+        val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
+        val atStart = maxContrast(region)
+
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = maxContrast(region)
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val end = maxContrast(region)
+        composeRule.mainClock.autoAdvance = true
+
+        assertEquals("合成后的第一帧还不该看得见：atStart=$atStart", 0, atStart)
+        assertTrue("半途应当已经看得见：middle=$middle", middle > 0)
+        assertTrue("半途应当还没到最终的样子：middle=$middle end=$end", middle < end)
+    }
+
+    /**
+     * 本页重新合成时（转场返回、转屏）列表里已经有的条目也要淡入，而不是跟着整页一起硬出现。
+     *
+     * 判据与 [newRow_fadesInAndPushesRowsBelowDown] 同源：取缩略图中心那一个像素，中途它
+     * 既不是底色也不是淡完后的照片色。这一条盯的是「合成时就在场」的那一批，
+     * 与「后加入」的那一批（由 animateItem 负责）是两条不同的路径。
+     */
+    @Test
+    fun rowsFadeInOnFirstComposition() {
+        composeRule.mainClock.autoAdvance = false
+        setContent(
+            listOf(item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31", withImage = true))
+        )
+
+        // 第一帧上照片还没解码完（解码是异步的），改取同一块缩略图格子里的占位图标：
+        // 两者尺寸位置相同，拿到的是同一个像素
+        val thumbnail = composeRule
+            .onAllNodesWithContentDescription("无图片", useUnmergedTree = true)[0]
+            .getBoundsInRoot()
+        val x = with(composeRule.density) { (thumbnail.left + thumbnail.width / 2).roundToPx() }
+        val y = with(composeRule.density) { (thumbnail.top + thumbnail.height / 2).roundToPx() }
+        fun samplePixel() = composeRule.onRoot().captureToImage().asAndroidBitmap().getPixel(x, y)
+
+        val atStart = samplePixel()
+
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = samplePixel()
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val end = samplePixel()
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("第一帧还不该看得见：atStart=$atStart end=$end", differs(atStart, end))
+        assertTrue("半途应当还没淡完：atStart=$atStart middle=$middle end=$end", differs(middle, end))
+        assertTrue("半途应当已经淡出来一些：atStart=$atStart middle=$middle", differs(middle, atStart))
+    }
+
+    /** 该区域里与页面底色差得最远的那个像素差多少：文字淡入时它会从 0 涨到最终值 */
+    private fun maxContrast(region: DpRect): Int {
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val background = bitmap.getPixel(0, bitmap.height - 1)
+        val left = with(composeRule.density) { region.left.roundToPx() }.coerceIn(0, bitmap.width - 1)
+        val top = with(composeRule.density) { region.top.roundToPx() }.coerceIn(0, bitmap.height - 1)
+        val right = with(composeRule.density) { region.right.roundToPx() }.coerceIn(0, bitmap.width)
+        val bottom = with(composeRule.density) { region.bottom.roundToPx() }.coerceIn(0, bitmap.height)
+
+        var max = 0
+        for (y in top until bottom) {
+            for (x in left until right) {
+                val difference = channelDifference(bitmap.getPixel(x, y), background)
+                if (difference > max) max = difference
+            }
+        }
+        return max
+    }
+
+    /**
+     * 新记录出现时要淡入，不能凭空冒出来；同一时间它把下面的条目推下去。
+     *
+     * 判据与删除那条对称：新记录插在最前面，占的正是原来第一条的位置，取样点因此取原来
+     * 第一条的缩略图中心——淡到一半时它既不是插入前的占位灰，也不是淡完后的照片色。
+     */
+    @Test
+    fun newRow_fadesInAndPushesRowsBelowDown() {
+        val records = mutableStateOf(
+            listOf(
+                item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"),
+                item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31")
+            )
+        )
+        setContentTracking(records, mutableStateOf(emptySet()))
+
+        val firstThumbnail = composeRule
+            .onAllNodesWithContentDescription("无图片", useUnmergedTree = true)[0]
+            .getBoundsInRoot()
+        val x = with(composeRule.density) { (firstThumbnail.left + firstThumbnail.width / 2).roundToPx() }
+        val y = with(composeRule.density) { (firstThumbnail.top + firstThumbnail.height / 2).roundToPx() }
+        fun samplePixel() = composeRule.onRoot().captureToImage().asAndroidBitmap().getPixel(x, y)
+
+        val before = samplePixel()
+        val pushedStart = composeRule.onNodeWithText("苏打饼干").getBoundsInRoot().top
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread {
+            records.value = listOf(
+                item(id = 3, productName = "新扫的酸奶", printedExpiry = "2026-12-31", withImage = true)
+            ) + records.value
+        }
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = samplePixel()
+        val pushedMiddle = composeRule.onNodeWithText("苏打饼干").getBoundsInRoot().top
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
+        val after = samplePixel()
+        val pushedEnd = composeRule.onNodeWithText("苏打饼干").getBoundsInRoot().top
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("半途应当还没淡完：before=$before middle=$middle after=$after", differs(middle, after))
+        assertTrue("半途应当已经淡出来一些：before=$before middle=$middle", differs(middle, before))
+        assertTrue("下面的条目中途应当已经被推下去：start=$pushedStart middle=$pushedMiddle", pushedMiddle > pushedStart)
+        assertTrue("中途应当还没推到位：middle=$pushedMiddle end=$pushedEnd", pushedMiddle < pushedEnd)
+    }
 
     /** 需要一个改得动列表或选中状态的容器，与其它用例只摆一个静态状态不同 */
     private fun setContentTracking(
