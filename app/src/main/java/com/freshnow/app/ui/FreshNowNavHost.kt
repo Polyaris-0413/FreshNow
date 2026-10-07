@@ -12,12 +12,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.freshnow.app.R
-import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.detail.RecordDetailScreen
 import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
-import com.freshnow.app.ui.settings.OpenSourceScreen
+import com.freshnow.app.ui.about.AboutScreen
+import com.freshnow.app.ui.about.OpenSourceScreen
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
 object FreshNowRoute {
@@ -69,16 +69,13 @@ fun FreshNowNavHost(
             )
         }
         composable(FreshNowRoute.ABOUT) {
-            FreshNowSubPage(
-                title = stringResource(R.string.about),
-                onBack = { navController.navigateUp() }
-            )
-        }
-        composable(FreshNowRoute.SETTINGS) {
-            SettingsScreen(
+            AboutScreen(
                 onBack = { navController.navigateUp() },
                 onNavigateToOpenSource = { navController.navigate(FreshNowRoute.OPEN_SOURCE) }
             )
+        }
+        composable(FreshNowRoute.SETTINGS) {
+            SettingsScreen(onBack = { navController.navigateUp() })
         }
         composable(FreshNowRoute.OPEN_SOURCE) {
             OpenSourceScreen(onBack = { navController.navigateUp() })

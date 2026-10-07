@@ -1,4 +1,4 @@
-package com.freshnow.app.ui.settings
+package com.freshnow.app.ui.about
 
 import androidx.annotation.RawRes
 import androidx.compose.foundation.clickable
