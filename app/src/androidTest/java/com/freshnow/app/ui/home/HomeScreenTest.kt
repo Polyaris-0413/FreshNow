@@ -345,6 +345,41 @@ class HomeScreenTest {
     )
 
     /**
+     * 第一条记录出现时，空态要淡出——它和记录行是同一次换位的两半，不该硬消失。
+     *
+     * 判据：取样那块（空态文案所在）在换位半程上应当还看得见、但比原来淡；换位结束之后那块
+     * 应当只剩底色（文案不在那儿了，记录行在上方）。
+     */
+    @Test
+    fun emptyHint_fadesOutWhenFirstRowArrives() {
+        val records = mutableStateOf(emptyList<HomeRecordItem>())
+        val newRecordIds = mutableStateOf(emptySet<Long>())
+        setContentTracking(records, mutableStateOf(emptySet()), newRecordIds)
+
+        // 先让空态淡到位，取它的满值作对照
+        composeRule.waitForIdle()
+        val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
+        val full = maxContrast(region)
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.runOnUiThread {
+            records.value = listOf(item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"))
+            newRecordIds.value = setOf(1L)
+        }
+
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = maxContrast(region)
+
+        // 再走一段，越过整段时长让动画收尾
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
+        val end = maxContrast(region)
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("半途应当已经淡下去一些、但还没淡完：full=$full middle=$middle", middle in 1 until full)
+        assertEquals("淡完之后那块应当只剩底色：end=$end", 0, end)
+    }
+
+    /**
      * 删掉最后一条时，空态要淡入，而且**不是紧接着条目淡出就淡**。
      *
      * 判据分三段：条目还在淡出的那半程里它必须还看不见——确认删除的对话框正是在这段时间退场，
