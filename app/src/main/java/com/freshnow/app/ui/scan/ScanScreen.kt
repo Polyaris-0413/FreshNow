@@ -180,6 +180,9 @@ fun ScanScreen(
         AlertDialog(
             onDismissRequest = { showSaveDialog = false },
             title = { Text(text = stringResource(R.string.scan_save_dialog_title)) },
+            // 正文说清这一问的代价。只有标题的话，标题下面空出一块，对话框显得又扁又空；
+            // 主页那个删除对话框同样带正文，两者就此一致
+            text = { Text(text = stringResource(R.string.scan_save_dialog_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
