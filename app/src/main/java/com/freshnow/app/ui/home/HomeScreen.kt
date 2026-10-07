@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CornerSize
@@ -403,7 +404,7 @@ private fun RecordsList(
                 Box(
                     modifier = Modifier
                         .fillParentMaxSize()
-                        // 空态文案每次出现都淡入一次：它只在这一个条目里，没有滚动可言，
+                        // 空态每次出现都淡入一次：它只在这一个条目里，没有滚动可言，
                         // 每次列表变空都是一次新的出现
                         .appearFadeIn()
                         .animateItem(
@@ -415,11 +416,7 @@ private fun RecordsList(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = stringResource(R.string.home_records_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    EmptyRecordsHint()
                 }
             }
         }
@@ -452,6 +449,35 @@ private fun RecordsList(
 
 /** 空态条目的 key。记录 id 都是 Long，与它不会撞 */
 private const val EMPTY_LIST_KEY = "empty"
+
+/**
+ * 一条记录都没有时的空态：一枚曲奇加一句话，居中。
+ *
+ * 曲奇是装饰，语义由文案承担，因此不写 contentDescription，读屏软件不会把同一件事读两遍。
+ * 边长取 [FreshNowSize.icon]（设计源里这一档就是「空态/占位图标边长」，48dp，与列表缩略图同档），
+ * 与文案的间距取 [FreshNowSpacing.sm]——M3 技能里「Between components」给的是 8/12/16/24，
+ * 这里取 16，与其余区块之间的距离同一档。
+ */
+@Composable
+private fun EmptyRecordsHint(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_cookie),
+            contentDescription = null,
+            modifier = Modifier.size(FreshNowSize.icon),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = stringResource(R.string.home_records_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
 
 /**
  * 出现时淡入一次。

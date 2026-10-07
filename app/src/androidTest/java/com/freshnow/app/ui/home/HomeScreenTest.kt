@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
@@ -27,6 +28,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.local.ScanRecord
+import com.freshnow.app.ui.theme.FreshNowSize
+import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -512,12 +515,35 @@ class HomeScreenTest {
         composeRule.onNodeWithText("还没有扫描记录").assertDoesNotExist()
     }
 
-    /** 空态文案只在确实没有记录时出现，别被上面那条改动殃及 */
+    /** 空态：一条记录都没有时要给一句话，正上方那枚曲奇也要真的画出来 */
     @Test
     fun emptyRecords_showEmptyHint() {
         setContent(items = emptyList<HomeRecordItem>())
 
         composeRule.onNodeWithText("还没有扫描记录").assertIsDisplayed()
+
+        // 曲奇是装饰、没有 contentDescription，只能按位置验：文案上方紧挨着的那一块必须有画东西
+        val textTop = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot().top
+        assertTrue(
+            "文案正上方应当画着曲奇（空态整块居中，曲奇在文案之上一个组件间距处）",
+            drawsSomethingBetween(
+                top = textTop - FreshNowSpacing.sm - FreshNowSize.icon,
+                bottom = textTop - FreshNowSpacing.sm
+            )
+        )
+    }
+
+    /** 这条 y 带内有没有画了东西的像素：装饰图形没有语义节点，只能这样验收 */
+    private fun drawsSomethingBetween(top: Dp, bottom: Dp): Boolean {
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val background = bitmap.getPixel(0, bitmap.height - 1)
+        val from = with(composeRule.density) { top.roundToPx() }.coerceIn(0, bitmap.height - 1)
+        val to = with(composeRule.density) { bottom.roundToPx() }.coerceIn(0, bitmap.height)
+        return (from until to).any { y ->
+            (0 until bitmap.width).any { x ->
+                channelDifference(bitmap.getPixel(x, y), background) > CHANNEL_TOLERANCE
+            }
+        }
     }
 
     /** 该区域里与页面底色差得最远的那个像素差多少：文字淡入时它会从 0 涨到最终值 */
