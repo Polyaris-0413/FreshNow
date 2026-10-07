@@ -44,6 +44,7 @@
     <string name="scan_reasoning_empty">模型未返回思维链</string>
 
     <string name="ai_settings_section_title">AI</string>
+    <string name="debug_settings_section_title">调试</string>
     <string name="ai_settings_basic_group_title">基础配置</string>
     <string name="ai_settings_show_reasoning_title">显示思维链</string>
     <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>

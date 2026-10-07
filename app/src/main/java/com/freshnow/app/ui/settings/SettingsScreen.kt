@@ -142,8 +142,11 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * 设置项本体，不含编辑面板与落盘：便于按定值直接断言分区归属（见 SettingsScreenTest）
+ */
 @Composable
-private fun SettingsList(
+internal fun SettingsList(
     summary: String,
     extraSummary: String,
     showReasoning: Boolean,
@@ -153,17 +156,10 @@ private fun SettingsList(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        // 分区标题：M3 无专门组件，采用 Settings 惯例的 Title Small + primary
-        Text(
+        SectionTitle(
             text = stringResource(R.string.ai_settings_section_title),
-            modifier = Modifier.padding(
-                start = FreshNowSpacing.sm,
-                top = FreshNowSpacing.sm,
-                end = FreshNowSpacing.sm,
-                bottom = FreshNowSpacing.xxs
-            ),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary
+            // 与页面顶端的距离
+            modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
         // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
@@ -178,6 +174,26 @@ private fun SettingsList(
             supportingContent = { Text(text = summary) },
             modifier = Modifier.clickable(onClick = onBasicConfigClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.ai_settings_extra_title))
+            },
+            supportingContent = {
+                Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
+            modifier = Modifier.clickable(onClick = onExtraRequestClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        SectionTitle(
+            text = stringResource(R.string.debug_settings_section_title),
+            // 与上一段之间留段间距（设计源的 24），两个分区才分得开
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
         )
 
         // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
@@ -200,21 +216,22 @@ private fun SettingsList(
             ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
-
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_extra_title))
-            },
-            supportingContent = {
-                Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            },
-            modifier = Modifier.clickable(onClick = onExtraRequestClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
     }
+}
+
+/** 分区标题：M3 无专门组件，采用 Settings 惯例的 Title Small + primary */
+@Composable
+private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        modifier = modifier.padding(
+            start = FreshNowSpacing.sm,
+            end = FreshNowSpacing.sm,
+            bottom = FreshNowSpacing.xxs
+        ),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary
+    )
 }
 
 /**
