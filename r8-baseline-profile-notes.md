@@ -2,7 +2,24 @@
 
 这份文档记录本项目在 R8 收缩与 baseline profile 录制上踩过的坑与可用做法，供上下文丢失后重新接手时参考。与代码里的注释分工：注释只解释那行代码为什么必须那么写，本文记录整体链路、判据和操作性陷阱。
 
-标「本次实测」的数字来自 2026-10-07 在 GMD（`pixel7Api36`）上的三次完整重录，用来把「镜像」与「设备规格」两个变量拆开：`google_apis` / 2 核 / 2.5 GB（20m13s，中途假失败两次）、`google_apis` / 4 核 / 4 GB（6m24s）、`aosp` / 4 核 / 4 GB（5m38s）。录制是**非确定性**的：轮数、耗时、条目数都会浮动。判据要看形态与量级，不要比单点数值。
+标「本次实测」的数字来自 2026-10-07 在 GMD（`pixel7Api36`）上的三次完整重录，用来把「镜像」与「设备规格」两个变量拆开：`google_apis` / 2 核 / 2.5 GB（20m13s，中途假失败两次）、`google_apis` / 4 核 / 4 GB（6m24s）、`aosp` / 4 核 / 4 GB（5m38s）。录制是**非确定性**的：轮数、耗时、条目数都会浮动。判据要看形态与量级，不要比单点数值。下文没特别说明的「本次」都指当前配置那一次（`google_apis` / 4 核 / 4 GB）。
+
+## 当前基线（正常时应该看到什么）
+
+配置：`google_apis` 镜像 + 托管 AVD 手改到 4 核 / 4 GB + `-gpu swiftshader_indirect`。
+
+| 指标 | 正常值 |
+|---|---|
+| `:app:generateBaselineProfile` 全程 | 约 6 分钟（本次 6m24s） |
+| 用例耗时 / 轮数 | 约 340 s，10 轮即 stable（本次 343.0 s） |
+| logcat 里 `lowmemorykiller` 杀进程 | 0 |
+| 首帧等待（脚本上限 90 s） | 十几秒就过（2 核 / 2 GB 时曾三次里两次直接超时） |
+| 录制结果里的 `com/freshnow` 条目 | 几百条**原始类名**（本次 863） |
+| 最终 profile 里「含方法的类」 | 约 4800（本次 4785） |
+| APK 内 `assets/dexopt/baseline.prof` | 约 9 KB（本次 9120 字节） |
+| 应用类覆盖（见下「应用类覆盖率」） | 85 / 118 |
+
+偏离这个量级——尤其是全程变回二十分钟、lmkd 又开始杀进程、首帧 90 秒超时——先查设备规格是不是被退回了默认的 2 核 / 2 GB（见「环境要求」里的 `config.ini` 那一条），别先去改脚本。
 
 ## 一、release 的 R8 全开
 
@@ -62,7 +79,7 @@ maybeCreate("nonMinifiedRelease").apply {
 }
 ```
 
-判据（本次实测）：**录制结果**里的 `com/freshnow` 条目应是数百条**原始类名**（872 条）；**最终 profile** 里应用类应是混淆名。反例是录制结果里只剩个位数 `com/freshnow` 条目——那说明录制跑在了混淆构建上。
+判据（本次实测）：**录制结果**里的 `com/freshnow` 条目应是数百条**原始类名**（本次 863 条，三次录制分别 872 / 863 / 863）；**最终 profile** 里应用类应是混淆名。反例是录制结果里只剩个位数 `com/freshnow` 条目——那说明录制跑在了混淆构建上。
 
 这里有个容易看错的地方：修好之后，`minifyReleaseWithR8` 那一步的 `com/freshnow` 条目**也只剩 18 条**（其余都改成了 `h3` / `i3` 这类混淆名）。「18 条」在坏、好两种状态下都会出现，区别是前者出现在**录制结果**里、后者出现在 **R8 改写后**的产物里。
 
@@ -99,7 +116,7 @@ R8 保留了 118 个应用类（`mapping.txt` 口径），但录制脚本永远�
   | 首帧等待（90 s 上限） | 三次尝试两次超时 | 一次通过 | 一次通过 |
   | 「含方法的类」总数 | 4793 | 4785 | 4746 |
 
-- 瓶颈是**内存/核数，不是镜像**：同一个 `google_apis` 镜像，只把 2 核 / 2.5 GB 抬到 4 核 / 4 GB，全程就从 20m13s 降到 6m24s、lmkd 杀进程从 9 次降到 0、轮数从跑满 15 降到 10 即 stable；换镜像是另一个维度的事，只影响那 40 个 GMS-only 类和约 12% 耗时。
+- 瓶颈是**内存/核数，不是镜像**：同一个 `google_apis` 镜像，只把 2 核 / 2.5 GB 抬到 4 核 / 4 GB，全程就从 20m13s 降到 6m24s、lmkd 杀进程从 9 次降到 0、轮数从跑满 15 降到 10 即 stable；换镜像是另一个维度的事，只影响那 40 个 GMS-only 类和约 12% 耗时。表里 `google_apis` / 4 核 / 4 GB 那一列就是当前配置的正常值，跑出来明显比它差，优先怀疑设备规格。
 - 慢与偶发失败的来源是内存压力，不是脚本逻辑：设备被 `lowmemorykiller` 拖住时，控件查找与 `pressBack` 会退化成秒级，脚本里 1 秒的短等待就不够用，于是出现「最后一段退不回首页」这类**假失败**。先解决设备规格，再考虑动脚本——这套规格下两种镜像都已一次过。
 - 要压时间还可以调 `BaselineProfileConfig`（`maxIterations` / `stableIterations`），但那是拿覆盖率换时间，别改默认值。
 
@@ -115,11 +132,11 @@ rm -rf baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifi
 
 设备侧测试失败是正常的 `BUILD FAILED`，不会被当成 UP-TO-DATE，所以失败之后直接重跑即可，不必先删。
 
-另外：**别删托管虚拟机来「重试」**。删掉 `~/.android/avd/gradle-managed` 会连带丢掉 `snapshots/default_boot`，下次变成首次冷启动——本次那样做直接导致首帧 90 秒超时、测试挂在最后一段。安装偶发 `Broken pipe` 时保留 AVD 直接重跑即可。
+另外：**别删托管虚拟机来「重试」**。删掉 `~/.android/avd/gradle-managed` 会连带丢掉 `snapshots/default_boot`，下次变成首次冷启动（首次开机还要跑一遍 Provisioning，是这台机器上最慢的一段）；那次叠加 2 核 / 2 GB 的规格，直接导致首帧 90 秒超时、测试挂在最后一段。安装偶发 `Broken pipe` 时保留 AVD 直接重跑即可。
 
 ### 排查方法：确认 profile 真的进了包
 
-三段各取一个判据，比逐级「数类数」可靠——类数在混淆前后本来就会大幅变化（本次链路是 merged 4435 → `expandReleaseArtProfileWildcards` 7078 → `minifyReleaseWithR8` 3054），单看数字容易误判：
+三段各取一个判据，比逐级「数类数」可靠——类数在混淆前后本来就会大幅变化（本次链路是 merged 5382 → `expandReleaseArtProfileWildcards` 7998 → `minifyReleaseWithR8` 3118，都是类声明数），单看数字容易误判：
 
 1. **录制结果**：`baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/BaselineProfileGenerator_generate-baseline-prof-<时间戳>.txt` 里 `com/freshnow` 应有数百条**原始类名**条目。
 2. **最终 profile**：用 `mapping.txt` 反查混淆名，`combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt` 里应能查到（如 `AiAnalysis -> h3` 就查 `Lh3;`）。
@@ -142,7 +159,7 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
 
 ### 产物去哪了：别忘了那个受版本控制的文件
 
-`:app:copyReleaseBaselineProfileIntoSrc` 会把归并后的 profile 写进 **`app/src/release/generated/baselineProfiles/baseline-prof.txt`，而它是入库的**。也就是说每成功录一次就会产生一个约 2.5 MB 的 git 变更（本次 566 增 / 354 删）。所以提交前要比对方法级覆盖（见上面「排查方法」的第一、二段判据），别把一次录浅了的结果默默提交进去。
+`:app:copyReleaseBaselineProfileIntoSrc` 会把归并后的 profile 写进 **`app/src/release/generated/baselineProfiles/baseline-prof.txt`，而它是入库的**。也就是说每成功录一次就会产生一个约 2.5 MB 的 git 变更（本次 566 增 / 354 删）。所以提交前要比对方法级覆盖（见上面「排查方法」的第一、二段判据），别把一次录浅了的结果默默提交进去。当前入库的这份对应 `google_apis` / 4 核 / 4 GB 那次录制；与 `aosp` 那次相比只差那 40 个 GMS-only 类。
 
 ## 三、已知遗留
 
