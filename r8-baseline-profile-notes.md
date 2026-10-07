@@ -2,7 +2,7 @@
 
 这份文档记录本项目在 R8 收缩与 baseline profile 录制上踩过的坑与可用做法，供上下文丢失后重新接手时参考。与代码里的注释分工：注释只解释那行代码为什么必须那么写，本文记录整体链路、判据和操作性陷阱。
 
-标「本次实测」的数字来自 2026-10-07 在 GMD（`pixel7Api36`）上的两次完整重录：先在 `google_apis` / 2 核 / 2.5 GB 上跑（20m13s，中途假失败两次），换成 `aosp` / 4 核 / 4 GB 后重跑（5m38s，一次通过）。录制是**非确定性**的：轮数、耗时、条目数都会浮动。判据要看形态与量级，不要比单点数值。
+标「本次实测」的数字来自 2026-10-07 在 GMD（`pixel7Api36`）上的三次完整重录，用来把「镜像」与「设备规格」两个变量拆开：`google_apis` / 2 核 / 2.5 GB（20m13s，中途假失败两次）、`google_apis` / 4 核 / 4 GB（6m24s）、`aosp` / 4 核 / 4 GB（5m38s）。录制是**非确定性**的：轮数、耗时、条目数都会浮动。判据要看形态与量级，不要比单点数值。
 
 ## 一、release 的 R8 全开
 
@@ -80,9 +80,9 @@ R8 保留了 118 个应用类（`mapping.txt` 口径），但录制脚本永远�
 - 只能在托管虚拟机（GMD）上录：本机 adb 上若有真机，「连接设备」模式无法指定序列号（生产侧插件扩展只有 `managedDevices` / `useConnectedDevices` / `skipBenchmarksOnEmulator` / `enableEmulatorDisplay`，没有 serial 项），会把录制跑到真机上。
 - `gradle.properties` 里须钉住 `android.testoptions.manageddevices.emulator.gpu=swiftshader_indirect`。默认的 `-gpu auto` 配上 AVD 档案里的 `hw.gpu.enabled=no` 会让 guest 起来后彻底卡死（qemu CPU 时间零增长、`adb shell` 无响应），构建就一直挂在设备操作上。核实办法：`~/.android/avd/gradle-managed/<avd>.avd/emu-launch-params.txt` 里应出现 `-gpu swiftshader_indirect`。
 - 托管设备定义在 `baselineprofile/build.gradle.kts`，设备名要取硬件档案的**显示名**（`Pixel 7`），取目录 id（`pixel_7`）会报找不到档案——AGP 的 `AvdManager.createAvd` 只按 `displayName` 匹配。
-- 镜像用 **`aosp`**（AGP 里 `"aosp"` 与 `"default"` 是同一来源，SDK 包是 `system-images;android-36;default;x86_64`）。这是官方硬要求：`Create Baseline Profiles` 文档写明 GMD 必须设 `aosp`，因为 profile 生成器需要 root，Play / Google APIs 镜像给不了。顺带的好处是不带 GMS，内存压力小得多。
-- 用 `aosp` 的代价：一批**只有在 GMS 镜像上才有机会执行**的库代码录不到。实测比 `google_apis` 少 47 个「含方法的类」——`androidx/emoji2/text`(+flatbuffer) 22 个、`androidx/core/provider` + `androidx/core/graphics` 的字体/emoji provider 路径 14 个、`androidx/compose/animation` 的转场 9 个，其余零散。反过来说，应用类与 `androidx/camera` 覆盖完全一致（244 / 584），所以丢的只是真机上 emoji2 与可下载字体的启动路径。要连它们一起覆盖就再挂一个 `google_apis` 录制源去 merge，不要为此退回 `google_apis`。
-- **内存与核数没有 DSL**：AGP 把 `hw.cpu.ncore` 写死成 `EmulatedProperties.RECOMMENDED_NUMBER_OF_CORES`，并用 `restrictDefaultRamSize()` 把 `hw.ramSize` 顶到 `MAX_DEFAULT_RAM_SIZE = 2 GiB`（不管硬件档案要多少）。要调只能改 AVD 首次生成后的 `config.ini`：`~/.android/avd/gradle-managed/dev36_default_x86_64_Pixel_7.avd/config.ini` 里的 `hw.ramSize` / `hw.cpu.ncore`（本机现为 `4G` / `4`）。`createOrRetrieveAvd` 发现 AVD 已存在且状态正常就直接复用，所以改动能留住；但改完必须重建快照，否则 `-force-snapshot-load` 会拿到硬件对不上的旧快照——删掉 `snapshots/`（连 `bootcompleted.ini` 一起删），再 `./gradlew :baselineprofile:pixel7Api36Setup --rerun` 让它重新开机存一份。
+- 镜像定 **`google_apis`**。镜像是**覆盖率**上的取舍，不是速度上的：同一台机器、同样 4 核 / 4 GB，`aosp` 比 `google_apis` 只快约 12%（5m38s vs 6m24s），却少覆盖 40 个「含方法的类」——`androidx/emoji2/text`(+flatbuffer)、`androidx/core/provider` 与 `androidx/core/graphics` 的可下载字体 provider 路径等。这些分支要先探测只有 GMS 才提供的字体 provider，`aosp` 上在入口就返回了。应用类与 `androidx/camera` 两种镜像完全一致（244 / 584）。
+- 官方文档（`Create Baseline Profiles`）说 GMD 录制要设 `aosp`，理由是生成器需要 root——**那条只对 API < 33 成立**（同一文档也写了 API 33 及以上无需 root）。本项目 `apiLevel = 36`，实测 `google_apis` 能正常录制。要换成 `aosp` 就是 `systemImageSource = "aosp"`（AGP 里 `"aosp"` 与 `"default"` 同源，SDK 包是 `system-images;android-36;default;x86_64`）。
+- **内存与核数没有 DSL**：AGP 把 `hw.cpu.ncore` 写死成 `EmulatedProperties.RECOMMENDED_NUMBER_OF_CORES`，并用 `restrictDefaultRamSize()` 把 `hw.ramSize` 顶到 `MAX_DEFAULT_RAM_SIZE = 2 GiB`（不管硬件档案要多少）。要调只能改 AVD 首次生成后的 `config.ini`：`~/.android/avd/gradle-managed/dev36_google_apis_x86_64_Pixel_7.avd/config.ini` 里的 `hw.ramSize` / `hw.cpu.ncore`（本机现为 `4G` / `4`）。`createOrRetrieveAvd` 发现 AVD 已存在且状态正常就直接复用，所以改动能留住；但改完必须重建快照，否则 `-force-snapshot-load` 会拿到硬件对不上的旧快照——删掉 `snapshots/`（连 `bootcompleted.ini` 一起删），再 `./gradlew :baselineprofile:pixel7Api36Setup --rerun` 让它重新开机存一份。
 - 装完镜像后如果 AGP 还报 `System image does not exist at …`（`retrieveSystemImage` 会重试 5 次再放弃），先 `./gradlew --stop`：**长期存活的 Gradle daemon 会缓存 SDK 包列表**，看不到刚装进去的镜像。本次就是这么撞的。
 - 用 `sdkmanager.bat` 装镜像时，包名里的 `;` 会被 cmd 拆成多个参数（报 `Package android-36 not found`）。写成 .bat 文件调用，别在 bash 里直接传字符串。
 
@@ -91,14 +91,16 @@ R8 保留了 118 个应用类（`mapping.txt` 口径），但录制脚本永远�
 - 轮数由 `BaselineProfileConfig` 决定，默认 `maxIterations = 15`、`stableIterations = 3`：脚本会被完整跑到「连续 3 轮 profile 不再增长」或跑满 15 轮为止。所以总耗时是「轮数 × 单轮成本」，不是常数。
 - 换设备规格前后（同一套脚本、同一台机器）：
 
-  | | `google_apis` / 2 核 / 2.5 GB | `aosp` / 4 核 / 4 GB |
-  |---|---|---|
-  | 用例耗时 | 1002.6 s（跑满 15 轮） | 317.6 s（10 轮即 stable） |
-  | `:app:generateBaselineProfile` 全程 | 20m13s | 5m38s |
-  | logcat 里 `lowmemorykiller` 杀进程 | 9 次 | 0 次 |
-  | 首帧等待（90 s 上限） | 三次尝试两次 >90 s 超时 | 一次通过 |
+  | | `google_apis`<br>2 核 / 2.5 GB | `google_apis`<br>4 核 / 4 GB | `aosp`<br>4 核 / 4 GB |
+  |---|---|---|---|
+  | 用例耗时 | 1002.6 s（跑满 15 轮） | 343.0 s（10 轮即 stable） | 317.6 s（10 轮即 stable） |
+  | `:app:generateBaselineProfile` 全程 | 20m13s | 6m24s | 5m38s |
+  | logcat 里 `lowmemorykiller` 杀进程 | 9 次 | 0 次 | 0 次 |
+  | 首帧等待（90 s 上限） | 三次尝试两次超时 | 一次通过 | 一次通过 |
+  | 「含方法的类」总数 | 4793 | 4785 | 4746 |
 
-- 慢与偶发失败的来源是内存压力，不是脚本逻辑：设备被 `lowmemorykiller` 拖住时，控件查找与 `pressBack` 会退化成秒级，脚本里 1 秒的短等待就不够用，于是出现「最后一段退不回首页」这类**假失败**。先解决设备规格（镜像 + 内存/核数），再考虑动脚本——这套规格下录制已经一次过。
+- 瓶颈是**内存/核数，不是镜像**：同一个 `google_apis` 镜像，只把 2 核 / 2.5 GB 抬到 4 核 / 4 GB，全程就从 20m13s 降到 6m24s、lmkd 杀进程从 9 次降到 0、轮数从跑满 15 降到 10 即 stable；换镜像是另一个维度的事，只影响那 40 个 GMS-only 类和约 12% 耗时。
+- 慢与偶发失败的来源是内存压力，不是脚本逻辑：设备被 `lowmemorykiller` 拖住时，控件查找与 `pressBack` 会退化成秒级，脚本里 1 秒的短等待就不够用，于是出现「最后一段退不回首页」这类**假失败**。先解决设备规格，再考虑动脚本——这套规格下两种镜像都已一次过。
 - 要压时间还可以调 `BaselineProfileConfig`（`maxIterations` / `stableIterations`），但那是拿覆盖率换时间，别改默认值。
 
 ### 操作陷阱：重录前必须删旧输出
@@ -121,7 +123,7 @@ rm -rf baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifi
 
 1. **录制结果**：`baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/BaselineProfileGenerator_generate-baseline-prof-<时间戳>.txt` 里 `com/freshnow` 应有数百条**原始类名**条目。
 2. **最终 profile**：用 `mapping.txt` 反查混淆名，`combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt` 里应能查到（如 `AiAnalysis -> h3` 就查 `Lh3;`）。
-3. **产物**：`unzip -l app/build/outputs/apk/release/app-release-unsigned.apk | grep baseline` 应有 `assets/dexopt/baseline.prof`（约 9 KB，本次 9116 字节）。
+3. **产物**：`unzip -l app/build/outputs/apk/release/app-release-unsigned.apk | grep baseline` 应有 `assets/dexopt/baseline.prof`（约 9 KB，本次 9120 字节）。
 
 真丢了东西时，再按中间产物顺序逐级看：
 
@@ -140,7 +142,7 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
 
 ### 产物去哪了：别忘了那个受版本控制的文件
 
-`:app:copyReleaseBaselineProfileIntoSrc` 会把归并后的 profile 写进 **`app/src/release/generated/baselineProfiles/baseline-prof.txt`，而它是入库的**。也就是说每成功录一次就会产生一个约 2.5 MB 的 git 变更（本次 4648 增 / 4087 删）。所以提交前要比对方法级覆盖（见上面「排查方法」的第一、二段判据），别把一次录浅了的结果默默提交进去。
+`:app:copyReleaseBaselineProfileIntoSrc` 会把归并后的 profile 写进 **`app/src/release/generated/baselineProfiles/baseline-prof.txt`，而它是入库的**。也就是说每成功录一次就会产生一个约 2.5 MB 的 git 变更（本次 566 增 / 354 删）。所以提交前要比对方法级覆盖（见上面「排查方法」的第一、二段判据），别把一次录浅了的结果默默提交进去。
 
 ## 三、已知遗留
 
