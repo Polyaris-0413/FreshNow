@@ -47,6 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.SplicedCard
+import com.freshnow.app.ui.component.splicedCardShape
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.launch
@@ -162,33 +164,45 @@ internal fun SettingsList(
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
-        // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
-        // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_basic_group_title))
-            },
-            supportingContent = { Text(text = summary) },
-            modifier = Modifier.clickable(onClick = onBasicConfigClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+        // 两行拼成一张卡，与扫描页的结果字段同一套拼接（形状按位置取自 splicedCardShape，
+        // 缝取 4dp）。左右留白加在卡上而不是行上：卡片的边要对齐分区标题的文字起始处。
+        Column(
+            modifier = Modifier.padding(horizontal = FreshNowSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
+        ) {
+            // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
+            // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
+            // 行自身用透明底色，卡片填充色才透得出来
+            SplicedCard(shape = splicedCardShape(index = 0, count = AI_ROW_COUNT)) {
+                ListItem(
+                    leadingContent = {
+                        Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
+                    },
+                    headlineContent = {
+                        Text(text = stringResource(R.string.ai_settings_basic_group_title))
+                    },
+                    supportingContent = { Text(text = summary) },
+                    modifier = Modifier.clickable(onClick = onBasicConfigClick),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+            }
 
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_extra_title))
-            },
-            supportingContent = {
-                Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            },
-            modifier = Modifier.clickable(onClick = onExtraRequestClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+            SplicedCard(shape = splicedCardShape(index = 1, count = AI_ROW_COUNT)) {
+                ListItem(
+                    leadingContent = {
+                        Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
+                    },
+                    headlineContent = {
+                        Text(text = stringResource(R.string.ai_settings_extra_title))
+                    },
+                    supportingContent = {
+                        Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    modifier = Modifier.clickable(onClick = onExtraRequestClick),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+            }
+        }
 
         SectionTitle(
             text = stringResource(R.string.debug_settings_section_title),
@@ -196,28 +210,37 @@ internal fun SettingsList(
             modifier = Modifier.padding(top = FreshNowSpacing.md)
         )
 
-        // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
-        // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_show_reasoning_title))
-            },
-            supportingContent = { Text(text = stringResource(R.string.ai_settings_show_reasoning_support)) },
-            trailingContent = {
-                Switch(checked = showReasoning, onCheckedChange = null)
-            },
-            modifier = Modifier.toggleable(
-                value = showReasoning,
-                role = Role.Switch,
-                onValueChange = onShowReasoningChange
-            ),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+        // 这一区只有一行，单块卡片四角都取外圆
+        SplicedCard(
+            shape = splicedCardShape(index = 0, count = 1),
+            modifier = Modifier.padding(horizontal = FreshNowSpacing.sm)
+        ) {
+            // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
+            // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
+            ListItem(
+                leadingContent = {
+                    Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
+                },
+                headlineContent = {
+                    Text(text = stringResource(R.string.ai_settings_show_reasoning_title))
+                },
+                supportingContent = { Text(text = stringResource(R.string.ai_settings_show_reasoning_support)) },
+                trailingContent = {
+                    Switch(checked = showReasoning, onCheckedChange = null)
+                },
+                modifier = Modifier.toggleable(
+                    value = showReasoning,
+                    role = Role.Switch,
+                    onValueChange = onShowReasoningChange
+                ),
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            )
+        }
     }
 }
+
+/** AI 分区里拼成一组的行数 */
+private const val AI_ROW_COUNT = 2
 
 /** 分区标题：M3 无专门组件，采用 Settings 惯例的 Title Small + primary */
 @Composable
