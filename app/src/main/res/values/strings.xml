@@ -60,8 +60,12 @@
     <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
     <string name="ai_settings_extra_title">思考参数</string>
     <string name="ai_settings_extra_label">附加请求参数</string>
-    <string name="ai_settings_extra_example">{\"thinking\":{\"type\":\"disabled\"}}</string>
-    <string name="ai_settings_extra_hint">上面这段 JSON 会原样并入请求体；留空则跟随服务商默认</string>
+    <!-- 输入框为空时框内的引导语。不写具体示例 JSON：框里的字看着像「要照抄的内容」，
+         而各家服务商的字段名与取值并不统一，照抄反而更难排查 -->
+    <string name="ai_settings_extra_example">按服务商文档填写 JSON 对象</string>
+    <string name="ai_settings_extra_hint">这段 JSON 会原样并入请求体；不想动就留空，跟随服务商默认</string>
+    <!-- 示例放在说明里并注明出处：这里举例的是「关掉思考」这一常见诉求 -->
+    <string name="ai_settings_extra_example_meaning">关掉思考一般写 {\"thinking\":{\"type\":\"disabled\"}}，字段名与取值以服务商文档为准</string>
     <string name="ai_settings_extra_default">跟随服务商默认</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
