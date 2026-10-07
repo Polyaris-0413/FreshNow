@@ -96,6 +96,7 @@ fun HomeRoute(
 ) {
     val records by viewModel.records.collectAsStateWithLifecycle()
     val newRecordIds by viewModel.newRecordIds.collectAsStateWithLifecycle()
+    val justEmptied by viewModel.justEmptied.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
 
     // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
@@ -110,6 +111,7 @@ fun HomeRoute(
         // 「还没有扫描记录」再把记录硬切上来，中途换一次结论
         records = records,
         newRecordIds = newRecordIds,
+        justEmptied = justEmptied,
         selectedIds = selectedIds,
         onRecordClick = onNavigateToRecord,
         onRecordToggle = viewModel::toggleSelection,
@@ -128,6 +130,8 @@ fun HomeScreen(
     records: List<HomeRecordItem>?,
     /** 刚存进来、还没演过淡入的那几条，见 HomeViewModel.newRecordIds */
     newRecordIds: Set<Long>,
+    /** 上一次查库把列表查空了且此前有记录，见 HomeViewModel.justEmptied */
+    justEmptied: Boolean,
     selectedIds: Set<Long>,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
@@ -235,6 +239,7 @@ fun HomeScreen(
         RecordsList(
             records = records,
             newRecordIds = newRecordIds,
+            justEmptied = justEmptied,
             selectedIds = selectedIds,
             inSelectionMode = inSelectionMode,
             onRecordClick = onRecordClick,
@@ -368,6 +373,7 @@ private fun SheetMenuItem(
 private fun RecordsList(
     records: List<HomeRecordItem>?,
     newRecordIds: Set<Long>,
+    justEmptied: Boolean,
     selectedIds: Set<Long>,
     inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
@@ -405,9 +411,12 @@ private fun RecordsList(
                 Box(
                     modifier = Modifier
                         .fillParentMaxSize()
-                        // 空态每次出现都淡入一次：它只在这一个条目里，没有滚动可言，
-                        // 每次列表变空都是一次新的出现
-                        .appearFadeIn()
+                        // 空态只在"刚被删空"时淡入（见 HomeViewModel.justEmptied）：那是用户眼前
+                        // 发生的变化。从别的页面回到主页也重新合成一次空态，但那不是变化——那次它
+                        // 跟着整页一起出现就够了，再淡一遍是重复。
+                        // 时长用 delayed 那一档：删光时空态紧跟在条目淡出之后，而确认删除的对话框
+                        // 也正好在这段时间退场，不等一拍的话前半段整段被对话框盖着
+                        .appearFadeIn(animate = justEmptied, spec = FreshNowTransitions.stateChangeDelayed())
                         .animateItem(
                             // 出现的淡入自己演（见 appearFadeIn），animateItem 那条通道只在
                             // 「列表已在场、条目后加入」时认得出来，覆盖不到首次合成
@@ -484,12 +493,9 @@ private fun EmptyRecordsHint(modifier: Modifier = Modifier) {
  * 出现时淡入一次。
  *
  * 没走 `animateItem` 的 `fadeInSpec`，是因为「谁该淡入」的判据不同：后者认的是「这个条目刚被
- * 合成出来」，滚动时进入视口的旧条目也会被算进去。这里由调用方按数据给——[RecordsList] 传的是
- * 「刚存进来的那几条」（见 HomeViewModel.newRecordIds），空态文案则是每次出现都算——滚动于是
- * 不掺和进来，「新的」只指新存的那几条。
- *
- * 空态文案那一路还多一层原因：它出现时列表恰好是首次合成（冷启动且一条记录都没有），
- * animateItem 那时手里没有上一轮可比，本来就演不出来。
+ * 合成出来」，滚动时进入视口的旧条目、以及每次回到本页重新合成的空态，都会被算进去。这里由
+ * 调用方按数据给——[RecordsList] 传的是「刚存进来的那几条」与「刚被删空」——于是只有用户眼前
+ * 发生的变化才演。
  *
  * animate 只在第一次合成时读一次：演到一半时上游若又更新（比如又存了一条），动画不会被中途掐断。
  */
@@ -505,17 +511,6 @@ private fun Modifier.appearFadeIn(
     LaunchedEffect(alpha) { alpha.animateTo(1f, spec) }
     return graphicsLayer { this.alpha = alpha.value }
 }
-
-/**
- * 每次出现都淡入，用于只出现一次、没有滚动可言的条目（空态）。
- *
- * 晚一拍开始（见 [FreshNowTransitions.stateChangeDelayed]）：它出现时往往正是列表刚被删空，
- * 而确认删除的对话框也在这段时间退场——跟着条目淡出同时开始的话，前半段整段被对话框盖住，
- * 用户看到的是「对话框一关，它已经在那儿了」；等条目退场结束再淡入，才看得出是淡进来的。
- */
-@Composable
-private fun Modifier.appearFadeIn(): Modifier =
-    appearFadeIn(animate = true, spec = FreshNowTransitions.stateChangeDelayed())
 
 /**
  * 今天的日期，跨过零点会自己更新。
@@ -644,6 +639,7 @@ private fun HomeScreenPreview() {
         HomeScreen(
             records = previewRecords(),
             newRecordIds = emptySet(),
+            justEmptied = false,
             selectedIds = emptySet(),
             onRecordClick = {},
             onRecordToggle = {},
@@ -663,6 +659,7 @@ private fun HomeScreenSelectionPreview() {
         HomeScreen(
             records = previewRecords(),
             newRecordIds = emptySet(),
+            justEmptied = false,
             selectedIds = setOf(1L),
             onRecordClick = {},
             onRecordToggle = {},

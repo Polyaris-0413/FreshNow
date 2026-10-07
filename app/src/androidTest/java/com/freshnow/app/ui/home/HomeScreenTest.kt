@@ -391,10 +391,15 @@ class HomeScreenTest {
         val records = mutableStateOf(
             listOf(item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"))
         )
-        setContentTracking(records, mutableStateOf(emptySet()))
+        val justEmptied = mutableStateOf(false)
+        setContentTracking(records, mutableStateOf(emptySet()), justEmptied = justEmptied)
 
         composeRule.mainClock.autoAdvance = false
-        composeRule.runOnUiThread { records.value = emptyList() }
+        // 与 HomeViewModel 同步：这一次查库是从"有"变成"没有"
+        composeRule.runOnUiThread {
+            records.value = emptyList()
+            justEmptied.value = true
+        }
 
         // 条目淡出的半程：空态这时候还不该看得见
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
@@ -414,32 +419,29 @@ class HomeScreenTest {
     }
 
     /**
-     * 本页重新合成时（转场返回、转屏、冷启动），空态也要淡入，而不是直接出现。
+     * 从别的页面回到主页（以及冷启动）时，空态不该再淡一遍。
      *
-     * 用空态那一屏来验：冷启动且一条记录都没有时，空态正是「跟着这次合成一起出现」的东西，
-     * 而它恰好是 animateItem 认不出（手里没有上一轮可比）的那一种，只能自己演。
-     * 它比别人晚一拍开始（见 appearFadeIn），所以第一拍上还看不见。
+     * 那不是变化：空态早就显示过，那次它跟着整页一起出现就够了。回到本页是一次新的合成，
+     * 若照合成演一遍，用户每次回来都会看到它重新淡入一次——正是这条要拦住的。
+     * 判据取「自始至终都是满的」：不演淡入时它从第一帧起就是终态，没有任何半透明的时刻。
      */
     @Test
-    fun listFadesInOnFirstComposition() {
+    fun emptyHint_doesNotFadeOnReentry() {
         composeRule.mainClock.autoAdvance = false
-        setContent(emptyList())
+        // 本页首次合成、并不是"刚被删空"，与 HomeViewModel 一致
+        setContent(items = emptyList<HomeRecordItem>())
 
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
-
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS)
         val atStart = maxContrast(region)
 
-        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
-        val middle = maxContrast(region)
-
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
-        val end = maxContrast(region)
+        val late = maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
-        assertEquals("刚出现的那一拍还不该看得见：atStart=$atStart", 0, atStart)
-        assertTrue("半途应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
+        assertTrue(
+            "空态不该因重新合成而淡入（应当一出现就是终态）：atStart=$atStart late=$late",
+            atStart > 0 && atStart == late
+        )
     }
 
     /**
@@ -662,13 +664,15 @@ class HomeScreenTest {
     private fun setContentTracking(
         records: MutableState<List<HomeRecordItem>>,
         selectedIds: MutableState<Set<Long>>,
-        newRecordIds: MutableState<Set<Long>> = mutableStateOf(emptySet())
+        newRecordIds: MutableState<Set<Long>> = mutableStateOf(emptySet()),
+        justEmptied: MutableState<Boolean> = mutableStateOf(false)
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 HomeScreen(
                     records = records.value,
                     newRecordIds = newRecordIds.value,
+                    justEmptied = justEmptied.value,
                     selectedIds = selectedIds.value,
                     onRecordClick = {},
                     onRecordToggle = {},
@@ -719,6 +723,7 @@ class HomeScreenTest {
     private fun setContent(
         items: List<HomeRecordItem>?,
         newRecordIds: Set<Long> = emptySet(),
+        justEmptied: Boolean = false,
         selectedIds: Set<Long> = emptySet(),
         onRecordClick: (Long) -> Unit = {},
         onRecordToggle: (Long) -> Unit = {},
@@ -732,6 +737,7 @@ class HomeScreenTest {
                 HomeScreen(
                     records = items,
                     newRecordIds = newRecordIds,
+                    justEmptied = justEmptied,
                     selectedIds = selectedIds,
                     onRecordClick = onRecordClick,
                     onRecordToggle = onRecordToggle,
