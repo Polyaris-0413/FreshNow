@@ -46,7 +46,8 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
-// 正方形取景框。取景框只决定预览怎么裁切显示，送给 AI 分析的始终是整帧，所以改比例不影响识别
+// 取景框的宽高比。必须与 CameraPreview 的居中正方形裁剪保持一致：那里无条件裁正方形，
+// 这里一旦改成非 1f，显示的取景范围与真正送出去的画面就会错开，而且不会有任何报错
 private const val CAMERA_ASPECT_RATIO = 1f
 
 // 思维链面板的高度上限，约 12 行正文，超出部分面板内滚动
@@ -133,13 +134,9 @@ fun ScanScreen(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                 ) {
-                    // 先定高再定宽：边长即取可用高度，宽度不够时 aspectRatio 会按宽度回落。
+                    // 只定高：边长即取可用高度，宽度不够时取景框内部的 aspectRatio 会按宽度回落。
                     // 操作区在右侧栏内，因此这里的可用高度不受它影响
-                    cameraBox(
-                        Modifier
-                            .fillMaxHeight()
-                            .aspectRatio(CAMERA_ASPECT_RATIO)
-                    )
+                    cameraBox(Modifier.fillMaxHeight())
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -169,11 +166,8 @@ fun ScanScreen(
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                     ) {
-                        cameraBox(
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(CAMERA_ASPECT_RATIO)
-                        )
+                        // 只定宽；方形由 CameraBox 自己保证
+                        cameraBox(Modifier.fillMaxWidth())
                         ScanResultColumn(uiState = uiState)
                     }
                     actionBar()
@@ -312,11 +306,11 @@ private fun ReasoningPanel(reasoning: String) {
 }
 
 /**
- * 取景框。尺寸完全由调用方给出（竖屏给 fillMaxWidth、横屏给 fillMaxHeight，各自再套 aspectRatio），
- * 这里只负责圆角与底色——尺寸约束只在一处声明，免得内外各写一遍、横屏下还互相矛盾。
+ * 取景框。
  *
- * 调用方必须给正方形：取景框的方与 CameraPreview 送给 AI 的居中正方形裁剪是绑定的，
- * 改成非方形会让「看到什么就裁什么」不再成立。
+ * 分工：调用方给「多大」（竖屏 fillMaxWidth、横屏 fillMaxHeight），本组件保证「是方的」。
+ * 方形不是审美偏好而是功能约束——CameraPreview 会把送给 AI 的整帧裁成居中正方形，
+ * 所以取景框一旦不是方的，「看到什么就裁什么」就会静默失效：用户看到整幅画面，模型只收到中间一块。
  */
 @Composable
 private fun CameraBox(
@@ -328,6 +322,7 @@ private fun CameraBox(
 ) {
     Box(
         modifier = modifier
+            .aspectRatio(CAMERA_ASPECT_RATIO)
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
