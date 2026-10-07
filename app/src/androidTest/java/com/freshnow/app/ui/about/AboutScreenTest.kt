@@ -1,8 +1,10 @@
 package com.freshnow.app.ui.about
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -82,13 +84,10 @@ class AboutScreenTest {
     }
 
     /**
-     * 开源声明页：项目清单与两份许可全文都要在。
-     *
-     * 判据取正文里的独有句而不是许可名：「Apache License 2.0」既是清单里那一行、又是全文的标题，
-     * 按许可名断言会撞上两个节点，反而测不出全文在不在——而全文正是 GPL-3.0 要求随程序附的那份副本。
+     * 开源声明页：项目清单在，且不含许可全文——副本由仓库的 LICENSE 承担，不摊在界面上。
      */
     @Test
-    fun openSourceScreenListsProjectsWithFullLicenses() {
+    fun openSourceScreenListsProjectsWithoutLicenseText() {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 OpenSourceScreen(onBack = {})
@@ -97,9 +96,11 @@ class AboutScreenTest {
 
         composeRule.onNodeWithText("book-story").assertIsDisplayed()
         composeRule.onNodeWithText("本应用的界面与动画实现取自该项目", substring = true).assertExists()
-        composeRule.onNodeWithText("Version 2.0, January 2004", substring = true).assertExists()
-        // 取 GPL 正文里的独有句：Apache 全文同样有「TERMS AND CONDITIONS」，用它会撞上两个节点
-        composeRule.onNodeWithText("GNU GENERAL PUBLIC LICENSE", substring = true).assertExists()
+        // 页面只列清单，不铺许可全文（副本由仓库的 LICENSE 承担）：全文里有独有句，清单里没有
+        composeRule.onAllNodesWithText("Version 2.0, January 2004", substring = true)
+            .assertCountEquals(0)
+        // 5 个依赖都是 Apache-2.0，一行一个，所以按数量而不是「存在」断言
+        composeRule.onAllNodesWithText("Apache License 2.0").assertCountEquals(5)
     }
 
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top
