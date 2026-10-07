@@ -35,7 +35,7 @@ rm -rf baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifi
 
 ## 当前基线（正常时应该看到什么）
 
-配置：`google_apis` 镜像 + 托管 AVD 手改到 4 核 / 4 GB + `-gpu swiftshader_indirect`。
+配置：`google_apis` 镜像 + 托管 AVD 手改到 4 核 / 4 GB + `-gpu swiftshader_indirect`。再往上加核/内存没有收益（实测见附录 B-6）。
 
 | 指标 | 正常值 |
 |---|---|
@@ -108,6 +108,20 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
 4. **重建快照**：改完必须重建，否则 `-force-snapshot-load` 会拿到硬件对不上的旧快照。删掉该 AVD 目录下的 `snapshots/`（连 `bootcompleted.ini` 一起删），再 `./gradlew :baselineprofile:pixel7Api36Setup --rerun` 让它重新开机存一份。
 5. **核对 GPU 开关**：`gradle.properties` 里的 `android.testoptions.manageddevices.emulator.gpu=swiftshader_indirect` 必须在。默认的 `-gpu auto` 配上 AVD 档案里的 `hw.gpu.enabled=no` 会让 guest 起来后彻底卡死（qemu CPU 时间零增长、`adb shell` 无响应），构建就一直挂在设备操作上。核实办法：`~/.android/avd/gradle-managed/<avd>.avd/emu-launch-params.txt` 里应出现 `-gpu swiftshader_indirect`。
 6. **保持 `useConnectedDevices = false`**：本机 adb 上若有真机，「连接设备」模式会把录制跑到真机上——生产侧插件扩展只有 `managedDevices` / `useConnectedDevices` / `skipBenchmarksOnEmulator` / `enableEmulatorDisplay`，没有 serial 项可用来指定设备。
+
+## A-7 上一次失败留下僵尸模拟器
+
+- **症状**：setup 或在设备启动阶段就失败，`baselineprofile/build/outputs/androidTest-results/` 里**连测试结果文件都没有**；而且之后每次重跑都同样失败。
+- **原因**：setup 超时（或模拟器启动异常）时，AGP 不会回收它启的模拟器进程。残留的 `qemu-system-x86_64-headless` 会占住 AVD，后续所有运行都受它影响。本次 8 核那次超时后留下的进程**继续跑了 27 分钟、烧了 1508 秒 CPU**，直接让紧接着的 6 核录制白失败一次。
+- **恢复**：
+
+  ```bash
+  powershell -Command "Get-Process qemu*,emulator* | Stop-Process -Force"
+  rm -f ~/.android/avd/gradle-managed/*.lock
+  rm -f ~/.android/avd/gradle-managed/<avd>.avd/multiinstance.lock
+  ```
+
+  然后重跑。**别一看失败就去改配置**——那一次的「6 核失败」就是这么误判出来的，清掉僵尸后 6 核一次就过。
 
 ---
 
@@ -183,6 +197,12 @@ dependencies {
 | `lowmemorykiller` 杀进程 | 9 次 | 0 次 | 0 次 |
 
 **结论：瓶颈是内存/核数，不是镜像。** 同一镜像只抬规格就是 3.2 倍加速、假失败归零、轮数从「跑满 15」变成「10 轮收敛」；镜像只值那 40 个 GMS-only 类和约 12% 耗时。
+
+再把这两个因子往上推就是收益递减了：
+
+- **核数**：4 核 → 6 核，单轮从 34.2 s 降到 33.4 s（UI 段 19.3 s → 17.8 s，而那个无选择器的「空档」15.7 s 几乎不动），全程 6m24s → 5m58s。而且**再想上 8 核直接被模拟器拒了**——它把 `hw.cpu.ncore` 从 8 自行压回 6，并让 setup 任务超时（症状与后遗症见附录 A-7）。
+- **内存**：4 GB 下 `lowmemorykiller` / `kswapd` / `Compaction` / `onTrimMemory` **全是 0 次**，说明已经离开回收压力区，再加内存没有可修的东西；何况这台宿主只有 16 GB，8 GB 客体会反过来挤宿主。
+- 所以 **4 核 / 4 GB 就是这台机器上的甜点**，别再往上加。「多核能更快」只在那次 2 核 → 4 核成立，而那次本质上是脱离 thrashing（lmkd 从 9 次到 0 次），不是线性并行收益。
 
 ## B-7 脚本与那条 startup profile 告警
 
