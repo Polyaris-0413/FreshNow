@@ -44,4 +44,25 @@ class ScanImageStoreTest {
         assertNull(store.find(""))
         assertNull(store.find("not-exist.jpg"))
     }
+
+    @Test
+    fun delete_removesFileFromDisk() {
+        runBlocking {
+            val name = store.write(byteArrayOf(0x01, 0x02, 0x03, 0x04)).orEmpty()
+            assertNotNull(store.find(name))
+
+            store.delete(name)
+
+            assertNull(store.find(name))
+        }
+    }
+
+    /** 文件已经不在、名字为空时删除不算失败：目标状态已经达成，没有可补救的东西 */
+    @Test
+    fun delete_unknownOrBlankName_doesNotThrow() {
+        runBlocking {
+            store.delete("not-exist.jpg")
+            store.delete("")
+        }
+    }
 }

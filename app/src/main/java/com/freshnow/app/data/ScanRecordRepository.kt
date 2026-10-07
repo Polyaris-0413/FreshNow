@@ -3,6 +3,7 @@ package com.freshnow.app.data
 import android.content.Context
 import com.freshnow.app.data.local.FreshNowDatabase
 import com.freshnow.app.data.local.ScanRecord
+import com.freshnow.app.data.local.ScanRecordDao
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
@@ -33,4 +34,15 @@ class ScanRecordRepository(context: Context) {
 
     /** 记录对应的照片文件，没有图片或文件已不在时返回 null */
     fun imageFile(record: ScanRecord): File? = imageStore.find(record.imageName)
+
+    /**
+     * 删除记录，连同它们的照片。
+     *
+     * 照片文件名由 DAO 在删行的事务里一并交回（见 [ScanRecordDao.deleteAndCollectImageNames]）：
+     * 先删行再去找文件名的话，行没了就再也拼不出照片路径，文件会永远留在磁盘上。
+     */
+    suspend fun delete(ids: Collection<Long>) {
+        if (ids.isEmpty()) return
+        dao.deleteAndCollectImageNames(ids.toList()).forEach { imageStore.delete(it) }
+    }
 }

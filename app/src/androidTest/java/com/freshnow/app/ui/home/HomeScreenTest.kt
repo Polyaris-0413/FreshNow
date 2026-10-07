@@ -7,15 +7,22 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -93,12 +100,105 @@ class HomeScreenTest {
         composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(2)
     }
 
-    private fun setContent(items: List<HomeRecordItem>) {
+    /** 长按是进入选择模式的唯一入口，只按一下不能选中 */
+    @Test
+    fun longPress_onRow_togglesSelection() {
+        val toggled = mutableListOf<Long>()
+        setContent(records(), onRecordToggle = { toggled += it })
+
+        composeRule.onNodeWithText("纯牛奶").performTouchInput { longClick() }
+
+        assertEquals(listOf(1L), toggled)
+    }
+
+    @Test
+    fun tap_onRow_opensDetail() {
+        val opened = mutableListOf<Long>()
+        setContent(records(), onRecordClick = { opened += it })
+
+        composeRule.onNodeWithText("纯牛奶").performClick()
+
+        assertEquals(listOf(1L), opened)
+    }
+
+    /** 选择模式里点按改为切换选中：此时点一下是为了加选，不该跳去详情 */
+    @Test
+    fun tapInSelectionMode_togglesInsteadOfOpeningDetail() {
+        val opened = mutableListOf<Long>()
+        val toggled = mutableListOf<Long>()
+        setContent(
+            records(),
+            selectedIds = setOf(2L),
+            onRecordClick = { opened += it },
+            onRecordToggle = { toggled += it }
+        )
+
+        composeRule.onNodeWithText("纯牛奶").performClick()
+
+        assertEquals(emptyList<Long>(), opened)
+        assertEquals(listOf(1L), toggled)
+    }
+
+    @Test
+    fun selectionMode_replacesAppNameWithCountAndMenuWithDelete() {
+        setContent(records(), selectedIds = setOf(1L, 3L))
+
+        composeRule.onNodeWithText("已选 2 项").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("删除").assertIsDisplayed()
+        // 应用名与「更多选项」都要让位，否则看不出正在选择
+        composeRule.onNodeWithText("FreshNow").assertDoesNotExist()
+        composeRule.onAllNodesWithContentDescription("更多选项").assertCountEquals(0)
+
+        savePreview(SELECTION_PREVIEW_NAME)
+    }
+
+    @Test
+    fun exitSelection_returnsToNormalList() {
+        var exited = false
+        setContent(records(), selectedIds = setOf(1L), onExitSelection = { exited = true })
+
+        composeRule.onNodeWithContentDescription("退出选择").performClick()
+
+        assertTrue(exited)
+    }
+
+    /** 删除不可恢复，确认之前一条都不能动 */
+    @Test
+    fun deleteIcon_asksBeforeDeleting() {
+        var deleted = false
+        setContent(records(), selectedIds = setOf(1L), onDeleteSelected = { deleted = true })
+
+        composeRule.onNodeWithContentDescription("删除").performClick()
+        composeRule.onNodeWithText("删除选中的 1 条记录？").assertIsDisplayed()
+        assertFalse(deleted)
+
+        composeRule.onNodeWithText("删除").performClick()
+        assertTrue(deleted)
+    }
+
+    private fun records() = listOf(
+        item(id = 1, productName = "纯牛奶", printedExpiry = "2026-12-31"),
+        item(id = 2, productName = "苏打饼干", printedExpiry = "2026-12-31"),
+        item(id = 3, productName = "酸奶", printedExpiry = "2026-12-31")
+    )
+
+    private fun setContent(
+        items: List<HomeRecordItem>,
+        selectedIds: Set<Long> = emptySet(),
+        onRecordClick: (Long) -> Unit = {},
+        onRecordToggle: (Long) -> Unit = {},
+        onExitSelection: () -> Unit = {},
+        onDeleteSelected: () -> Unit = {}
+    ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 HomeScreen(
                     records = items,
-                    onRecordClick = {},
+                    selectedIds = selectedIds,
+                    onRecordClick = onRecordClick,
+                    onRecordToggle = onRecordToggle,
+                    onExitSelection = onExitSelection,
+                    onDeleteSelected = onDeleteSelected,
                     onNavigateToScan = {},
                     onNavigateToAbout = {},
                     onNavigateToSettings = {}
@@ -137,5 +237,6 @@ class HomeScreenTest {
 
     private companion object {
         const val PREVIEW_NAME = "home_list_preview.png"
+        const val SELECTION_PREVIEW_NAME = "home_selection_preview.png"
     }
 }

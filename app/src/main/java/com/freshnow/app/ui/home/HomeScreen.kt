@@ -1,6 +1,10 @@
 package com.freshnow.app.ui.home
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +51,7 @@ import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.component.FreshNowTopAppBar
 import com.freshnow.app.ui.component.ScanThumbnail
 import com.freshnow.app.ui.component.scanValueText
+import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import com.freshnow.app.ui.theme.warningColors
@@ -63,10 +71,15 @@ fun HomeRoute(
     viewModel: HomeViewModel = viewModel()
 ) {
     val records by viewModel.records.collectAsStateWithLifecycle()
+    val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
 
     HomeScreen(
         records = records,
+        selectedIds = selectedIds,
         onRecordClick = onNavigateToRecord,
+        onRecordToggle = viewModel::toggleSelection,
+        onExitSelection = viewModel::clearSelection,
+        onDeleteSelected = viewModel::deleteSelected,
         onNavigateToScan = onNavigateToScan,
         onNavigateToAbout = onNavigateToAbout,
         onNavigateToSettings = onNavigateToSettings,
@@ -78,7 +91,11 @@ fun HomeRoute(
 @Composable
 fun HomeScreen(
     records: List<HomeRecordItem>,
+    selectedIds: Set<Long>,
     onRecordClick: (Long) -> Unit,
+    onRecordToggle: (Long) -> Unit,
+    onExitSelection: () -> Unit,
+    onDeleteSelected: () -> Unit,
     onNavigateToScan: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -87,6 +104,13 @@ fun HomeScreen(
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // 选择模式由「有没有选中项」决定，不另存一个开关，见 HomeViewModel.selectedIds
+    val inSelectionMode = selectedIds.isNotEmpty()
+
+    // 选择模式是个临时状态，返回键先离开它，而不是直接退出应用
+    BackHandler(enabled = inSelectionMode) { onExitSelection() }
 
     // 先收起 bottom sheet 再跳转，避免收起动画与导航互相打断
     fun dismissSheetThen(action: () -> Unit) {
@@ -102,29 +126,58 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             FreshNowTopAppBar(
-                title = stringResource(R.string.app_name),
+                title = if (inSelectionMode) {
+                    stringResource(R.string.home_selected_count, selectedIds.size)
+                } else {
+                    stringResource(R.string.app_name)
+                },
+                navigationIcon = {
+                    if (inSelectionMode) {
+                        IconButton(onClick = onExitSelection) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_arrow_back),
+                                contentDescription = stringResource(R.string.action_exit_selection)
+                            )
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { showSheet = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_more_vert),
-                            contentDescription = stringResource(R.string.action_more_options)
-                        )
+                    if (inSelectionMode) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_delete),
+                                contentDescription = stringResource(R.string.action_delete)
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { showSheet = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_more_vert),
+                                contentDescription = stringResource(R.string.action_more_options)
+                            )
+                        }
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToScan) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_add),
-                    contentDescription = stringResource(R.string.action_add)
-                )
+            // 选择模式下不给「添加」：它和当前这件事无关，浮在选中项上只会挡住列表和删除按钮
+            if (!inSelectionMode) {
+                FloatingActionButton(onClick = onNavigateToScan) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_add),
+                        contentDescription = stringResource(R.string.action_add)
+                    )
+                }
             }
         }
     ) { innerPadding ->
         RecordsList(
             records = records,
+            selectedIds = selectedIds,
+            inSelectionMode = inSelectionMode,
             onRecordClick = onRecordClick,
+            onRecordToggle = onRecordToggle,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -153,6 +206,36 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    // 删除不可恢复，问一次再动手。跟着选择模式一起收场：选中项若已被清空，这个对话框就没有意义了
+    if (showDeleteDialog && inSelectionMode) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(text = stringResource(R.string.home_delete_dialog_title, selectedIds.size))
+            },
+            text = { Text(text = stringResource(R.string.home_delete_dialog_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteSelected()
+                    },
+                    // 这里点下去东西就没了，用错误色把它和普通的「确定」区分开
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(text = stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(text = stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }
 
@@ -186,7 +269,10 @@ private fun SheetMenuItem(
 @Composable
 private fun RecordsList(
     records: List<HomeRecordItem>,
+    selectedIds: Set<Long>,
+    inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
+    onRecordToggle: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (records.isEmpty()) {
@@ -206,7 +292,13 @@ private fun RecordsList(
             RecordRow(
                 item = item,
                 today = today,
-                onClick = { onRecordClick(item.record.id) }
+                selected = item.record.id in selectedIds,
+                // 选择模式里点按是切换选中：此时点一下是为了多选一条，
+                // 若照旧进详情，想加选就会被迫跳走
+                onClick = {
+                    if (inSelectionMode) onRecordToggle(item.record.id) else onRecordClick(item.record.id)
+                },
+                onLongClick = { onRecordToggle(item.record.id) }
             )
         }
     }
@@ -235,17 +327,35 @@ private fun rememberToday(): LocalDate {
 /** 「快过期」的阈值：剩余天数不超过它就走警示色 */
 private const val EXPIRING_SOON_DAYS = 3L
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecordRow(
     item: HomeRecordItem,
     today: LocalDate,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val days = ExpiryCalculator.daysRemaining(item.expiry, today)
 
+    // 选中态用主色描边表示。ListItem 本身没有选中外观，而这里「选中」的含义是「待删除」，
+    // 既然删除是不可逆的，就不借用「快过期」那套状态色——那是提醒临期，与此无关。
+    // 描边由 Modifier.border 画在行的边界之内，不占布局，选中前后条目不会跳动。
+    val selectionOutline = if (selected) {
+        Modifier.border(
+            width = FreshNowSize.selectionOutlineWidth,
+            color = MaterialTheme.colorScheme.primary,
+            shape = MaterialTheme.shapes.extraSmall
+        )
+    } else {
+        Modifier
+    }
+
     ListItem(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .then(selectionOutline),
         leadingContent = { ScanThumbnail(image = item.image) },
         headlineContent = { Text(text = scanValueText(item.record.productName)) },
         supportingContent = {
@@ -274,45 +384,78 @@ private fun expiryCountdownText(days: Long?): String = when {
     else -> stringResource(R.string.home_expiry_expired, -days)
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "列表")
 @Composable
 private fun HomeScreenPreview() {
     FreshNowTheme {
         HomeScreen(
-            records = listOf(
-                ScanRecord(
-                    id = 1,
-                    productName = "纯牛奶",
-                    productionDate = "2025-01-01",
-                    expiryDate = "",
-                    shelfLife = "18个月",
-                    imageName = "",
-                    savedAt = 0
-                ),
-                ScanRecord(
-                    id = 2,
-                    productName = "",
-                    productionDate = "2024-01-01",
-                    expiryDate = "",
-                    shelfLife = "保质期见喷码",
-                    imageName = "",
-                    savedAt = 0
-                )
-            ).map { record ->
-                HomeRecordItem(
-                    record = record,
-                    expiry = ExpiryCalculator.resolve(
-                        printedExpiry = record.expiryDate,
-                        productionDate = record.productionDate,
-                        shelfLife = record.shelfLife
-                    ),
-                    image = null
-                )
-            },
+            records = previewRecords(),
+            selectedIds = emptySet(),
             onRecordClick = {},
+            onRecordToggle = {},
+            onExitSelection = {},
+            onDeleteSelected = {},
             onNavigateToScan = {},
             onNavigateToAbout = {},
             onNavigateToSettings = {}
         )
     }
+}
+
+@Preview(showBackground = true, name = "选择模式")
+@Composable
+private fun HomeScreenSelectionPreview() {
+    FreshNowTheme {
+        HomeScreen(
+            records = previewRecords(),
+            selectedIds = setOf(1L),
+            onRecordClick = {},
+            onRecordToggle = {},
+            onExitSelection = {},
+            onDeleteSelected = {},
+            onNavigateToScan = {},
+            onNavigateToAbout = {},
+            onNavigateToSettings = {}
+        )
+    }
+}
+
+private fun previewRecords(): List<HomeRecordItem> = listOf(
+    ScanRecord(
+        id = 1,
+        productName = "纯牛奶",
+        productionDate = "2025-01-01",
+        expiryDate = "",
+        shelfLife = "18个月",
+        imageName = "",
+        savedAt = 0
+    ),
+    ScanRecord(
+        id = 2,
+        productName = "",
+        productionDate = "2024-01-01",
+        expiryDate = "",
+        shelfLife = "保质期见喷码",
+        imageName = "",
+        savedAt = 0
+    ),
+    ScanRecord(
+        id = 3,
+        productName = "酸奶",
+        productionDate = "",
+        expiryDate = "2025-06-01",
+        shelfLife = "",
+        imageName = "",
+        savedAt = 0
+    )
+).map { record ->
+    HomeRecordItem(
+        record = record,
+        expiry = ExpiryCalculator.resolve(
+            printedExpiry = record.expiryDate,
+            productionDate = record.productionDate,
+            shelfLife = record.shelfLife
+        ),
+        image = null
+    )
 }

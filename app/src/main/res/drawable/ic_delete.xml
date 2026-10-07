@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols 官方 SVG 视口为 0 -960 960 960，Android vector 视口从 0 起，需整体下移 960 -->
+<!-- 不使用 android:tint（项目无 appcompat），由 Compose Icon 按 LocalContentColor 着色 -->
+<!-- 官方 path 末尾的 "M280-720v520-520Z" 是一条零面积线，第二个 520 是 v 命令的隐式重复参数；
+     这里写成 v520v-520，语义与 SVG 相同，但不依赖 Android PathParser 对隐式重复的支持 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM428.5-291.5Q440-303 440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280q17 0 28.5-11.5Zm160 0Q600-303 600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280q17 0 28.5-11.5ZM280-720v520v-520Z" />
+    </group>
+</vector>

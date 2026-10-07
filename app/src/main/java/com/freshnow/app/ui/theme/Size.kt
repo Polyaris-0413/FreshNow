@@ -20,4 +20,12 @@ object FreshNowSize {
 
     /** 需要内部滚动的文本面板高度上限 */
     val scrollableTextPanelHeight = 192.dp
+
+    /**
+     * 列表选中态的描边宽度。
+     *
+     * 取 2dp 而非 M3 描边组件惯用的 1dp：这条线本身就是「这一项将被删除」的唯一提示，
+     * 1dp 摆在列表里更像一条分隔线，读不出「选中」这层意思。
+     */
+    val selectionOutlineWidth = 2.dp
 }

@@ -32,6 +32,15 @@ class ScanImageStore(private val directory: File) {
         ?.let { File(directory, it) }
         ?.takeIf { it.isFile }
 
+    /**
+     * 删除照片。文件本就不在也算删除成功——目标状态已经达成，没有需要调用方补救的余地，
+     * 更不该因为一张删不掉的文件而拦下删除记录这件事。
+     */
+    suspend fun delete(name: String) {
+        if (name.isBlank()) return
+        withContext(Dispatchers.IO) { File(directory, name).delete() }
+    }
+
     private companion object {
         const val DIRECTORY_NAME = "scan_images"
         const val FILE_SUFFIX = ".jpg"
