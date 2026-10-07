@@ -15,6 +15,10 @@ datastore = "1.2.1"
 cameraX = "1.6.2"
 room = "2.8.5"
 ksp = "2.2.10-2.0.2"
+# baselineprofile 插件与 benchmark-macro 同属 benchmark 版本线，共用一条版本号
+benchmark = "1.5.0"
+# 录制脚本靠控件的文案与描述符定位，因此要 uiautomator
+uiautomator = "2.4.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -42,9 +46,12 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmark" }
+androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }
 

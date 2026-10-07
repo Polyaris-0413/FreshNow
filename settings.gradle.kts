@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "FreshNow"
 include(":app")
+include(":baselineprofile")
