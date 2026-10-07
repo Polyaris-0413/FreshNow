@@ -60,11 +60,8 @@
     <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
     <string name="ai_settings_extra_title">思考参数</string>
     <string name="ai_settings_extra_label">附加请求参数</string>
-    <!-- 输入框为空时框内给出的写法建议：建议关掉思考，并给出常见写法作参考 -->
-    <string name="ai_settings_extra_example">推荐关掉思考：{"thinking":{"type":"disabled"}}</string>
-    <!-- 框里那句给的是建议写法，各家服务商的字段与取值未必相同，这句提醒以文档为准 -->
-    <string name="ai_settings_extra_example_note">（写法以服务商文档为准）</string>
-    <string name="ai_settings_extra_hint">上面这段 JSON 会原样并入请求体；留空则跟随服务商默认</string>
+    <!-- 输入框为空时框内的建议语。不写具体 JSON：各家服务商的字段名与取值不统一，摆出来会被照抄 -->
+    <string name="ai_settings_extra_example">推荐将思考参数设为 Disabled。若留空或写法不规范，则将跟随服务商默认配置。</string>
     <string name="ai_settings_extra_default">跟随服务商默认</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
