@@ -1,5 +1,7 @@
 *.iml
 .gradle
+# Kotlin 2.x 的编译器会话数据；官方文档明确要求不入库（kotlinlang.org 的 Configure a Gradle project）
+.kotlin/
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -16,8 +18,10 @@
 .cxx
 local.properties
 
-# ZCode 客户端生成的忽略清单，上半段由客户端从 .gitignore 同步而来，属机器维护的文件，不入库
-.zcodeignore
+# 发布签名材料：私钥与口令一旦入库即不可撤销
+*.jks
+*.keystore
+keystore.properties
 
 # tools/generate-color-scheme.cjs 需要 material-color-utilities（仅生成配色时用，不参与 Android 构建）
 /node_modules
