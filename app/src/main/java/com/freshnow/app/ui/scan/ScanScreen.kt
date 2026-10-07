@@ -311,6 +311,13 @@ private fun ReasoningPanel(reasoning: String) {
     }
 }
 
+/**
+ * 取景框。尺寸完全由调用方给出（竖屏给 fillMaxWidth、横屏给 fillMaxHeight，各自再套 aspectRatio），
+ * 这里只负责圆角与底色——尺寸约束只在一处声明，免得内外各写一遍、横屏下还互相矛盾。
+ *
+ * 调用方必须给正方形：取景框的方与 CameraPreview 送给 AI 的居中正方形裁剪是绑定的，
+ * 改成非方形会让「看到什么就裁什么」不再成立。
+ */
 @Composable
 private fun CameraBox(
     hasCameraPermission: Boolean,
@@ -321,8 +328,6 @@ private fun CameraBox(
 ) {
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(CAMERA_ASPECT_RATIO)
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
