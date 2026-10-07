@@ -61,7 +61,7 @@
     <string name="ai_settings_extra_title">思考参数</string>
     <string name="ai_settings_extra_label">附加请求参数</string>
     <!-- 输入框为空时框内的建议语，不带句号：它是一句提示，不是一句话的结尾 -->
-    <string name="ai_settings_extra_example">推荐将思考参数设为 Disabled</string>
+    <string name="ai_settings_extra_example">推荐设为 Disabled</string>
     <string name="ai_settings_extra_hint">若留空或写法不规范，则将跟随服务商默认配置。</string>
     <string name="ai_settings_extra_default">跟随服务商默认</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
@@ -69,6 +69,5 @@
     <string name="ai_settings_api_key_label">API Key</string>
     <string name="ai_settings_not_configured">未配置</string>
     <string name="error_required_field">此项为必填项</string>
-    <string name="error_invalid_json">需要是合法的 JSON 对象</string>
     <string name="settings_saved">已保存</string>
 </resources>

@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 /**
  * [saved] 为已落盘的配置，设置项行展示它；其余字段是编辑面板的草稿，仅打开面板时从 [saved] 重置
@@ -27,7 +26,6 @@ data class SettingsUiState(
     val baseUrlError: Boolean = false,
     val modelNameError: Boolean = false,
     val apiKeyError: Boolean = false,
-    val extraJsonError: Boolean = false
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -85,27 +83,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * 打开思考参数面板时用已落盘的值重置草稿
      */
     fun startEditingExtra() {
-        _uiState.update { it.copy(extraJson = it.saved.extraRequestJson, extraJsonError = false) }
+        _uiState.update { it.copy(extraJson = it.saved.extraRequestJson) }
     }
 
     fun onExtraJsonChange(value: String) {
-        _uiState.update { it.copy(extraJson = value, extraJsonError = false) }
+        _uiState.update { it.copy(extraJson = value) }
     }
 
     /**
-     * 留空表示不附加参数；填了就必须是合法的 JSON 对象，否则带上错误标记并返回 false
+     * 原样落盘，不在这里校验写法。
+     *
+     * 写法不规范等同于没填——这句判断只在发请求那一处做（见 AiVisionClient.applyExtraRequestParams），
+     * 它拿到的若不是合法 JSON 就不并入请求体，于是跟随服务商默认。界面上的表述也是这么说的，
+     * 两处判据合在一处，才不会出现「界面说跟随默认、保存却被拦下」这种自相矛盾。
      */
-    fun saveExtra(): Boolean {
-        val raw = _uiState.value.extraJson.trim()
-        if (raw.isNotEmpty() && runCatching { JSONObject(raw) }.isFailure) {
-            _uiState.update { it.copy(extraJsonError = true) }
-            return false
-        }
-
-        val updated = _uiState.value.saved.copy(extraRequestJson = raw)
-        _uiState.update { it.copy(saved = updated, extraJsonError = false) }
+    fun saveExtra() {
+        val updated = _uiState.value.saved.copy(extraRequestJson = _uiState.value.extraJson.trim())
+        _uiState.update { it.copy(saved = updated) }
         viewModelScope.launch { repository.save(updated) }
-        return true
     }
 
     /**

@@ -133,9 +133,8 @@ fun SettingsScreen(
                     onValueChange = viewModel::onExtraJsonChange,
                     onCancel = { closeEditor() },
                     onSave = {
-                        if (viewModel.saveExtra()) {
-                            closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
-                        }
+                        viewModel.saveExtra()
+                        closeEditor { scope.launch { snackbarHostState.showSnackbar(savedMessage) } }
                     }
                 )
             }
@@ -325,14 +324,9 @@ private fun ExtraRequestEditor(
             placeholder = { Text(text = stringResource(R.string.ai_settings_extra_example)) },
             supportingText = {
                 Text(
-                    text = if (uiState.extraJsonError) {
-                        stringResource(R.string.error_invalid_json)
-                    } else {
-                        stringResource(R.string.ai_settings_extra_hint)
-                    }
+                    text = stringResource(R.string.ai_settings_extra_hint)
                 )
             },
-            isError = uiState.extraJsonError,
             minLines = 3,
             // 关掉自动更正：JSON 里的半角引号一旦被输入法换成中文引号就解析不了了
             keyboardOptions = KeyboardOptions(
