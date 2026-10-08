@@ -3,6 +3,7 @@ package com.freshnow.app.ui.component
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,14 +30,30 @@ import com.freshnow.app.ui.theme.FreshNowSize
  *
  * 没图时（保存时没有可用画面，或图片落盘、解码失败，以及用户刚移除了照片）用占位图标顶上去，
  * 高度固定得比照片矮一些，它只是占位、不假装是照片。
+ *
+ * [onClick] 非 null 时整块可点（编辑页用它换照片）：点击区就在照片本身，与文本框点哪里都能改
+ * 是同一套操作习惯；[onClickLabel] 必须给，读屏软件会把这块读成一个只有内容描述、没有动作的
+ * 图片，不说明点了会怎样。水波纹挂在下述 clip 之后才能被圆角裁开。
  */
 @Composable
-fun ScanPhoto(image: Bitmap?, modifier: Modifier = Modifier) {
+fun ScanPhoto(
+    image: Bitmap?,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null
+) {
     val shape = MaterialTheme.shapes.medium
     val photoModifier = modifier
         .fillMaxWidth()
         .clip(shape)
         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+        .then(
+            if (onClick == null) {
+                Modifier
+            } else {
+                Modifier.clickable(onClickLabel = onClickLabel, onClick = onClick)
+            }
+        )
 
     if (image == null) {
         Box(

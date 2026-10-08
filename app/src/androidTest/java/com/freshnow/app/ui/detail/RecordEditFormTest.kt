@@ -42,13 +42,13 @@ class RecordEditFormTest {
 
     /**
      * 照片与四个字段同屏。它也是这条记录的一个字段，藏在别的页面会让人以为照片改不了；
-     * 没有照片时那块占位图同样要在，否则换照片的入口会孤零零地悬在顶上
+     * 没有照片时那块占位图同样要在，否则换个照片就没处可点
      */
     @Test
-    fun showsPhotoFieldWithChangeEntry() {
+    fun showsPhotoFieldWithChangeHint() {
         setContent()
 
-        composeRule.onNodeWithText("更换照片").assertIsDisplayed()
+        composeRule.onNodeWithText("点按更换照片").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("无图片").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("扫描照片").assertDoesNotExist()
     }
@@ -63,13 +63,29 @@ class RecordEditFormTest {
         composeRule.onNodeWithContentDescription("扫描照片").assertIsDisplayed()
     }
 
-    /** 入口要真能把「去换照片」传出去，否则那行字只是个摆设 */
+    /**
+     * 点是照片本身而不是旁边的控件：文本框点哪里都能改，照片也一样。
+     * 两条各一次：有图时点的是照片，没图时点的是占位图。
+     */
     @Test
-    fun changePhotoEntryReportsClick() {
+    fun tappingThePhotoAsksToChangeIt() {
         var clicked = 0
         setContent(onChangePhoto = { clicked++ })
 
-        composeRule.onNodeWithText("更换照片").performClick()
+        composeRule.onNodeWithContentDescription("无图片").performClick()
+
+        assertEquals(1, clicked)
+    }
+
+    @Test
+    fun tappingThePlaceholderAsksToAddAPhoto() {
+        var clicked = 0
+        setContent(
+            uiState = EMPTY.copy(image = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)),
+            onChangePhoto = { clicked++ }
+        )
+
+        composeRule.onNodeWithContentDescription("扫描照片").performClick()
 
         assertEquals(1, clicked)
     }

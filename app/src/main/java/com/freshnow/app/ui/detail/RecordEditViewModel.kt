@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
 /**
  * 编辑页的草稿。[loaded] 表示已经读过库（读完才知道记录在不在），[found] 为 false 即记录不存在；
  * [derivedExpiry] 是过期日期留空时按草稿里的生产日期与保质期现算的结果，随每次改动重算。
@@ -49,17 +48,19 @@ data class RecordEditUiState(
     val cropSource: Bitmap? = null,
     val imageChange: ImageChange = ImageChange.Keep,
     /** 选来的图读不出来时置起，由界面提示一次后清掉（见 RecordEditScreen） */
-    val imageReadFailed: Boolean = false
+    val imageReadFailed: Boolean = false,
+    /** 正在写库。写盘不是瞬时的，这段时间里再点一次保存就会多弹一层返回栈（见 save） */
+    val saving: Boolean = false
 )
 
 /**
- * 有认不出的写法就不给保存。Material 的 Errors 模式：*"Disable the submission of a form if errors
- * are detected"*——写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」
+ * 有认不出的写法、或正在写库时不给保存。Material 的 Errors 模式：*"Disable the submission of a
+ * form if errors are detected"*——写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」。
  *
  * 照片不进这个判据：它没有「认不出」这种状态，而读取失败是提示而不是校验（见 imageReadFailed）。
  */
 val RecordEditUiState.canSave: Boolean
-    get() = !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid
+    get() = !saving && !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid
 
 /**
  * 改一条已保存记录的文字字段与照片。
@@ -199,10 +200,16 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
      * 而这次写入挂在它的 viewModelScope 上，会被一并取消。回调参数为 false 表示照片没写成功
      * （其余字段已经保存，旧照片保留），界面就这一件事提示用户。
      *
+     * 写入期间不再接受第二次保存（[RecordEditUiState.saving]，按钮也会跟着置灰）：一次写入对应一次
+     * onSaved，而调用方拿到它才 pop 返回栈；连点两下就是连着 pop 两次，编辑页之后的那一页会一起
+     * 被弹掉，屏幕上看到的是「突然回到主页」。
+     *
      * 写法沿用模型入库那一套规整（[ScanValueFormat]）：值不管是模型读的还是手输的，落库只有一种写法；
      * 认不出来的原样存下——与详情页对印刷值的处理一致，不替用户猜。
      */
     fun save(onSaved: (imageSaved: Boolean) -> Unit) {
+        if (_uiState.value.saving) return
+        _uiState.update { it.copy(saving = true) }
         val current = _uiState.value
         val record = loaded
         viewModelScope.launch {
@@ -210,15 +217,22 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
             val imageSaved = if (record == null) {
                 true
             } else {
-                repository.update(
-                    record.copy(
-                        productName = current.productName.trim(),
-                        productionDate = ScanValueFormat.date(current.productionDate.trim()),
-                        expiryDate = ScanValueFormat.date(current.expiryDate.trim()),
-                        shelfLife = ScanValueFormat.shelfLife(current.shelfLife.trim())
-                    ),
-                    current.imageChange
-                )
+                runCatching {
+                    repository.update(
+                        record.copy(
+                            productName = current.productName.trim(),
+                            productionDate = ScanValueFormat.date(current.productionDate.trim()),
+                            expiryDate = ScanValueFormat.date(current.expiryDate.trim()),
+                            shelfLife = ScanValueFormat.shelfLife(current.shelfLife.trim())
+                        ),
+                        current.imageChange
+                    )
+                }.getOrElse {
+                    // 写库本身就失败了：留在本页并放开保存，让用户再试一次。
+                    // 抛出去只会把应用崩掉，而这一次失败对用户来说是「没存上」不是「应用坏了」
+                    _uiState.update { it.copy(saving = false) }
+                    return@launch
+                }
             }
             onSaved(imageSaved)
         }
