@@ -17,6 +17,9 @@ import kotlinx.coroutines.launch
 /**
  * 编辑页的草稿。[loaded] 表示已经读过库（读完才知道记录在不在），[found] 为 false 即记录不存在；
  * [derivedExpiry] 是过期日期留空时按草稿里的生产日期与保质期现算的结果，随每次改动重算。
+ *
+ * 三个 `xxxInvalid` 是「认不出这个写法」：空白不算错（模型没读到、还没填都正常），但只要写了
+ * 认不出的东西就算，用于挡下保存与显示错误文案。
  */
 data class RecordEditUiState(
     val loaded: Boolean = false,
@@ -25,8 +28,18 @@ data class RecordEditUiState(
     val productionDate: String = "",
     val expiryDate: String = "",
     val shelfLife: String = "",
+    val productionDateInvalid: Boolean = false,
+    val shelfLifeInvalid: Boolean = false,
+    val expiryDateInvalid: Boolean = false,
     val derivedExpiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput
 )
+
+/**
+ * 有认不出的写法就不给保存。Material 的 Errors 模式：*"Disable the submission of a form if errors
+ * are detected"*——写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」
+ */
+val RecordEditUiState.canSave: Boolean
+    get() = !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid
 
 /**
  * 改一条已保存记录的文字字段。
@@ -59,7 +72,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                     productionDate = record.productionDate,
                     expiryDate = record.expiryDate,
                     shelfLife = record.shelfLife
-                ).recomputeDerived()
+                ).revalidate()
             }
         }
     }
@@ -69,15 +82,15 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun onProductionDateChange(value: String) {
-        _uiState.update { it.copy(productionDate = value).recomputeDerived() }
+        _uiState.update { it.copy(productionDate = value).revalidate() }
     }
 
     fun onExpiryDateChange(value: String) {
-        _uiState.update { it.copy(expiryDate = value) }
+        _uiState.update { it.copy(expiryDate = value).revalidate() }
     }
 
     fun onShelfLifeChange(value: String) {
-        _uiState.update { it.copy(shelfLife = value).recomputeDerived() }
+        _uiState.update { it.copy(shelfLife = value).revalidate() }
     }
 
     /**
@@ -107,6 +120,19 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
     }
+
+    /** 认得出/认不出交给 [ScanValueFormat]：与模型入库、推算用的是同一套规则，不另写一份 */
+    private fun RecordEditUiState.revalidate() = copy(
+        productionDateInvalid = isUnrecognizableDate(productionDate),
+        shelfLifeInvalid = isUnrecognizableShelfLife(shelfLife),
+        expiryDateInvalid = isUnrecognizableDate(expiryDate)
+    ).recomputeDerived()
+
+    private fun isUnrecognizableDate(raw: String): Boolean =
+        raw.isNotBlank() && ScanValueFormat.parseDate(raw.trim()) == null
+
+    private fun isUnrecognizableShelfLife(raw: String): Boolean =
+        raw.isNotBlank() && ScanValueFormat.parseShelfLife(raw.trim()) == null
 
     private fun RecordEditUiState.recomputeDerived() = copy(
         derivedExpiry = ExpiryCalculator.resolve(

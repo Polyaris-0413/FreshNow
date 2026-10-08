@@ -43,10 +43,14 @@
     <string name="record_detail_title">记录详情</string>
     <string name="record_detail_missing">记录不存在</string>
     <string name="record_edit_title">编辑记录</string>
-    <!-- 过期日期可编也可留空：留空即跟随推算，所以把推算结果和它的两种“算不出”分别说清 -->
+    <!-- 过期日期可编也可留空：留空即跟随推算，所以把推算结果当场给出来；推不出时只说推不出，
+         具体哪个字段写错了由该字段自己的错误文案报（一个错只说一次） -->
     <string name="record_edit_expiry_hint">留空则按生产日期与保质期推算：%1$s</string>
-    <string name="record_edit_expiry_hint_missing">留空则按生产日期与保质期推算，但缺了其中一项</string>
-    <string name="record_edit_expiry_hint_unparseable">留空则按生产日期与保质期推算，但保质期认不出写法</string>
+    <string name="record_edit_expiry_hint_pending">留空则按生产日期与保质期推算，当前还推不出</string>
+    <!-- 错误文案：说清哪里不对 + 一个可照抄的例子，都控制在单行内（规范：An error message should
+         appear on a single line, if possible） -->
+    <string name="record_edit_error_date">认不出这个写法，如 2026-10-06</string>
+    <string name="record_edit_error_shelf_life">认不出这个写法，如 6个月</string>
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>

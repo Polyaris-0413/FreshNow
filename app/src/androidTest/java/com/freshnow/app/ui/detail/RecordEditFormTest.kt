@@ -1,8 +1,12 @@
 package com.freshnow.app.ui.detail
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.data.ExpiryOutcome
@@ -13,10 +17,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 编辑表单：四项都在、改动能传出去、过期日期的来源交代清楚。
+ * 编辑表单：四项都在、改动能传出去、写错了怎么报、过期日期的来源交代清楚。
  *
  * 只摆表单本体（不含读库与落盘）：走真的 RecordEditScreen 要连数据库一起测进来，
- * 而这里要盯的是「留空即跟随推算、填了值就以它为准」这条关系在界面上说得清不清楚。
+ * 而这里要盯的是三件事——「留空即跟随推算」「写错了在失焦之后才报」「打开就写错的旧值当场报」。
  */
 @RunWith(AndroidJUnit4::class)
 class RecordEditFormTest {
@@ -67,19 +71,64 @@ class RecordEditFormTest {
         composeRule.onNodeWithText("2027-04-01", substring = true).assertDoesNotExist()
     }
 
-    /** 推算不出来时要说清是缺项，还是保质期认不出写法，不能拿一句「无法推算」把两种原因混成一种 */
+    /** 推不出就如实说推不出，不再替上游字段解释原因（哪个字段写错了由那个字段自己报） */
     @Test
-    fun unparseableShelfLifeSaysSo() {
+    fun blankExpirySaysItCannotDeriveYet() {
         setContent(uiState = EMPTY.copy(derivedExpiry = ExpiryOutcome.UnparseableShelfLife))
 
-        composeRule.onNodeWithText("保质期认不出写法", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("当前还推不出", substring = true).assertIsDisplayed()
     }
 
+    /**
+     * 写错了不跟着敲键闪红：日期是一字符一字符敲的，中途总是认不出，所以只在字段失焦之后才报
+     * （规范：show error text only after user interaction with a field）
+     */
     @Test
-    fun missingInputSaysSo() {
-        setContent(uiState = EMPTY.copy(derivedExpiry = ExpiryOutcome.InsufficientInput))
+    fun invalidValueReportsOnlyAfterLeavingTheField() {
+        composeRule.setContent {
+            var uiState by mutableStateOf(EMPTY)
+            FreshNowTheme(dynamicColor = false) {
+                RecordEditForm(
+                    uiState = uiState,
+                    onProductNameChange = {},
+                    // 上层是 ViewModel 的 revalidate，这里直接摆它算出来的结果
+                    onProductionDateChange = { value ->
+                        uiState = uiState.copy(
+                            productionDate = value,
+                            productionDateInvalid = value.isNotBlank()
+                        )
+                    },
+                    onExpiryDateChange = {},
+                    onShelfLifeChange = {}
+                )
+            }
+        }
 
-        composeRule.onNodeWithText("缺了其中一项", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("生产日期").performClick()
+        composeRule.onNodeWithText("生产日期").performTextInput("13月")
+
+        // 已经认不出了，但人还没离开这个字段 → 不报
+        composeRule.onNodeWithText(DATE_ERROR, substring = true).assertDoesNotExist()
+
+        // 换到下一个字段即失焦 → 这时才报
+        composeRule.onNodeWithText("保质期").performClick()
+        composeRule.onNodeWithText(DATE_ERROR, substring = true).assertIsDisplayed()
+    }
+
+    /** 打开页面时就已经写错的旧值例外：它不是用户刚敲的，而且不报的话保存为什么灰着没法解释 */
+    @Test
+    fun prefilledInvalidValueReportsImmediately() {
+        setContent(uiState = EMPTY.copy(productionDate = "13月", productionDateInvalid = true))
+
+        composeRule.onNodeWithText(DATE_ERROR, substring = true).assertIsDisplayed()
+    }
+
+    /** 保质期是另一套写法规则，给例子时要给保质期的例 */
+    @Test
+    fun unrecognizableShelfLifeHasItsOwnExample() {
+        setContent(uiState = EMPTY.copy(shelfLife = "很久", shelfLifeInvalid = true))
+
+        composeRule.onNodeWithText("认不出这个写法，如 6个月", substring = true).assertIsDisplayed()
     }
 
     private fun setContent(
@@ -100,6 +149,7 @@ class RecordEditFormTest {
     }
 
     private companion object {
+        const val DATE_ERROR = "认不出这个写法，如 2026-10-06"
         val EMPTY = RecordEditUiState(loaded = true, found = true)
     }
 }
