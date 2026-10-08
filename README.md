@@ -53,4 +53,4 @@
 * [Book's Story](https://github.com/Acclorite/book-story)（提供了好看的过渡动画）
 
 在此致敬，是你们的付出  
-才让 FreshNow 拥有了得以站在巨人肩膀上的机会
+才让 FreshNow 拥有了得以站在巨人肩膀上的机会🫡
