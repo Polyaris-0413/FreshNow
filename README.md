@@ -11,3 +11,7 @@
   <a href="https://github.com/Polyaris-0413/FreshNow/releases" style="text-decoration: none;"><img src="https://img.shields.io/github/v/release/Polyaris-0413/FreshNow?color=0a0a0a" alt="Release" /></a>
   <img src="https://img.shields.io/github/stars/Polyaris-0413/FreshNow?style=flat&color=0a0a0a" alt="GitHub Stars" />
 </p>
+
+<p align="center">
+  如果项目对你有所帮助 欢迎给个STAR！
+</p>
