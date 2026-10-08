@@ -22,13 +22,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-sealed interface ScanStatus {
-    data object Idle : ScanStatus
-    data object Analyzing : ScanStatus
-    data object NotConfigured : ScanStatus
-    data class Failed(val detail: String) : ScanStatus
-}
-
 /**
  * 服务用不了时的说明对话框长什么样，两种处境能做的事不一样
  */
@@ -43,7 +36,6 @@ sealed interface ServiceProblem {
 data class ScanUiState(
     val record: ScanResult = ScanResult(),
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
-    val status: ScanStatus = ScanStatus.Idle,
     val reasoning: String = "",
     val showReasoning: Boolean = false,
     /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
@@ -97,28 +89,19 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     settings.modelName.isNotBlank() &&
                     settings.apiKey.isNotBlank()
                 if (configured) {
-                    // 失败后保持错误文案常驻，避免每轮重试都闪一下「识别中…」
-                    _uiState.update { state ->
-                        if (state.status is ScanStatus.Failed) state else state.copy(status = ScanStatus.Analyzing)
-                    }
                     val analysis = client.analyze(settings, jpeg)
                     _uiState.update { state ->
                         // 累加记录：本帧没看到的字段保留已有值，推算也基于累加后的记录
                         val record = state.record.mergeObservation(analysis.result)
                         Log.d(TAG, "本帧读数=${analysis.result} 累加记录=$record 思维链${analysis.reasoning.length}字")
-                        state.withRecord(record)
-                            .copy(status = ScanStatus.Idle, reasoning = analysis.reasoning)
+                        state.withRecord(record).copy(reasoning = analysis.reasoning)
                     }
                     onServiceUsable()
                 } else {
-                    // 未配置时不要先切到 Analyzing，否则状态会在两种文案之间反复跳动
-                    _uiState.update { it.copy(status = ScanStatus.NotConfigured) }
                     onServiceProblem(ServiceProblem.NotConfigured)
                 }
             } catch (e: Exception) {
-                val detail = e.message ?: e::class.java.simpleName
-                _uiState.update { it.copy(status = ScanStatus.Failed(detail)) }
-                onServiceProblem(ServiceProblem.Failed(detail))
+                onServiceProblem(ServiceProblem.Failed(e.message ?: e::class.java.simpleName))
                 // 失败时退避一下：平常不留冷却，但请求是失败的话相机每秒几十帧会不停重试，把请求打爆
                 delay(RETRY_DELAY_MS)
             } finally {

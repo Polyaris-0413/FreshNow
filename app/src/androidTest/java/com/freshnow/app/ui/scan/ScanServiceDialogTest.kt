@@ -36,7 +36,7 @@ class ScanServiceDialogTest {
     fun failed_showsHowToUseTheLog() {
         setContent(problem = ServiceProblem.Failed(LOG))
 
-        composeRule.onNodeWithText("请点击「复制」，将剪贴板内容发给其他 AI。").assertIsDisplayed()
+        composeRule.onNodeWithText("请点击「复制」，将剪贴板中的日志发给其他 AI。").assertIsDisplayed()
     }
 
     /**
