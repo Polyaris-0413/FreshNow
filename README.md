@@ -7,7 +7,7 @@
 <p align="center">一款借助 LLM 管理食品保质期的应用</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Android-8%2B-0a0a0a" alt="Android 8.0" />
+  <img src="https://img.shields.io/badge/Android-8.0-0a0a0a" alt="Android 8.0" />
   <a href="https://github.com/Polyaris-0413/FreshNow/releases"><img src="https://img.shields.io/github/v/release/Polyaris-0413/FreshNow?color=0a0a0a" alt="Release" /></a>
   <img src="https://img.shields.io/github/stars/Polyaris-0413/FreshNow?color=0a0a0a" alt="GitHub Stars" />
 </p>
