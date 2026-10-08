@@ -3,3 +3,5 @@
 </p>
 
 <h1 align="center">食不宜迟 FreshNow</h1>
+
+<p align="center">一款借助 LLM 管理食品保质期的应用</p>
