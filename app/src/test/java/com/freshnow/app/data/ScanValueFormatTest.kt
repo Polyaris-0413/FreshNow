@@ -47,6 +47,18 @@ class ScanValueFormatTest {
         assertEquals("见包装喷码", ScanValueFormat.date("见包装喷码"))
     }
 
+    /**
+     * 数字连成一长串时不敢认：`2026-10-123` 的日到底是 12 还是 123 无从判断。
+     * 旧规则会把它读成 12、偷偷截掉末尾，这比认不出更糟——存下去的东西与用户写的不是一个日期
+     */
+    @Test
+    fun date_withTooManyDigits_isKeptAsIs() {
+        assertEquals("2026-10-123", ScanValueFormat.date("2026-10-123"))
+        assertEquals("202610123", ScanValueFormat.date("202610123"))
+        // 年份前面粘了数字同样不敢认，否则会被读成公元 260 年
+        assertEquals("12026-10-06", ScanValueFormat.date("12026-10-06"))
+    }
+
     @Test
     fun blankDate_staysBlank() {
         assertEquals("", ScanValueFormat.date(""))
@@ -84,6 +96,30 @@ class ScanValueFormatTest {
         assertEquals("6个月", ScanValueFormat.shelfLife("半年"))
         assertEquals("18个月", ScanValueFormat.shelfLife("一年半"))
         assertEquals("15天", ScanValueFormat.shelfLife("半个月"))
+    }
+
+    /** 酸奶、面包这类短保标签常写「周」，归到天 */
+    @Test
+    fun shelfLife_weeks_becomeDays() {
+        assertEquals("7天", ScanValueFormat.shelfLife("1周"))
+        assertEquals("14天", ScanValueFormat.shelfLife("2周"))
+        assertEquals("14天", ScanValueFormat.shelfLife("2 个星期"))
+        assertEquals("14天", ScanValueFormat.shelfLife("两个星期"))
+    }
+
+    /** 半周算不出整天数，如实返回失败（与「半天」同一规则），不四舍五入 */
+    @Test
+    fun shelfLife_halfWeek_isNotGuessed() {
+        assertEquals("半周", ScanValueFormat.shelfLife("半周"))
+    }
+
+    /** 端到端：周也能算出过期日期 */
+    @Test
+    fun weekShelfLife_producesExpiryDate() {
+        assertEquals(
+            ExpiryOutcome.Resolved("2026-10-20"),
+            ExpiryCalculator.resolve(printedExpiry = "", productionDate = "2026-10-06", shelfLife = "2周")
+        )
     }
 
     @Test

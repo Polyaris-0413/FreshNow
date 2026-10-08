@@ -19,19 +19,24 @@ object ScanValueFormat {
     private val ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE
 
     // 阿拉伯数字写的日期：2026-10-06 / 2026/10/6 / 2026年10月6日
-    private val SEPARATED_DATE = Regex("""(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})日?""")
+    //
+    // 前后都不许再连着数字：那是更长的数字串（如 2026-10-123 的日到底是 12 还是 123），
+    // 无从判断时宁可认不出，也不能悄悄截掉几位当成日期存下去
+    private val SEPARATED_DATE = Regex("""(?<!\d)(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})日?(?!\d)""")
     // 紧凑写法：20261006
-    private val COMPACT_DATE = Regex("""(\d{4})(\d{2})(\d{2})""")
+    private val COMPACT_DATE = Regex("""(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)""")
     // 中文数字写的日期：二〇二六年十月六日（年份逐位读，月日按十/百规则读）
     private val CHINESE_DATE =
         Regex("""([〇零一二三四五六七八九]{4})年([一二两三四五六七八九十]{1,3})月([一二两三四五六七八九十]{1,3})日?""")
 
     // 保质期数量：阿拉伯数字、中文数字（一 两 十八 二十四），或「半」
-    private val SHELF_LIFE = Regex("""(\d+|[一二两三四五六七八九十]+|半)\s*(个月|月|天|日|年)(半?)""")
+    private val SHELF_LIFE =
+        Regex("""(\d+|[一二两三四五六七八九十]+|半)\s*(个月|月|个星期|星期|个周|周|天|日|年)(半?)""")
 
     private const val MAX_AMOUNT = 9999.0
     private const val DAYS_PER_MONTH = 30
     private const val MONTHS_PER_YEAR = 12
+    private const val DAYS_PER_WEEK = 7
     private const val HALF = 0.5
 
     private val CHINESE_DIGITS = mapOf(
@@ -42,7 +47,7 @@ object ScanValueFormat {
     /** 日期统一成 yyyy-MM-dd */
     fun date(raw: String): String = parseDate(raw.trim())?.let(::format) ?: raw
 
-    /** 保质期统一成「数字+单位」，天/日 归到天，月/个月 归到个月 */
+    /** 保质期统一成「数字+单位」，天/日 归到天，月/个月 归到个月，周/星期 也归到天 */
     fun shelfLife(raw: String): String = parseShelfLife(raw)?.let(::formatShelfLife) ?: raw
 
     internal fun format(date: LocalDate): String = date.format(ISO_DATE)
@@ -56,10 +61,11 @@ object ScanValueFormat {
     }
 
     /**
-     * 解析保质期。中文数字与「半」都认：标签上「两个月」「半年」「一年半」都很常见。
+     * 解析保质期。中文数字与「半」都认：标签上「两个月」「半年」「一年半」都很常见；
+     * 周也认，酸奶、酸奶类短保商品常写「2周」。
      *
-     * 「半」会落在小数上，按 年 = 12 个月、月 = 30 天 折算成整数量（半年 = 6个月、半个月 = 15天、
-     * 一年半 = 18个月）；折算不出整数的（例如半天）返回 null，不做四舍五入。
+     * 「半」会落在小数上，按 年 = 12 个月、月 = 30 天、周 = 7 天 折算成整数量（半年 = 6个月、
+     * 半个月 = 15天、一年半 = 18个月）；折算不出整数的（例如半天、半周）返回 null，不做四舍五入。
      */
     internal fun parseShelfLife(text: String): Period? {
         val match = SHELF_LIFE.find(text.trim()) ?: return null
@@ -72,6 +78,7 @@ object ScanValueFormat {
             "个月", "月" ->
                 if (total % 1.0 == 0.0) Period.ofMonths(total.toInt())
                 else wholeDays(total * DAYS_PER_MONTH)
+            "周", "个周", "星期", "个星期" -> wholeDays(total * DAYS_PER_WEEK)
             "天", "日" -> wholeDays(total)
             else -> null
         }
