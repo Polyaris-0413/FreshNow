@@ -66,6 +66,7 @@ private val REASONING_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScanViewModel = viewModel()
 ) {
@@ -222,17 +223,15 @@ fun ScanScreen(
     }
 
     // 保存确认优先：有结果且服务正好连不上时两个对话框都该弹，叠在一起只会看到最上面那个
-    uiState.serviceDialogLog?.let { log ->
+    uiState.serviceProblem?.let { problem ->
         if (showSaveDialog) return@let
         ServiceUnavailableDialog(
-            // 未配置时没有服务端日志可交出去，「复制」到的就是这句配置指引，正文就只能写它；
-            // 其余情况正文只教怎么用这份日志
-            body = if (uiState.status is ScanStatus.NotConfigured) {
-                log
-            } else {
-                stringResource(R.string.scan_service_dialog_message)
+            problem = problem,
+            onOpenSettings = {
+                viewModel.closeServiceDialog()
+                // 压栈而非切换目的地：改完配置回来仍落在扫描页，相机与累加记录都还在
+                onNavigateToSettings()
             },
-            log = log,
             onAcknowledge = {
                 viewModel.closeServiceDialog()
                 // 服务都用不了，留在本页只是等下一次弹窗；但已扫到的内容不能因为服务挂了就静默丢掉，
@@ -246,21 +245,20 @@ fun ScanScreen(
 /**
  * AI 服务用不了时的说明。
  *
- * 正文只说明「怎么办」，不显示服务端返回了什么：日志是给别的 AI 读的，一键复制比在对话框里
- * 摊开一段原始报错省事，正文也就不必再为长文本留滑块区。日志本身仍要经手一遍——[log] 就是
- * 「复制」写进剪贴板的内容。
+ * 正文不显示服务端返回了什么：日志是给别的 AI 读的，一键复制比在对话框里摊开一段原始报错省事，
+ * 正文也就不必再为长文本留滑块区。日志本身仍要经手一遍——「复制」写进剪贴板的就是它。
  *
- * 两个按钮：「复制」把 [log] 放进剪贴板，好拿去问别的 AI——本页的 AI 已经用不了了，这是此时
- * 唯一还有意义的动作，因此放在确认位；「知道了」回主页，留给不想深究的人。
- * 规范限制对话框最多两个动作，而服务不可用时的合理出路本就只有这两条。
+ * 确认位放什么取决于处境：能复制时就复制（本页的 AI 已经用不了了，把日志交给别的 AI 是此时唯一
+ * 还有意义的动作）；没配置过时没有日志可交出去，改给去设置的入口——那时用户要的只是去哪填。
+ * 「知道了」两种情况都是回主页。规范限制对话框最多两个动作，而两条路正好装满。
  *
  * 提为 internal 是为了能在仪器化测试里直接断言两个入口：设备上要复现「服务连不上」，
  * 得真的把配置写坏或断网。
  */
 @Composable
 internal fun ServiceUnavailableDialog(
-    body: String,
-    log: String,
+    problem: ServiceProblem,
+    onOpenSettings: () -> Unit,
     onAcknowledge: () -> Unit
 ) {
     val context = LocalContext.current
@@ -269,17 +267,30 @@ internal fun ServiceUnavailableDialog(
     AlertDialog(
         onDismissRequest = onAcknowledge,
         title = { Text(text = stringResource(R.string.scan_service_dialog_title)) },
-        text = { Text(text = body) },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    // 写进剪贴板这一步在界面上看不出来，所以必须回一句提示
-                    context.getSystemService(ClipboardManager::class.java)
-                        .setPrimaryClip(ClipData.newPlainText(null, log))
-                    showToast(context, copiedToast)
+        text = {
+            Text(
+                text = when (problem) {
+                    ServiceProblem.NotConfigured -> stringResource(R.string.scan_ai_not_configured)
+                    is ServiceProblem.Failed -> stringResource(R.string.scan_service_dialog_message)
                 }
-            ) {
-                Text(text = stringResource(R.string.scan_service_dialog_copy))
+            )
+        },
+        confirmButton = {
+            when (problem) {
+                ServiceProblem.NotConfigured -> TextButton(onClick = onOpenSettings) {
+                    Text(text = stringResource(R.string.scan_service_dialog_open_settings))
+                }
+
+                is ServiceProblem.Failed -> TextButton(
+                    onClick = {
+                        // 写进剪贴板这一步在界面上看不出来，所以必须回一句提示
+                        context.getSystemService(ClipboardManager::class.java)
+                            .setPrimaryClip(ClipData.newPlainText(null, problem.log))
+                        showToast(context, copiedToast)
+                    }
+                ) {
+                    Text(text = stringResource(R.string.scan_service_dialog_copy))
+                }
             }
         },
         dismissButton = {

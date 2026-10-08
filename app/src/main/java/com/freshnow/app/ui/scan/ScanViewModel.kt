@@ -4,7 +4,6 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.freshnow.app.R
 import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.AiVisionClient
 import com.freshnow.app.data.ExpiryCalculator
@@ -30,14 +29,25 @@ sealed interface ScanStatus {
     data class Failed(val detail: String) : ScanStatus
 }
 
+/**
+ * 服务用不了时的说明对话框长什么样，两种处境能做的事不一样
+ */
+sealed interface ServiceProblem {
+    /** 还没配过：没有服务端日志可复制，能给的只有去配置的入口 */
+    data object NotConfigured : ServiceProblem
+
+    /** 请求失败：[log] 即服务端返回的原话，可以复制走交给别的 AI */
+    data class Failed(val log: String) : ServiceProblem
+}
+
 data class ScanUiState(
     val record: ScanResult = ScanResult(),
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     val status: ScanStatus = ScanStatus.Idle,
     val reasoning: String = "",
     val showReasoning: Boolean = false,
-    /** AI 服务用不了时弹出的说明对话框：null 表示不弹；有值时即「复制」写进剪贴板的那份日志 */
-    val serviceDialogLog: String? = null
+    /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
+    val serviceProblem: ServiceProblem? = null
 )
 
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
@@ -103,12 +113,12 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     // 未配置时不要先切到 Analyzing，否则状态会在两种文案之间反复跳动
                     _uiState.update { it.copy(status = ScanStatus.NotConfigured) }
-                    onServiceProblem(getApplication<Application>().getString(R.string.scan_ai_not_configured))
+                    onServiceProblem(ServiceProblem.NotConfigured)
                 }
             } catch (e: Exception) {
                 val detail = e.message ?: e::class.java.simpleName
                 _uiState.update { it.copy(status = ScanStatus.Failed(detail)) }
-                onServiceProblem(detail)
+                onServiceProblem(ServiceProblem.Failed(detail))
                 // 失败时退避一下：平常不留冷却，但请求是失败的话相机每秒几十帧会不停重试，把请求打爆
                 delay(RETRY_DELAY_MS)
             } finally {
@@ -135,31 +145,31 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun onServiceUsable() {
         problemFrames = 0
-        _uiState.update { it.copy(serviceDialogLog = null) }
+        _uiState.update { it.copy(serviceProblem = null) }
     }
 
     /**
      * 服务这一帧用不了：攒够帧数就弹说明对话框，单帧失败往往只是一次抖动，不值得打断扫描。
-     * 日志用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里，而这份日志要交给别的
-     * AI 去读，改写过就更查不出东西了。
+     * 失败时的日志用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里，而这份日志要
+     * 交给别的 AI 去读，改写过就更查不出东西了。
      *
      * 弹窗期间不求值：每帧都写一次 StateFlow 会白白触发重组。已经弹了就等界面来关，
      * 关掉后从零重数，所以服务持续不可用时大约每隔几秒会再提醒一次
      */
-    private fun onServiceProblem(log: String) {
-        if (_uiState.value.serviceDialogLog != null) return
+    private fun onServiceProblem(problem: ServiceProblem) {
+        if (_uiState.value.serviceProblem != null) return
         problemFrames++
         if (problemFrames < PROBLEM_FRAMES_BEFORE_PROMPT) return
         problemFrames = 0
-        _uiState.update { it.copy(serviceDialogLog = log) }
+        _uiState.update { it.copy(serviceProblem = problem) }
     }
 
     /**
-     * 关掉说明对话框。两个按钮都要先关掉它，至于接下来是复制日志还是回主页，由界面决定：
+     * 关掉说明对话框。两个按钮都要先关掉它，至于接下来是复制日志、去设置还是回主页，由界面决定：
      * 服务用不了的话，留在本页只能是被同一条报错反复打断
      */
     fun closeServiceDialog() {
-        _uiState.update { it.copy(serviceDialogLog = null) }
+        _uiState.update { it.copy(serviceProblem = null) }
     }
 
     /**
