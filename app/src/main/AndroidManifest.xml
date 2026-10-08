@@ -18,11 +18,19 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.FreshNow">
+        <!-- 锁定竖屏：本应用横屏没有任何功能收益（扫描要竖持对着标签、详情与编辑是竖排表单、
+             主页是列表），而旋转会重建 Activity，是「状态被重置」最常见的入口。
+             代价落在无障碍上：手部不便、习惯横握设备的用户不再能横屏使用，所以下面抑制
+             LockedOrientationActivity 这条 lint。
+             这不等于免除「状态要扛过重建」的责任：字号、深色模式、语言、分屏同样会重建，
+             只是命中概率低得多。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.FreshNow"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
