@@ -18,8 +18,15 @@ object FreshNowSize {
     /** 详情页无图时的占位块高度：刻意比真实照片矮，它只是占位、不假装是照片 */
     val imagePlaceholderHeight = 144.dp
 
-    /** 需要内部滚动的文本面板高度上限 */
-    val scrollableTextPanelHeight = 192.dp
+    /**
+     * 滚动区底边渐隐带的高度。
+     *
+     * M3 没有这一档取值（渐隐不是 M3 组件，是 Google 自己一直用的手法），这是自定值：
+     * 够把被裁的下一行内容边缘化开，又不至于盖掉一整行正文。
+     * 不放进 [FreshNowSpacing]：那是间距刻度，拿它当尺寸用的话，同一个 24dp 既表示段间距又表示
+     * 渐隐带高度，改动其一必然误伤另一处。
+     */
+    val scrollEdgeFade = 24.dp
 
     /**
      * 列表选中态的描边宽度。

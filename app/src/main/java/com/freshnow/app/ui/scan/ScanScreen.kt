@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -64,9 +66,6 @@ import com.freshnow.app.ui.showToast
 // 取景框的宽高比。必须与 CameraPreview 的居中正方形裁剪保持一致：那里无条件裁正方形，
 // 这里一旦改成非 1f，显示的取景范围与真正送出去的画面就会错开，而且不会有任何报错
 private const val CAMERA_ASPECT_RATIO = 1f
-
-// 思维链面板的高度上限，约 12 行正文，超出部分面板内滚动
-private val REASONING_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight
 
 @Composable
 fun ScanScreen(
@@ -196,13 +195,23 @@ fun ScanScreen(
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                     ) {
-                        ScanResultColumn(
-                            uiState = uiState,
+                        val resultsScroll = rememberScrollState()
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                                .verticalScroll(rememberScrollState())
-                        )
+                        ) {
+                            ScanResultColumn(
+                                uiState = uiState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(resultsScroll)
+                            )
+                            ScrollEdgeFade(
+                                visible = resultsScroll.canScrollForward,
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            )
+                        }
                         actionBar()
                     }
                 }
@@ -211,17 +220,27 @@ fun ScanScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                 ) {
-                    // 竖屏下相机跟着结果一起滚动；横屏下它在滚动区之外，滚动时保持可见
-                    Column(
+                    val pageScroll = rememberScrollState()
+                    Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                     ) {
-                        // 只定宽；方形由 CameraBox 自己保证
-                        cameraBox(Modifier.fillMaxWidth())
-                        ScanResultColumn(uiState = uiState)
+                        // 竖屏下相机跟着结果一起滚；横屏下它在滚动区之外，滚动时保持可见
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(pageScroll),
+                            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+                        ) {
+                            // 只定宽；方形由 CameraBox 自己保证
+                            cameraBox(Modifier.fillMaxWidth())
+                            ScanResultColumn(uiState = uiState)
+                        }
+                        ScrollEdgeFade(
+                            visible = pageScroll.canScrollForward,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
                     }
                     actionBar()
                 }
@@ -377,10 +396,10 @@ internal fun ScanActionBar(
 }
 
 /**
- * 识别结果一列：结果字段、状态文案、可选的思维链面板。
+ * 识别结果一列：结果字段，外加可选的思维链面板。
  *
  * 只负责排布，不决定滚动方式——竖屏时它跟着相机一起滚，横屏时占右半屏单独滚，由调用方给。
- * 块间距用 spacedBy 统一给出；状态文案在无需提示时不产生布局节点，因此不会多留一道空档。
+ * 块间距用 spacedBy 统一给出。
  */
 @Composable
 private fun ScanResultColumn(
@@ -409,8 +428,9 @@ private fun ScanResultColumn(
 /**
  * 模型思维链面板，由「设置 → 显示思维链」控制是否出现。
  *
- * 定高 + 内部滚动是有意的：实时扫描每两秒换一帧，思维链长度每帧都在变，
- * 不设上限的话下方内容会跟着上下跳动，识别结果也会被挤出可视区。
+ * 不设高度上限、也不在内部滚动：整页只留一个滚动容器。先前给它定高 + 内部滚动是为了不让下方
+ * 内容跟着思维链长度跳，但它是本列最后一项，下面无物可顶，那条理由不成立；留着反而多出一层
+ * 同轴滚动——手指落在框里时滚动被框吃掉，页面纹丝不动，而框自己又没有「还能滚」的提示。
  */
 @Composable
 private fun ReasoningPanel(reasoning: String) {
@@ -424,10 +444,8 @@ private fun ReasoningPanel(reasoning: String) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = REASONING_MAX_HEIGHT)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .verticalScroll(rememberScrollState())
                 .padding(FreshNowSpacing.sm)
         ) {
             Text(
@@ -437,6 +455,37 @@ private fun ReasoningPanel(reasoning: String) {
             )
         }
     }
+}
+
+/**
+ * 滚动区底边的渐隐：内容被折叠线裁掉时，用渐隐代替一条硬边，提示「下面还有」。
+ *
+ * 只在 [visible]（即调用方读的 `ScrollState.canScrollForward`）为真时出现：还能往下滚才提示。
+ * 用渐隐而不是滚动条：M3 的滚动条组件要 material3 1.5（本项目锁在 1.4.0 稳定线），而渐隐是
+ * Google 自己一贯的手法（Android 15 起平台对内容滚到系统栏下方也做同样的边缘渐隐），且它表达的
+ * 正是我们缺的那个语义——「内容还在往下延伸」，而不是「滚到了哪儿」。
+ *
+ * 自身不占布局：叠在滚动区之上，所以调用方要把它放进与滚动区同一个 Box 里、对齐到底部。
+ * 不做淡入淡出：它随滚动位置出现/消失，本来就是个瞬时信号，加动画反而多一层状态。
+ *
+ * 提为 internal 是为了能在仪器化测试里直接断言显隐两态。
+ */
+@Composable
+internal fun ScrollEdgeFade(
+    visible: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (!visible) return
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(FreshNowSize.scrollEdgeFade)
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.Transparent, MaterialTheme.colorScheme.background)
+                )
+            )
+    )
 }
 
 /**
