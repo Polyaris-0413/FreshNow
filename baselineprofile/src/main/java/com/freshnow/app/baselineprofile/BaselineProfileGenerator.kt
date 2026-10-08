@@ -67,26 +67,42 @@ class BaselineProfileGenerator {
         awaitText(SETTINGS)
     }
 
-    /** 退回首页：二级页可能叠了两层（关于 → 开源声明），所以按到达为准，而不是按固定次数返回 */
+    /**
+     * 退回首页。
+     *
+     * 按到达为准，而不是按固定次数返回（二级页可能叠了两层）。关键是用 [HOME_WAIT_MS] 而不是
+     * 1 秒来判「到了没有」：托管虚拟机负载重时，一次无障碍树查询会从百毫秒退化成秒级，
+     * 短等待会造成「还没回首页」的假阴性，脚本于是连按返回把应用直接退出到桌面，
+     * 最后 30 秒也等不到那个描述符（见 r8-baseline-profile-notes.md 的 A-2）。
+     */
     private fun MacrobenchmarkScope.backToHome() {
         repeat(MAX_BACK_STEPS) {
-            if (device.wait(Until.hasObject(By.desc(ADD)), SHORT_TIMEOUT_MS)) return
+            if (device.wait(Until.hasObject(By.desc(ADD)), HOME_WAIT_MS)) return
             device.pressBack()
             // 扫描页有结果时返回会先问「离开扫描页？」；没有结果时直接退，因此这一支不一定会走到
             if (device.wait(Until.hasObject(By.text(LEAVE_SCAN)), SHORT_TIMEOUT_MS)) {
                 clickText(DISCARD)
             }
+            device.waitForIdle()
         }
-        awaitDesc(ADD)
+        check(device.wait(Until.hasObject(By.desc(ADD)), HOME_WAIT_MS)) { "回不到首页（等不到描述符「$ADD」）" }
     }
 
+    /**
+     * 点击前先等控件出现。
+     *
+     * 不直接用 `findObject`：上一步的「等文案」只能证明目标页已经在树里，
+     * 这一刻转场未必走完、要点的那个控件也未必已经合成出来，一次性查找会拷到空。
+     */
     private fun MacrobenchmarkScope.clickText(text: String) {
-        val node = device.findObject(By.text(text)) ?: error("找不到文案为「$text」的控件")
+        val node = device.wait(Until.findObject(By.text(text)), TIMEOUT_MS)
+            ?: error("找不到文案为「$text」的控件")
         node.click()
     }
 
     private fun MacrobenchmarkScope.clickDesc(desc: String) {
-        val node = device.findObject(By.desc(desc)) ?: error("找不到描述符为「$desc」的控件")
+        val node = device.wait(Until.findObject(By.desc(desc)), TIMEOUT_MS)
+            ?: error("找不到描述符为「$desc」的控件")
         node.click()
     }
 
@@ -118,6 +134,9 @@ class BaselineProfileGenerator {
         const val TIMEOUT_MS = 30_000L
         const val LAUNCH_TIMEOUT_MS = 90_000L
         const val SHORT_TIMEOUT_MS = 1_000L
+
+        /** 判「到首页了没有」的等待：给足，免得无障碍树慢一次就被当成没到而多按返回 */
+        const val HOME_WAIT_MS = 10_000L
         const val MAX_BACK_STEPS = 3
     }
 }
