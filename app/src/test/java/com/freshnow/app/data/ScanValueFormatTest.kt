@@ -92,46 +92,25 @@ class ScanValueFormatTest {
     }
 
     /**
-     * 「半」一律不认：只认整数，规则才有一句话的余地（整数 + 年 / 个月 / 天 / 周）。
-     * 半年、一年半换算得出（6、18 个月），但留着它们就得解释「半在年后面可以、在月后面不行」，
-     * 而半个月这类本就要靠「1个月=30天」的假设
+     * 整串必须恰好是一个量，多一个字都认不出。下面这些以前都被静默读成了其中一部分：
+     * 1.5个月 → 5个月、-5天 → 5天、两个半月 → 15天、一年三 → 一年。
+     *
+     * 全列在一处，是因为它们不是几条不同的规则，而是同一条：整串能不能被「数量+单位」吃完
      */
     @Test
-    fun shelfLife_half_isNotAccepted() {
-        assertEquals("半年", ScanValueFormat.shelfLife("半年"))
-        assertEquals("一年半", ScanValueFormat.shelfLife("一年半"))
-        assertEquals("半个月", ScanValueFormat.shelfLife("半个月"))
-        assertEquals("1个月半", ScanValueFormat.shelfLife("1个月半"))
-        assertEquals("1个半月", ScanValueFormat.shelfLife("1个半月"))
-        assertEquals("两个半月", ScanValueFormat.shelfLife("两个半月"))
-        assertEquals("半天", ScanValueFormat.shelfLife("半天"))
-        assertEquals("半周", ScanValueFormat.shelfLife("半周"))
-    }
-
-    /**
-     * 数值前还粘着东西时不敢认：`1.5个月` 里往后能找到 `5个月`、`-5天` 里能找到 `5天`，
-     * 但那都不是用户写的量。与日期同一条规矩（见 date_withTooManyDigits_isKeptAsIs）
-     */
-    @Test
-    fun shelfLife_withLeadingNumericNoise_isKeptAsIs() {
-        assertEquals("1.5个月", ScanValueFormat.shelfLife("1.5个月"))
-        assertEquals("-5天", ScanValueFormat.shelfLife("-5天"))
-        assertEquals("一百二十天", ScanValueFormat.shelfLife("一百二十天"))
-    }
-
-    /**
-     * 复合写法不认：整串里出现两段以上数量+单位（1年6个月、一年三个月、18个月零3天）一律判为认不出。
-     * 不做求和，是因为「6个月(180天)」这类主值 + 换算说明同样是两段，靠分隔符分不出两者
-     */
-    @Test
-    fun shelfLife_compound_isNotAccepted() {
-        assertEquals("1年6个月", ScanValueFormat.shelfLife("1年6个月"))
-        assertEquals("一年三个月", ScanValueFormat.shelfLife("一年三个月"))
-        assertEquals("18个月零3天", ScanValueFormat.shelfLife("18个月零3天"))
-        // 主值 + 括号里的换算说明也是两段，一并拒掉（与上面无法区分）
-        assertEquals("6个月(180天)", ScanValueFormat.shelfLife("6个月(180天)"))
-        // 一段不受影响：前面有文字也不会被当成第二段
-        assertEquals("18个月", ScanValueFormat.shelfLife("常温下保质期18个月"))
+    fun shelfLife_mustBeExactlyOneAmount() {
+        listOf(
+            // 数值前还粘着东西
+            "1.5个月", "-5天", "一百二十天",
+            // 「半」
+            "半年", "一年半", "半个月", "半天", "半周", "1个月半", "1个半月", "两个半月",
+            // 复合写法，或只写了半截
+            "1年6个月", "一年三", "一年三个", "一年三个月", "18个月零3天",
+            // 前后夹着别的文字
+            "6个月(180天)", "保质期18个月", "常温下保质期18个月"
+        ).forEach {
+            assertEquals(it, ScanValueFormat.shelfLife(it))
+        }
     }
 
     /** 酸奶、面包这类短保标签常写「周」，归到天 */

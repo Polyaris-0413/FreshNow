@@ -46,10 +46,11 @@ class ExpiryCalculatorTest {
         )
     }
 
+    /** 前后夹着别的文字不再从里面挑：整串必须就是一个量，挑出来的量可能不是用户写的那个 */
     @Test
-    fun toleratesSurroundingTextInShelfLife() {
+    fun surroundingText_isNotAccepted() {
         assertEquals(
-            ExpiryOutcome.Resolved("2026-07-01"),
+            ExpiryOutcome.UnparseableShelfLife,
             ExpiryCalculator.resolve("", "2025-01-01", "常温下保质期18个月")
         )
     }
@@ -94,10 +95,10 @@ class ExpiryCalculatorTest {
         )
     }
 
-    /** 复合写法同样认不出：只认一段，不做求和 */
+    /** 复合写法同样认不出：整串必须就是一个量，不做求和，也不取其中一段 */
     @Test
     fun reportsUnparseableCompoundShelfLife() {
-        listOf("1年6个月", "一年三个月", "18个月零3天").forEach {
+        listOf("1年6个月", "一年三", "一年三个", "一年三个月", "18个月零3天").forEach {
             assertEquals(
                 ExpiryOutcome.UnparseableShelfLife,
                 ExpiryCalculator.resolve("", "2025-01-01", it)

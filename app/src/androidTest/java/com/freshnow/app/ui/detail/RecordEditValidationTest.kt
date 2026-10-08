@@ -91,14 +91,14 @@ class RecordEditValidationTest {
     }
 
     /**
-     * 靠假设、额外解释或拼两段才成立的写法不给保存：半个月 要靠 30 天假设，半年 要额外解释，
-     * 1年6个月、一年三个月 是复合写法
+     * 认不出的写法不给保存：半个月 要靠 30 天假设，半年 要额外解释；一年三、一年三个月 这类复合或
+     * 半截写法，以及前后夹着文字的，都因为整串不是一个量而拒
      */
     @Test
     fun guessedShelfLifeIsFlagged() {
         val vm = viewModel()
 
-        listOf("半个月", "半年", "1年6个月", "一年三个月").forEach {
+        listOf("半个月", "半年", "1年6个月", "一年三", "一年三个月", "常温下保质期18个月").forEach {
             vm.onShelfLifeChange(it)
             assertTrue("$it 应当判为认不出", vm.uiState.value.shelfLifeInvalid)
             assertFalse(vm.uiState.value.canSave)
