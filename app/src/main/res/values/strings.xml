@@ -56,8 +56,7 @@
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
     <string name="record_image_change">更换照片</string>
-    <string name="record_image_change_hint">点按更换照片</string>
-    <string name="record_image_source_gallery">从相册选择</string>
+    <string name="record_image_source_gallery">相册</string>
     <string name="record_image_remove">移除照片</string>
     <string name="record_image_read_failed">无法读取这张照片</string>
     <string name="record_image_save_failed">照片保存失败，已保留原照片</string>

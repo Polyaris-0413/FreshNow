@@ -25,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -309,21 +310,13 @@ internal fun RecordEditForm(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
-        ) {
+        // 描边卡片包着照片：它就是一个可编辑项，与其他几个文本框同一层意思。
+        // 不给「点按更换」这类文案：表单里没有哪个字段需要写一句「点我输入」。
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             ScanPhoto(
                 image = uiState.image,
                 onClick = onChangePhoto,
                 onClickLabel = stringResource(R.string.record_image_change)
-            )
-            // 可编辑这件事要在画面上有交代：照片看起来只是个展示物，不给一句就没理由去点它。
-            // 这行与文本框下面的 supporting text 是同一个槽位，同字阶同颜色
-            Text(
-                text = stringResource(R.string.record_image_change_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         EditField(

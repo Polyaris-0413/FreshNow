@@ -45,10 +45,9 @@ class RecordEditFormTest {
      * 没有照片时那块占位图同样要在，否则换个照片就没处可点
      */
     @Test
-    fun showsPhotoFieldWithChangeHint() {
+    fun showsPhotoField() {
         setContent()
 
-        composeRule.onNodeWithText("点按更换照片").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("无图片").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("扫描照片").assertDoesNotExist()
     }
