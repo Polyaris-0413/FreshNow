@@ -142,8 +142,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      * 服务这一帧用不了：攒够帧数就弹说明对话框，单帧失败往往只是一次抖动，不值得打断扫描。
      * 正文用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里。
      *
-     * 弹窗期间不求值：每帧都写一次 StateFlow 会白白触发重组。用户关掉后计数已归零，
-     * 下帧若还是连不上就重新弹——服务一直不可用的话，用户每关一次就被再提醒一次
+     * 弹窗期间不求值：每帧都写一次 StateFlow 会白白触发重组。已经弹了就等界面来关，
+     * 关掉后从零重数，所以服务持续不可用时大约每隔几秒会再提醒一次
      */
     private fun onServiceProblem(message: String) {
         if (_uiState.value.serviceDialogMessage != null) return
@@ -154,19 +154,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 用户关掉了说明对话框：计数归零，下帧还是连不上就会再弹一次
+     * 关掉说明对话框。两个按钮都要先关掉它，至于接下来是去设置还是回主页，由界面决定：
+     * 服务用不了的话，留在本页只能是被同一条报错反复打断
      */
-    fun onServiceDialogDismiss() {
-        problemFrames = 0
-        _uiState.update { it.copy(serviceDialogMessage = null) }
-    }
-
-    /**
-     * 用户从对话框去了设置页：同样把计数归零，回来时若还是连不上，需再攒够帧数才会重新提示。
-     * 立刻重弹会像是刚才那下没关掉
-     */
-    fun onServiceDialogOpenSettings() {
-        problemFrames = 0
+    fun closeServiceDialog() {
         _uiState.update { it.copy(serviceDialogMessage = null) }
     }
 

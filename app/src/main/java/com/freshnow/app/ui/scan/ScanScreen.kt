@@ -228,10 +228,15 @@ fun ScanScreen(
         ServiceUnavailableDialog(
             message = message,
             onOpenSettings = {
-                viewModel.onServiceDialogOpenSettings()
+                viewModel.closeServiceDialog()
                 onNavigateToSettings()
             },
-            onDismiss = viewModel::onServiceDialogDismiss
+            onAcknowledge = {
+                viewModel.closeServiceDialog()
+                // 服务都用不了，留在本页只是等下一次弹窗；但已扫到的内容不能因为服务挂了就静默丢掉，
+                // 因此先走保存那一问（有结果时）
+                if (hasResult) showSaveDialog = true else onBack()
+            }
         )
     }
 }
@@ -243,7 +248,8 @@ fun ScanScreen(
  * ——密钥、模型名、额度、地址后缀各自错法不同，转述一句反而把真正的线索盖掉。
  * 底栏那份错误文案已经删了，所以这里是用户唯一能看到错误原因的地方。
  *
- * 「去设置」是主操作，所以放确认位：本对话框的价值就在于让用户能一步走到改配置的地方。
+ * 两个按钮都会离开本页：「去设置」去改配置，「知道了」回主页。规范限制对话框最多两个动作，
+ * 而服务不可用时的合理出路本就只有这两条。
  *
  * 提为 internal 是为了能在仪器化测试里直接断言两个入口：设备上要复现「服务连不上」，
  * 得真的把配置写坏或断网。
@@ -252,10 +258,10 @@ fun ScanScreen(
 internal fun ServiceUnavailableDialog(
     message: String,
     onOpenSettings: () -> Unit,
-    onDismiss: () -> Unit
+    onAcknowledge: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onAcknowledge,
         title = { Text(text = stringResource(R.string.scan_service_dialog_title)) },
         // 服务端的报错是原样一段，没有换行也会很长，让它自己滚，别把对话框抻成整屏
         text = {
@@ -273,7 +279,7 @@ internal fun ServiceUnavailableDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onAcknowledge) {
                 Text(text = stringResource(R.string.scan_service_dialog_dismiss))
             }
         }

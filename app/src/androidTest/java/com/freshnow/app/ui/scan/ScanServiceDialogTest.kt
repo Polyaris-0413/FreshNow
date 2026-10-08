@@ -46,28 +46,30 @@ class ScanServiceDialogTest {
         assertEquals(1, opened)
     }
 
-    /** 关掉只是关掉：不跳转，也不该顺手把对话框语义接到别处去 */
+    /**
+     * 关掉只是关掉：不自己跑去别的地方，跳转是调用方的事
+     */
     @Test
-    fun dismissOnlyCloses() {
-        var dismissed = 0
-        setContent(onDismiss = { dismissed++ })
+    fun acknowledgeOnlyReportsBack() {
+        var acknowledged = 0
+        setContent(onAcknowledge = { acknowledged++ })
 
         composeRule.onNodeWithText("知道了").performClick()
 
-        assertEquals(1, dismissed)
+        assertEquals(1, acknowledged)
     }
 
     private fun setContent(
         message: String = "HTTP 500 服务暂时不可用",
         onOpenSettings: () -> Unit = {},
-        onDismiss: () -> Unit = {}
+        onAcknowledge: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 ServiceUnavailableDialog(
                     message = message,
                     onOpenSettings = onOpenSettings,
-                    onDismiss = onDismiss
+                    onAcknowledge = onAcknowledge
                 )
             }
         }
