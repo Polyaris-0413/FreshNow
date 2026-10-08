@@ -35,3 +35,8 @@
   <img width="32%" src="https://github.com/user-attachments/assets/dabd4c62-d5c7-4b58-a76d-79175964bb55" />
   <img width="32%" src="https://github.com/user-attachments/assets/de00a8c2-3ad9-44cb-9d22-c95e61f126d2" />
 </p>
+
+## 贡献
+如果你有相关意愿：
+
+欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
