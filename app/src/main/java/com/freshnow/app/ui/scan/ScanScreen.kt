@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +52,7 @@ import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowTransitions
 
 // 取景框的宽高比。必须与 CameraPreview 的居中正方形裁剪保持一致：那里无条件裁正方形，
 // 这里一旦改成非 1f，显示的取景范围与真正送出去的画面就会错开，而且不会有任何报错
@@ -355,22 +359,33 @@ private fun CameraBox(
             )
             // 权限未授予时相机根本不存在，也就谈不上开灯，按钮同样不给
             if (torchAvailable) {
+                val flashlightLabel = stringResource(
+                    if (torchOn) R.string.scan_flashlight_off else R.string.scan_flashlight_on
+                )
+                // 文案挂在按钮上而不是图标上：渐变期间新旧图标会同屏，挂在图标上会同时冒出两个语义节点
                 FilledIconToggleButton(
                     checked = torchOn,
                     onCheckedChange = onTorchChange,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(FreshNowSpacing.xs)
+                        .semantics { contentDescription = flashlightLabel }
                 ) {
-                    // 图标是状态（对准了没），文案是动作（点下去会怎样），两者各说各的话
-                    Icon(
-                        painter = painterResource(
-                            if (torchOn) R.drawable.ic_flashlight_on else R.drawable.ic_flashlight_off
-                        ),
-                        contentDescription = stringResource(
-                            if (torchOn) R.string.scan_flashlight_off else R.string.scan_flashlight_on
+                    // 两个图标之间的切换走页内状态切换那一档过渡（见 FreshNowTransitions.stateChange）
+                    AnimatedContent(
+                        targetState = torchOn,
+                        transitionSpec = { FreshNowTransitions.fadeSwap() },
+                        contentAlignment = Alignment.Center,
+                        label = "flashlightIcon"
+                    ) { isOn ->
+                        // 图标是状态（对准了没），按钮上的文案是动作（点下去会怎样），两者各说各的话
+                        Icon(
+                            painter = painterResource(
+                                if (isOn) R.drawable.ic_flashlight_on else R.drawable.ic_flashlight_off
+                            ),
+                            contentDescription = null
                         )
-                    )
+                    }
                 }
             }
         } else {
