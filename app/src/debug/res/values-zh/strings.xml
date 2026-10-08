@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 中文环境下同样要能分清两个包，所以后缀保留、名字跟着 translation 走 -->
+    <string name="app_name">食不宜迟 Debug</string>
+</resources>

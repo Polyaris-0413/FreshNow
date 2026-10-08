@@ -34,8 +34,10 @@ class BaselineProfileGenerator {
             pressHome()
             startActivityAndWait()
             // 录制载体是没经 R8 收缩的 nonMinified 构建，冷启动比 release 慢得多，
-            // 首次界面要单独放宽等待，否则会在首帧刚出来前就判超时
-            awaitText(HOME_TITLE, LAUNCH_TIMEOUT_MS)
+            // 首次界面要单独放宽等待，否则会在首帧刚出来前就判超时。
+            // 等的是「添加」这个描述符而不是首页标题：标题就是应用名，中文环境下是「食不宜迟」，
+            // 按它定位会让脚本随语言变
+            awaitDesc(ADD, LAUNCH_TIMEOUT_MS)
 
             // 扫描页
             clickDesc(ADD)
@@ -92,15 +94,14 @@ class BaselineProfileGenerator {
         check(device.wait(Until.hasObject(By.text(text)), timeoutMs)) { "等不到文案「$text」" }
     }
 
-    private fun MacrobenchmarkScope.awaitDesc(desc: String) {
-        check(device.wait(Until.hasObject(By.desc(desc)), TIMEOUT_MS)) { "等不到描述符「$desc」" }
+    private fun MacrobenchmarkScope.awaitDesc(desc: String, timeoutMs: Long = TIMEOUT_MS) {
+        check(device.wait(Until.hasObject(By.desc(desc)), timeoutMs)) { "等不到描述符「$desc」" }
     }
 
     private companion object {
         const val PACKAGE_NAME = "com.freshnow.app"
 
         // 文案取自 app/src/main/res/values/strings.xml
-        const val HOME_TITLE = "FreshNow"
         const val MORE_OPTIONS = "更多选项"
         const val ADD = "添加"
         const val SCAN_TITLE = "扫描"

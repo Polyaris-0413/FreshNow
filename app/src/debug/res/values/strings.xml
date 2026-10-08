@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 只在 debug 源集覆盖：同机装着 debug 与 release 两个包时，桌面图标与首页标题要能分清。
-         main 里的 app_name 保持 "FreshNow"；baselineprofile 录制跑的是 nonMinifiedRelease，
-         拿不到这份覆盖，所以脚本按文案定位首页标题的逻辑不受影响。 -->
+         main 里的 app_name 保持 "FreshNow"（中文环境是「食不宜迟」）；baselineprofile 录制跑的是
+         nonMinifiedRelease，拿不到这份覆盖。 -->
     <string name="app_name">FreshNow Debug</string>
 </resources>

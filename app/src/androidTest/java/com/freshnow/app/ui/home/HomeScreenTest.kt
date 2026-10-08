@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.theme.FreshNowSize
@@ -48,6 +49,9 @@ class HomeScreenTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    private val appName = InstrumentationRegistry.getInstrumentation()
+        .targetContext.getString(R.string.app_name)
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -170,8 +174,9 @@ class HomeScreenTest {
         onCountNode(2).assertIsDisplayed()
         composeRule.onNodeWithText(SELECTED_COUNT_PREFIX, substring = true).assertExists()
         composeRule.onNodeWithContentDescription("删除").assertIsDisplayed()
-        // 应用名与「更多选项」都要让位，否则看不出正在选择
-        composeRule.onNodeWithText("FreshNow").assertDoesNotExist()
+        // 应用名与「更多选项」都要让位，否则看不出正在选择。
+        // 名字从资源取而不是写死 "FreshNow"：中文环境下它是「食不宜迟」
+        composeRule.onNodeWithText(appName).assertDoesNotExist()
         composeRule.onAllNodesWithContentDescription("更多选项").assertCountEquals(0)
 
         savePreview(SELECTION_PREVIEW_NAME)

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 中文名只在中文环境下生效：其余语言回落到 values/strings.xml 的 FreshNow。
+         用 values-zh 而不是 values-zh-rCN：全应用的文案本来就是简体中文一套（没有 zh-rTW 之类），
+         单独给应用名做繁体反而与其余界面不一致。 -->
+    <string name="app_name">食不宜迟</string>
+</resources>
