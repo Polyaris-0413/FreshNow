@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/f1b80973-26fa-4f43-924e-9fc946006b9f" width="75" />
+  <img src="https://github.com/user-attachments/assets/f1b80973-26fa-4f43-924e-9fc946006b9f" width="75" alt="FreshNow Logo" />
 </p>
 
 <h2 align="center">食不宜迟 FreshNow</h2>
@@ -12,45 +12,50 @@
   <img src="https://img.shields.io/github/stars/Polyaris-0413/FreshNow?color=0a0a0a" alt="GitHub Stars" />
 </p>
 
-<p align="center">如果项目对你有所帮助 欢迎给个STAR！</p>
+<p align="center">如果项目对你有所帮助，欢迎给个 Star！</p>
 
 ## 特性
 
 ### AI
+
 * 不内置任何 OCR 算法，所有信息全部交由 AI 实时识别
 * 支持通过 OpenAI 协议接入模型
 * 支持自定义模型思考参数等配置
 
 ### 界面
+
 * 使用 Material Design 3 设计
 * 动画恰到好处
 
 ### 其他
+
 * 无广告、无追踪、无内购
 * 支持在线更新
 
 ## 截图
-<p style="text-align: center;">
-  <img width="32%" src="https://github.com/user-attachments/assets/5e381430-0b3d-4e4a-869a-99a13ef70e75" />
-  <img width="32%" src="https://github.com/user-attachments/assets/dabd4c62-d5c7-4b58-a76d-79175964bb55" />
-  <img width="32%" src="https://github.com/user-attachments/assets/de00a8c2-3ad9-44cb-9d22-c95e61f126d2" />
+
+<p align="center">
+  <img width="32%" src="https://github.com/user-attachments/assets/5e381430-0b3d-4e4a-869a-99a13ef70e75" alt="截图 1" />
+  <img width="32%" src="https://github.com/user-attachments/assets/dabd4c62-d5c7-4b58-a76d-79175964bb55" alt="截图 2" />
+  <img width="32%" src="https://github.com/user-attachments/assets/de00a8c2-3ad9-44cb-9d22-c95e61f126d2" alt="截图 3" />
 </p>
 
 ## 贡献
-如果你有相关意愿：
 
-欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
+如果你有相关意愿，欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)。
 
 ## 下载
-请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本 
 
-由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店
+请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本。
+
+由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店。
 
 ## 开源许可
-本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
 
-部分代码来自以下项目:
+本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布。
+
+部分代码来自以下项目：
+
 * [Book's Story](https://github.com/Acclorite/book-story)（提供了好看的过渡动画）
 
-在此致敬，是你们的付出  
-才让 FreshNow 拥有了得以站在巨人肩膀上的机会🫡
+在此致敬，是你们的付出，才让 FreshNow 拥有了得以站在巨人肩膀上的机会 🫡
