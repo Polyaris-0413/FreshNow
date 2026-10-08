@@ -306,12 +306,6 @@ private fun ExtraRequestEditor(
             style = MaterialTheme.typography.titleMedium
         )
 
-        Text(
-            text = stringResource(R.string.ai_settings_extra_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         OutlinedTextField(
             value = uiState.extraJson,
             onValueChange = onValueChange,

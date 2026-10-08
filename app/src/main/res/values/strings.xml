@@ -86,8 +86,7 @@
     <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
     <string name="ai_settings_extra_title">思考参数</string>
     <string name="ai_settings_extra_label">附加请求参数</string>
-    <string name="ai_settings_extra_description">思考档位越低，结果生成越快，但准确度会下降。</string>
-    <string name="ai_settings_extra_hint">若留空或写法不规范，则将跟随服务商默认配置。</string>
+    <string name="ai_settings_extra_hint">思考档位越低，结果生成越快，但准确度会下降。留空或写法不规范时，跟随服务商默认配置。</string>
     <string name="ai_settings_extra_default">跟随服务商默认</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
