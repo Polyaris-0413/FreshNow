@@ -60,9 +60,13 @@ private const val CAMERA_ASPECT_RATIO = 1f
 // 思维链面板的高度上限，约 12 行正文，超出部分面板内滚动
 private val REASONING_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight
 
+// 服务端报错正文的高度上限，约 6 行：够看住常见的错误码与 message，超出的部分在对话框内滚
+private val SERVICE_ERROR_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight / 2
+
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScanViewModel = viewModel()
 ) {
@@ -217,6 +221,63 @@ fun ScanScreen(
             }
         )
     }
+
+    // 保存确认优先：有结果且服务正好连不上时两个对话框都该弹，叠在一起只会看到最上面那个
+    uiState.serviceDialogMessage?.let { message ->
+        if (showSaveDialog) return@let
+        ServiceUnavailableDialog(
+            message = message,
+            onOpenSettings = {
+                viewModel.onServiceDialogOpenSettings()
+                onNavigateToSettings()
+            },
+            onDismiss = viewModel::onServiceDialogDismiss
+        )
+    }
+}
+
+/**
+ * AI 服务用不了时的说明。
+ *
+ * 正文就是服务端返回的原话（超时这类没返回体的情况则是本地异常的描述）：常见原因没法一概而论
+ * ——密钥、模型名、额度、地址后缀各自错法不同，转述一句反而把真正的线索盖掉。
+ * 底栏那份错误文案已经删了，所以这里是用户唯一能看到错误原因的地方。
+ *
+ * 「去设置」是主操作，所以放确认位：本对话框的价值就在于让用户能一步走到改配置的地方。
+ *
+ * 提为 internal 是为了能在仪器化测试里直接断言两个入口：设备上要复现「服务连不上」，
+ * 得真的把配置写坏或断网。
+ */
+@Composable
+internal fun ServiceUnavailableDialog(
+    message: String,
+    onOpenSettings: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.scan_service_dialog_title)) },
+        // 服务端的报错是原样一段，没有换行也会很长，让它自己滚，别把对话框抻成整屏
+        text = {
+            Text(
+                text = message,
+                modifier = Modifier
+                    .heightIn(max = SERVICE_ERROR_MAX_HEIGHT)
+                    .verticalScroll(rememberScrollState()),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onOpenSettings) {
+                Text(text = stringResource(R.string.scan_service_dialog_open_settings))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.scan_service_dialog_dismiss))
+            }
+        }
+    )
 }
 
 /**
@@ -279,7 +340,7 @@ private fun ScanResultColumn(
             shelfLife = uiState.record.shelfLife
         )
 
-        ScanStatusText(status = uiState.status)
+        // 识别失败、未配置这类问题不再在本列重复一遍：报错原因由说明对话框给出
 
         if (uiState.showReasoning) {
             ReasoningPanel(reasoning = uiState.reasoning)
@@ -422,22 +483,4 @@ private fun CameraBox(
             }
         }
     }
-}
-
-@Composable
-private fun ScanStatusText(status: ScanStatus) {
-    val text = when (status) {
-        // 识别中不显示文案：实时扫描下这个状态每隔一两秒就在识别与空闲之间来回切，文字会不停闪现
-        ScanStatus.Idle, ScanStatus.Analyzing -> null
-        ScanStatus.NotConfigured -> stringResource(R.string.scan_ai_not_configured)
-        is ScanStatus.Failed -> status.detail
-    }
-    if (text == null) return
-
-    val isProblem = status is ScanStatus.Failed || status == ScanStatus.NotConfigured
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = if (isProblem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-    )
 }
