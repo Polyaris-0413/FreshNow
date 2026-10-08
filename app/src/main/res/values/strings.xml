@@ -10,6 +10,8 @@
     <string name="action_exit_selection">退出选择</string>
     <string name="action_open_settings">去设置</string>
     <string name="action_edit">编辑</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_take_photo">拍照</string>
     <string name="about">关于</string>
     <string name="settings">设置</string>
 
@@ -53,6 +55,16 @@
     <string name="record_edit_error_shelf_life">认不出这个写法，如 6个月</string>
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
+    <string name="record_image_change">更换照片</string>
+    <string name="record_image_source_gallery">从相册选择</string>
+    <string name="record_image_remove">移除照片</string>
+    <string name="record_image_read_failed">无法读取这张照片</string>
+    <string name="record_image_save_failed">照片保存失败，已保留原照片</string>
+    <string name="photo_capture_title">拍照</string>
+    <string name="photo_capture_permission_required">需要相机权限才能拍照</string>
+    <string name="photo_crop_title">裁剪照片</string>
+    <!-- 手势没有可见的把手，说明一句比让用户自己试出来省事 -->
+    <string name="photo_crop_hint">拖动调整位置，双指缩放</string>
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>
     <string name="scan_permission_denied">相机权限已被拒绝，请到系统设置里开启</string>
     <string name="scan_grant_permission">授予权限</string>

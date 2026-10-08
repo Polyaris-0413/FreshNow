@@ -2,12 +2,12 @@ package com.freshnow.app.ui.detail
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
+import com.freshnow.app.data.decodeScanImage
 import com.freshnow.app.data.local.ScanRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 data class RecordDetailUiState(
     val record: ScanRecord? = null,
@@ -42,7 +41,7 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
                 if (record?.imageName != decodedName) {
                     decodedName = record?.imageName
                     decodedImage = record?.let {
-                        withContext(Dispatchers.IO) { decode(repository.imageFile(it)) }
+                        withContext(Dispatchers.IO) { decodeScanImage(repository.imageFile(it)) }
                     }
                 }
                 _uiState.value = RecordDetailUiState(
@@ -60,7 +59,4 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
             }
         }
     }
-
-    private fun decode(file: File?): Bitmap? =
-        file?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath) }.getOrNull() }
 }

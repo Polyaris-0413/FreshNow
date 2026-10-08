@@ -1,14 +1,8 @@
 package com.freshnow.app.ui.scan
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,10 +57,6 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
 
-// 取景框的宽高比。必须与 CameraPreview 的居中正方形裁剪保持一致：那里无条件裁正方形，
-// 这里一旦改成非 1f，显示的取景范围与真正送出去的画面就会错开，而且不会有任何报错
-private const val CAMERA_ASPECT_RATIO = 1f
-
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
@@ -76,35 +66,7 @@ fun ScanScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val activity = LocalActivity.current
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED
-        )
-    }
-    // 请求已发出、结果还没到。首次进入本页会自动弹一次，这段时间里系统弹窗正盖在界面上，
-    // 不能把「未授予且系统不再弹窗」判成永久拒绝
-    var awaitingPermissionAnswer by remember { mutableStateOf(!hasCameraPermission) }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasCameraPermission = granted
-        awaitingPermissionAnswer = false
-    }
-
-    // 权限也能在系统设置里改，回来时以真实权限为准（从设置页开完权限回来要立刻恢复取景）
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        hasCameraPermission =
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED
-    }
-
-    // 系统不再弹窗（rationale 为 false）说明用户已拒两次、或已被策略禁止，此时再调请求不会有任何反应，
-    // 只能引导用户去设置页（见 Android 关于 shouldShowRequestPermissionRationale 的说明）
-    val permissionBlocked = !hasCameraPermission &&
-        !awaitingPermissionAnswer &&
-        activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) == false
+    val permission = rememberCameraPermissionState()
 
     var showSaveDialog by remember { mutableStateOf(false) }
     // 手电筒是相机的状态而不是页面数据，不进 ViewModel；但换版式或旋转会重建 Activity，
@@ -121,16 +83,9 @@ fun ScanScreen(
     // 顶栏返回箭头走同一套判断，否则箭头会绕过这里静默丢结果。
     BackHandler(enabled = hasResult) { showSaveDialog = true }
 
+    // 进页即请求：用户按「扫描」就是明确的用相机意图，不必再点一次
     LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
-            awaitingPermissionAnswer = true
-            permissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    fun requestCameraPermission() {
-        awaitingPermissionAnswer = true
-        permissionLauncher.launch(Manifest.permission.CAMERA)
+        if (!permission.granted) permission.request()
     }
 
     FreshNowSubPage(
@@ -141,12 +96,7 @@ fun ScanScreen(
         // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
         val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
             CameraBox(
-                hasCameraPermission = hasCameraPermission,
-                permissionBlocked = permissionBlocked,
-                // 被永久拒绝时再调请求不会有任何反应，改跳系统设置页
-                onRequestPermission = {
-                    if (permissionBlocked) openAppSettings(context) else requestCameraPermission()
-                },
+                permission = permission,
                 torchOn = torchOn,
                 onTorchChange = { torchOn = it },
                 canAcceptFrame = viewModel::canAcceptFrame,
@@ -500,15 +450,14 @@ internal fun ScrollEdgeFade(
  */
 @Composable
 private fun CameraBox(
-    hasCameraPermission: Boolean,
-    permissionBlocked: Boolean,
-    onRequestPermission: () -> Unit,
+    permission: CameraPermissionState,
     torchOn: Boolean,
     onTorchChange: (Boolean) -> Unit,
     canAcceptFrame: () -> Boolean,
     onFrame: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     // 无闪光灯的设备没有可开的灯。这是设备属性，不是编译期常量，所以问一次相机再决定出不出现
     var torchAvailable by remember { mutableStateOf(false) }
     Box(
@@ -517,7 +466,7 @@ private fun CameraBox(
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
-        if (hasCameraPermission) {
+        if (permission.granted) {
             CameraPreview(
                 torchOn = torchOn,
                 onTorchAvailabilityChange = { torchAvailable = it },
@@ -527,54 +476,21 @@ private fun CameraBox(
             )
             // 权限未授予时相机根本不存在，也就谈不上开灯，按钮同样不给
             if (torchAvailable) {
-                // FilledIconToggleButton 自带的选中态配色是瞬时切换的，而这里要的是颜色过渡：
-                // 选中与未选中两组色都喂同一个动画值，开关语义仍由 checked 提供，颜色由我们演。
-                // 两端取值就是该组件的 token（未选中 = secondaryContainer 底 + primary 图标，
-                // 选中 = primary 底 + onPrimary 图标），见 FilledIconButtonTokens
-                val containerColor by animateColorAsState(
-                    targetValue = if (torchOn) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    },
-                    animationSpec = FreshNowTransitions.stateChange(),
-                    label = "flashlightContainerColor"
-                )
-                val contentColor by animateColorAsState(
-                    targetValue = if (torchOn) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                    animationSpec = FreshNowTransitions.stateChange(),
-                    label = "flashlightContentColor"
-                )
-                FilledIconToggleButton(
-                    checked = torchOn,
-                    onCheckedChange = onTorchChange,
-                    colors = IconButtonDefaults.filledIconToggleButtonColors(
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        checkedContainerColor = containerColor,
-                        checkedContentColor = contentColor,
-                    ),
+                CameraTorchButton(
+                    torchOn = torchOn,
+                    onTorchChange = onTorchChange,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(FreshNowSpacing.xs)
-                ) {
-                    // 开与关共用同一个图标，状态只由上面的颜色表达
-                    Icon(
-                        painter = painterResource(R.drawable.ic_flashlight_on),
-                        contentDescription = stringResource(
-                            if (torchOn) R.string.scan_flashlight_off else R.string.scan_flashlight_on
-                        )
-                    )
-                }
+                )
             }
         } else {
             CameraPermissionHint(
-                permissionBlocked = permissionBlocked,
-                onGrantPermission = onRequestPermission,
+                permissionBlocked = permission.blocked,
+                // 被永久拒绝时再调请求不会有任何反应，改跳系统设置页
+                onGrantPermission = {
+                    if (permission.blocked) openAppSettings(context) else permission.request()
+                },
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -598,7 +514,9 @@ private fun CameraBox(
 internal fun CameraPermissionHint(
     permissionBlocked: Boolean,
     onGrantPermission: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** 未授予时的说明。各页的用途不同（扫描 / 拍照），措辞也跟着不同 */
+    requiredMessage: String = stringResource(R.string.scan_permission_required)
 ) {
     Column(
         modifier = modifier.padding(FreshNowSpacing.md),
@@ -612,10 +530,12 @@ internal fun CameraPermissionHint(
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = stringResource(
+            text = if (permissionBlocked) {
                 // 被永久拒绝时要交待清为何点下去不再弹窗，只说「需要权限」会让人以为按钮坏了
-                if (permissionBlocked) R.string.scan_permission_denied else R.string.scan_permission_required
-            ),
+                stringResource(R.string.scan_permission_denied)
+            } else {
+                requiredMessage
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

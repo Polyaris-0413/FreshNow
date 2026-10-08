@@ -1,5 +1,10 @@
 package com.freshnow.app.ui.detail
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,20 +17,29 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -34,8 +48,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.ScanPhoto
+import com.freshnow.app.ui.scan.PhotoCaptureScreen
+import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordEditScreen(
     recordId: Long,
@@ -46,6 +65,65 @@ fun RecordEditScreen(
     LaunchedEffect(recordId) { viewModel.load(recordId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    val readFailedToast = stringResource(R.string.record_image_read_failed)
+    val saveFailedToast = stringResource(R.string.record_image_save_failed)
+
+    // 换照片的来源选择与拍照页都是本页的状态，不进 ViewModel：前者是「面板开着吗」，
+    // 后者是一整屏的替换，两者都不需要跨进程重建
+    var showImageSources by remember { mutableStateOf(false) }
+    var showCamera by remember { mutableStateOf(false) }
+    val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val galleryLauncher = rememberLauncherForActivityResult(
+        // 系统的照片选择器：不需要读存储权限，Android 13 以下由系统退回自己的选择器
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) viewModel.onImagePicked(uri)
+    }
+
+    fun closeImageSources() {
+        scope.launch { imageSheetState.hide() }
+            .invokeOnCompletion { showImageSources = false }
+    }
+
+    // 选来的图读不出来时报一声。提示是个瞬时动作，读完立刻清掉标志，免得下次进来又弹一遍
+    LaunchedEffect(uiState.imageReadFailed) {
+        if (uiState.imageReadFailed) {
+            showToast(context, readFailedToast)
+            viewModel.closeImageReadFailed()
+        }
+    }
+
+    val cropSource = uiState.cropSource
+    if (cropSource != null) {
+        // 裁剪与拍照是本页的整屏状态，系统返回键要先关它们；不拦的话会一路退回详情页，
+        // 摆好的裁剪框和刚拍的那一张就此丢掉
+        BackHandler { viewModel.cancelCrop() }
+        // 整屏替换而不是另开一个目的地：裁剪结果是草稿的一部分，回传要经过 Bundle（ByteArray 有
+        // 上限）或共享 ViewModel（要改作用域），两样都比留在一页里复杂
+        ImageCropScreen(
+            image = cropSource,
+            onCancel = viewModel::cancelCrop,
+            onConfirm = viewModel::applyCrop,
+            modifier = modifier
+        )
+        return
+    }
+
+    if (showCamera) {
+        BackHandler { showCamera = false }
+        PhotoCaptureScreen(
+            onCancel = { showCamera = false },
+            onCaptured = { jpeg ->
+                // 这个回调来自相机的分析线程（见 PhotoCaptureScreen），页面状态要回主线程改
+                scope.launch { showCamera = false }
+                viewModel.onPhotoCaptured(jpeg)
+            },
+            modifier = modifier
+        )
+        return
+    }
 
     FreshNowSubPage(
         title = stringResource(R.string.record_edit_title),
@@ -54,7 +132,14 @@ fun RecordEditScreen(
             // 记录都读不到了就没有可存的东西，不留一个按下去没反应的按钮
             if (uiState.found) {
                 TextButton(
-                    onClick = { viewModel.save(onSaved = onBack) },
+                    // 照片写盘失败也照旧退回去：其余字段已经存好了，而提示只说照片这一件事，
+                    // 留在本页只会让人以为整个保存都失败了
+                    onClick = {
+                        viewModel.save { imageSaved ->
+                            if (!imageSaved) showToast(context, saveFailedToast)
+                            onBack()
+                        }
+                    },
                     enabled = uiState.canSave
                 ) {
                     Text(text = stringResource(R.string.action_save))
@@ -91,6 +176,7 @@ fun RecordEditScreen(
             onProductionDateChange = viewModel::onProductionDateChange,
             onExpiryDateChange = viewModel::onExpiryDateChange,
             onShelfLifeChange = viewModel::onShelfLifeChange,
+            onChangePhoto = { showImageSources = true },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -99,10 +185,90 @@ fun RecordEditScreen(
                 .padding(FreshNowSpacing.sm)
         )
     }
+
+    if (showImageSources) {
+        ImageSourceSheet(
+            hasImage = uiState.image != null,
+            sheetState = imageSheetState,
+            onDismissRequest = { closeImageSources() },
+            onPickFromGallery = {
+                closeImageSources()
+                galleryLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onTakePhoto = {
+                closeImageSources()
+                showCamera = true
+            },
+            onRemove = {
+                closeImageSources()
+                viewModel.onImageRemoved()
+            }
+        )
+    }
 }
 
 /**
- * 编辑表单本体，不含读库与落盘：便于按定值直接断言字段与推算提示（见 RecordEditFormTest）。
+ * 换照片的来源选择。
+ *
+ * 三项都是动作（去相册 / 去拍 / 移除），M3 给这类「选一种做法」的位置就是底部面板，
+ * 设置页的编辑面板也是同一个模式。
+ *
+ * 「移除照片」只在真的有照片时出现：没有照片时那一条按下去只会把草稿再置空一次，
+ * 留在那儿等着被点到。
+ *
+ * 三项都不带图标：现有图标里只有相机与删除能用在这上面，「相册」没有对应的一张，
+ * 凑一半反而显得漏了（图标由用户提供，见 AGENTS.md）。文字在这三项里本来就够用。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ImageSourceSheet(
+    hasImage: Boolean,
+    sheetState: SheetState,
+    onDismissRequest: () -> Unit,
+    onPickFromGallery: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onRemove: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState
+    ) {
+        Column(modifier = Modifier.padding(bottom = FreshNowSpacing.sm)) {
+            ImageSourceItem(
+                text = stringResource(R.string.record_image_source_gallery),
+                onClick = onPickFromGallery
+            )
+            ImageSourceItem(
+                text = stringResource(R.string.action_take_photo),
+                onClick = onTakePhoto
+            )
+            if (hasImage) {
+                ImageSourceItem(
+                    text = stringResource(R.string.record_image_remove),
+                    onClick = onRemove
+                )
+            }
+        }
+    }
+}
+
+/** 底部面板里的一行。底色透明：面板自己的容器色已经是 surfaceContainerLow，再叠一层会看出色差 */
+@Composable
+private fun ImageSourceItem(text: String, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(text = text) },
+        modifier = Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
+
+/**
+ * 编辑表单本体，不含读库与落盘：便于按定值直接断言字段、照片与推算提示（见 RecordEditFormTest）。
+ *
+ * 照片排在最上面，与详情页的顺序一致；它是这条记录的一个字段，所以与四个文本字段同属一份草稿、
+ * 同一次保存。
  *
  * 四个字段一律是文本框，不挂日期选择器：这里改的是「模型读错的地方」，存量值可能是任意写法
  * （`2026.10.01`、`2026年10月`、空串），而选择器只能产出标准日期，一确认就会把原值覆盖掉。
@@ -122,12 +288,24 @@ internal fun RecordEditForm(
     onProductionDateChange: (String) -> Unit,
     onExpiryDateChange: (String) -> Unit,
     onShelfLifeChange: (String) -> Unit,
+    onChangePhoto: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
+        ) {
+            ScanPhoto(image = uiState.image)
+            // 文字按钮而不是照片上的叠加图标：图标由用户提供（见 AGENTS.md），而这里不需要
+            // 「一眼认出」——照片底下有一行写着「更换照片」更直白，也不会遮住照片本身
+            TextButton(onClick = onChangePhoto) {
+                Text(text = stringResource(R.string.record_image_change))
+            }
+        }
         EditField(
             value = uiState.productName,
             onValueChange = onProductNameChange,

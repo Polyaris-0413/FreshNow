@@ -7,10 +7,34 @@ import com.freshnow.app.data.local.ScanRecordDao
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
-class ScanRecordRepository(context: Context) {
+/**
+ * 一条记录的照片该怎么处理。
+ *
+ * 三种情形放在一个类型里，是为了让「改字段」与「换照片」走同一次写入：分成两条接口的话，
+ * 调用方得自己决定先改哪个，而这里有个不能颠倒的顺序（见 [ScanRecordRepository.update]）。
+ */
+sealed interface ImageChange {
+    /** 照片原样保留 */
+    data object Keep : ImageChange
 
-    private val dao = FreshNowDatabase.getInstance(context).scanRecordDao()
-    private val imageStore = ScanImageStore(context)
+    /** 移除照片，记录回到「没有图片」的状态 */
+    data object Remove : ImageChange
+
+    /** 换成 [bytes]。字节已是正方形 JPEG（见 ScanImageCodec），这里只负责落盘 */
+    data class Replace(val bytes: ByteArray) : ImageChange
+}
+
+/**
+ * 扫描记录与它们的照片。
+ *
+ * 两个存储入口都能从外部传：记录与照片的写入顺序（先写新图、再改行、最后删旧图）是要单独验的，
+ * 而那一验要是碰设备上应用自己的库与图片目录，测试就变成了在改用户的记录（见 ScanImageStore 同样的理由）。
+ */
+class ScanRecordRepository(
+    context: Context,
+    private val imageStore: ScanImageStore = ScanImageStore(context),
+    private val dao: ScanRecordDao = FreshNowDatabase.getInstance(context).scanRecordDao()
+) {
 
     val records: Flow<List<ScanRecord>> = dao.observeAll()
 
@@ -23,10 +47,48 @@ class ScanRecordRepository(context: Context) {
     fun observe(id: Long): Flow<ScanRecord?> = dao.observeById(id)
 
     /**
-     * 覆盖整行。照片文件名与保存时间沿用传入记录里的值（调用方在原有记录上改字段即可），
-     * 于是编辑不会把记录提到列表最前面
+     * 覆盖整行，按 [image] 处理照片。保存时间沿用传入记录里的值（调用方在原有记录上改字段即可），
+     * 于是编辑不会把记录提到列表最前面。
+     *
+     * 返回 false 只表示照片没换成（新旧文件都写好之后才失败）：旧照片原样保留，其余字段已经落盘，
+     * 调用方只需就这一件事提示用户。写盘失败不拦下整次编辑，与 [ScanImageStore.write] 的取舍一致——
+     * 没有可用画面时本来就有「这条记录没有图片」这个正常状态。
+     *
+     * 换照片的顺序固定为新文件 → 改行 → 删旧文件，不能倒：先删旧文件的话，
+     * 中途任何一步失败都会把照片永久弄丢。
      */
-    suspend fun update(record: ScanRecord) = dao.update(record)
+    suspend fun update(record: ScanRecord, image: ImageChange): Boolean = when (image) {
+        ImageChange.Keep -> {
+            dao.update(record)
+            true
+        }
+
+        ImageChange.Remove -> {
+            // 先把行改掉再删文件：反过来的话，改行失败就留下一个「行指着已被删掉的文件」，
+            // 界面显示占位图而照片其实还在磁盘上。删文件失败没人引用它，只是白占一点空间
+            dao.update(record.copy(imageName = ""))
+            imageStore.delete(record.imageName)
+            true
+        }
+
+        is ImageChange.Replace -> {
+            val newName = imageStore.write(image.bytes)
+            if (newName == null) {
+                // 写新文件就失败了：行里的照片名一个字都不改，旧照片继续用
+                dao.update(record)
+                false
+            } else {
+                runCatching { dao.update(record.copy(imageName = newName)) }
+                    .onFailure {
+                        // 行没改成，新文件不能留下：它就是一张谁也找不到的孤儿图
+                        imageStore.delete(newName)
+                        throw it
+                    }
+                imageStore.delete(record.imageName)
+                true
+            }
+        }
+    }
 
     /**
      * [frame] 是点保存那一刻的最新画面；图片落盘失败时该记录就没有图片，界面显示占位图

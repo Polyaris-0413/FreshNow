@@ -1,4 +1,4 @@
-package com.freshnow.app.ui.scan
+package com.freshnow.app.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

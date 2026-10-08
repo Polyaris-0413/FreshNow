@@ -1,10 +1,12 @@
 package com.freshnow.app.ui.detail
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -36,6 +38,40 @@ class RecordEditFormTest {
         listOf("名称", "生产日期", "保质期", "过期日期").forEach { label ->
             composeRule.onNodeWithText(label).assertIsDisplayed()
         }
+    }
+
+    /**
+     * 照片与四个字段同屏。它也是这条记录的一个字段，藏在别的页面会让人以为照片改不了；
+     * 没有照片时那块占位图同样要在，否则换照片的入口会孤零零地悬在顶上
+     */
+    @Test
+    fun showsPhotoFieldWithChangeEntry() {
+        setContent()
+
+        composeRule.onNodeWithText("更换照片").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("无图片").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("扫描照片").assertDoesNotExist()
+    }
+
+    /** 有照片时画的是照片而不是占位图 */
+    @Test
+    fun showsPhotoWhenPresent() {
+        val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
+        setContent(uiState = EMPTY.copy(image = bitmap))
+
+        composeRule.onNodeWithContentDescription("无图片").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("扫描照片").assertIsDisplayed()
+    }
+
+    /** 入口要真能把「去换照片」传出去，否则那行字只是个摆设 */
+    @Test
+    fun changePhotoEntryReportsClick() {
+        var clicked = 0
+        setContent(onChangePhoto = { clicked++ })
+
+        composeRule.onNodeWithText("更换照片").performClick()
+
+        assertEquals(1, clicked)
     }
 
     /** 输入要能传到调用方，否则字段只是个摆设 */
@@ -99,7 +135,8 @@ class RecordEditFormTest {
                         )
                     },
                     onExpiryDateChange = {},
-                    onShelfLifeChange = {}
+                    onShelfLifeChange = {},
+                    onChangePhoto = {}
                 )
             }
         }
@@ -133,7 +170,8 @@ class RecordEditFormTest {
 
     private fun setContent(
         uiState: RecordEditUiState = EMPTY,
-        onProductNameChange: (String) -> Unit = {}
+        onProductNameChange: (String) -> Unit = {},
+        onChangePhoto: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
@@ -142,7 +180,8 @@ class RecordEditFormTest {
                     onProductNameChange = onProductNameChange,
                     onProductionDateChange = {},
                     onExpiryDateChange = {},
-                    onShelfLifeChange = {}
+                    onShelfLifeChange = {},
+                    onChangePhoto = onChangePhoto
                 )
             }
         }

@@ -28,15 +28,20 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.freshnow.app.data.squareCrop
+import com.freshnow.app.data.toSquareJpegBytes
 import kotlinx.coroutines.suspendCancellableCoroutine
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.math.max
 
-private const val MAX_IMAGE_DIMENSION = 768
-private const val JPEG_QUALITY = 80
+/**
+ * 取景框的宽高比。必须是 1f：本组件会把送给 AI 的整帧裁成居中正方形，
+ * 一旦调用方的取景框不是方的，「看到什么就裁什么」就会静默失效——
+ * 用户看到整幅画面，模型只收到中间一块。相机页与拍照页共用它，取值不会分叉。
+ */
+internal const val CAMERA_ASPECT_RATIO = 1f
+
 private const val PREVIEW_FADE_IN_MS = 250
 private const val OPAQUE_ALPHA = 0xFF shl 24
 
@@ -146,17 +151,6 @@ private suspend fun Context.awaitCameraProvider(): ProcessCameraProvider =
         )
     }
 
-/** 居中正方形裁剪区域 */
-internal data class SquareCrop(val left: Int, val top: Int, val side: Int)
-
-/**
- * 算出居中的正方形裁剪区域。抽成纯函数是为了几何部分能直接单测，不必起相机或模拟器
- */
-internal fun squareCrop(width: Int, height: Int): SquareCrop {
-    val side = minOf(width, height)
-    return SquareCrop(left = (width - side) / 2, top = (height - side) / 2, side = side)
-}
-
 /**
  * RGBA_8888 输出的字节序是 R,G,B,A（见 ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888），
  * 而 Bitmap 的 ARGB_8888 内存序是 B,G,R,A，直接 copyPixelsFromBuffer 会红蓝互换，
@@ -201,30 +195,7 @@ private fun ImageProxy.toUprightJpeg(): ByteArray? {
     }
 
     // 取景框是正方形、预览也是居中裁剪填满的，所以整帧同样裁成中间的正方形：
-    // 看到什么就存什么、也就识别什么，三者画面一致
-    val crop = squareCrop(bitmap.width, bitmap.height)
-    if (crop.side != bitmap.width || crop.side != bitmap.height) {
-        bitmap = Bitmap.createBitmap(bitmap, crop.left, crop.top, crop.side, crop.side)
-            .also { bitmap.recycle() }
-    }
-
-    val longSide = max(bitmap.width, bitmap.height)
-    if (longSide > MAX_IMAGE_DIMENSION) {
-        val ratio = MAX_IMAGE_DIMENSION.toFloat() / longSide
-        bitmap = Bitmap.createScaledBitmap(
-            bitmap,
-            (bitmap.width * ratio).toInt().coerceAtLeast(1),
-            (bitmap.height * ratio).toInt().coerceAtLeast(1),
-            true
-        ).also { bitmap.recycle() }
-    }
-
-    val jpeg = runCatching {
-        ByteArrayOutputStream().use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            out.toByteArray()
-        }
-    }.getOrNull()
-    bitmap.recycle()
-    return jpeg
+    // 看到什么就存什么、也就识别什么，三者画面一致。裁方、缩放、压缩与相册那条路共用
+    // ScanImageCodec，规格只有一份
+    return bitmap.toSquareJpegBytes().also { bitmap.recycle() }
 }
