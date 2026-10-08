@@ -1,9 +1,13 @@
 package com.freshnow.app.ui.detail
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -60,7 +64,68 @@ import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.launch
+
+/**
+ * 本页的整屏状态。裁剪、拍照都是一整屏，与编辑表单平级替换。
+ *
+ * 裁剪那张源图挂在状态里（[EditStep.Crop]）而不是用时另读 ViewModel：状态从 [EditStep.Crop]
+ * 换成 [EditStep.Edit] 的那一帧，ViewModel 里的原图已经被清掉了，退场动画拿什么画？
+ * 带着图走，退场那一帧内容就还在。
+ */
+internal sealed interface EditStep {
+    data object Edit : EditStep
+
+    data class Crop(val source: Bitmap) : EditStep
+
+    data object Capture : EditStep
+}
+
+/**
+ * 三个整屏状态之间的转场。
+ *
+ * 用 AnimatedContent 而不是一整块 if/return：裁剪页、拍照页都是“进去过再退回”的整屏，硬切会
+ * 丢掉项目里已有一套的页面转场（见 FreshNowTransitions）。方向按“是不是回到表单”定：回到表单
+ * 是返回方向，从表单进整屏是前进方向。
+ *
+ * 退场那帧两页同时在，各自半透明地叠着，所以底下要垫一层主题背景色：不垫就会透出窗口背景，
+ * 深色模式下表现为一下黑闪（与 NavHost 同一个理由）。
+ *
+ * 提为 internal 是为了能在仪器化测试里直接推进动画时钟（mainClock）断言“转场中途两页都在”：
+ * 真机上 350ms 的转场抢不到截图，而硬切与转场的区别恰好就在那几帧。
+ */
+@Composable
+internal fun EditStepTransition(
+    step: EditStep,
+    modifier: Modifier = Modifier,
+    content: @Composable (EditStep) -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                when {
+                    targetState is EditStep.Edit ->
+                        FreshNowTransitions.backEnter togetherWith FreshNowTransitions.backExit
+
+                    initialState is EditStep.Edit ->
+                        FreshNowTransitions.forwardEnter togetherWith FreshNowTransitions.forwardExit
+
+                    // 裁剪与拍照不会直接互换，留个过渡免得两个整屏硬切
+                    else -> FreshNowTransitions.fadeSwap()
+                }
+            },
+            label = "editStep"
+        ) { current ->
+            content(current)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,10 +137,8 @@ fun RecordEditScreen(
 ) {
     LaunchedEffect(recordId) { viewModel.load(recordId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     val readFailedToast = stringResource(R.string.record_image_read_failed)
-    val saveFailedToast = stringResource(R.string.record_image_save_failed)
 
     // 换照片的来源选择是本页的状态，不进 ViewModel：它只是「面板开着吗」，不需要跨进程重建
     var showImageSources by remember { mutableStateOf(false) }
@@ -102,34 +165,80 @@ fun RecordEditScreen(
     }
 
     val cropSource = uiState.cropSource
-    if (cropSource != null) {
-        // 裁剪与拍照是本页的整屏状态，系统返回键要先关它们；不拦的话会一路退回详情页，
-        // 摆好的裁剪框和刚拍的那一张就此丢掉
-        BackHandler { viewModel.cancelCrop() }
-        // 整屏替换而不是另开一个目的地：裁剪结果是草稿的一部分，回传要经过 Bundle（ByteArray 有
-        // 上限）或共享 ViewModel（要改作用域），两样都比留在一页里复杂
-        ImageCropScreen(
-            image = cropSource,
-            onCancel = viewModel::cancelCrop,
-            onConfirm = viewModel::applyCrop,
-            modifier = modifier
-        )
-        return
-    }
+    val step: EditStep = cropSource?.let { EditStep.Crop(it) }
+        ?: if (showCamera) EditStep.Capture else EditStep.Edit
 
-    if (showCamera) {
-        BackHandler { showCamera = false }
-        PhotoCaptureScreen(
-            onCancel = { showCamera = false },
-            onCaptured = { jpeg ->
-                // 这个回调来自相机的分析线程（见 PhotoCaptureScreen），页面状态要回主线程改
-                scope.launch { showCamera = false }
-                viewModel.onPhotoCaptured(jpeg)
+    EditStepTransition(step = step, modifier = modifier) { current ->
+        when (current) {
+                is EditStep.Crop -> {
+                    // 系统返回键在整屏状态里要先关它；不拦的话会一路退回详情页，
+                    // 摆好的裁剪框和刚拍的那一张就此丢掉
+                    BackHandler { viewModel.cancelCrop() }
+                    ImageCropScreen(
+                        image = current.source,
+                        onCancel = viewModel::cancelCrop,
+                        onConfirm = viewModel::applyCrop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                EditStep.Capture -> {
+                    BackHandler { showCamera = false }
+                    PhotoCaptureScreen(
+                        onCancel = { showCamera = false },
+                        onCaptured = { jpeg ->
+                            // 这个回调来自相机的分析线程（见 PhotoCaptureScreen），页面状态要回主线程改
+                            scope.launch { showCamera = false }
+                            viewModel.onPhotoCaptured(jpeg)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                EditStep.Edit -> EditForm(
+                    uiState = uiState,
+                    onBack = onBack,
+                    onSave = viewModel::save,
+                    onChangePhoto = { showImageSources = true },
+                    viewModel = viewModel
+                )
+            }
+        }
+
+    if (showImageSources) {
+        ChangePhotoSheet(
+            hasImage = uiState.image != null,
+            sheetState = imageSheetState,
+            onDismissRequest = { showImageSources = false },
+            onPickFromGallery = {
+                dismissSheetThen {
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
             },
-            modifier = modifier
+            onTakePhoto = { dismissSheetThen { showCamera = true } },
+            onRemove = { dismissSheetThen(viewModel::onImageRemoved) }
         )
-        return
     }
+}
+
+/**
+ * 编辑表单那一屏：顶栏（含保存）加表单本体。
+ *
+ * 从 [RecordEditScreen] 里拆出来只为让上面那段转场读得清——三个整屏状态各是一块。
+ */
+@Composable
+private fun EditForm(
+    uiState: RecordEditUiState,
+    onBack: () -> Unit,
+    onSave: ((imageSaved: Boolean) -> Unit) -> Unit,
+    onChangePhoto: () -> Unit,
+    viewModel: RecordEditViewModel
+) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val saveFailedToast = stringResource(R.string.record_image_save_failed)
 
     FreshNowSubPage(
         title = stringResource(R.string.record_edit_title),
@@ -141,7 +250,7 @@ fun RecordEditScreen(
                     // 照片写盘失败也照旧退回去：其余字段已经存好了，而提示只说照片这一件事，
                     // 留在本页只会让人以为整个保存都失败了
                     onClick = {
-                        viewModel.save { imageSaved ->
+                        onSave { imageSaved ->
                             if (!imageSaved) showToast(context, saveFailedToast)
                             onBack()
                         }
@@ -154,7 +263,7 @@ fun RecordEditScreen(
         },
         // 点空白处收键盘兼“结束这个字段的输入”：保存被禁用时错误文案才显出来（见 RecordEditForm），
         // 而禁用的按钮不吃点击，那一下点击只有靠这里接住。挂在页面这一层是因为顶栏在表单之外
-        modifier = modifier.pointerInput(Unit) {
+        modifier = Modifier.pointerInput(Unit) {
             detectTapGestures { focusManager.clearFocus() }
         }
     ) { innerPadding ->
@@ -182,30 +291,13 @@ fun RecordEditScreen(
             onProductionDateChange = viewModel::onProductionDateChange,
             onExpiryDateChange = viewModel::onExpiryDateChange,
             onShelfLifeChange = viewModel::onShelfLifeChange,
-            onChangePhoto = { showImageSources = true },
+            onChangePhoto = onChangePhoto,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(FreshNowSpacing.sm)
-        )
-    }
-
-    if (showImageSources) {
-        ChangePhotoSheet(
-            hasImage = uiState.image != null,
-            sheetState = imageSheetState,
-            onDismissRequest = { showImageSources = false },
-            onPickFromGallery = {
-                dismissSheetThen {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }
-            },
-            onTakePhoto = { dismissSheetThen { showCamera = true } },
-            onRemove = { dismissSheetThen(viewModel::onImageRemoved) }
         )
     }
 }
