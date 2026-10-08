@@ -50,9 +50,7 @@
 本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
 
 部分代码移植自以下开源项目:
-* [Book's Story](https://github.com/Acclorite/book-story)
-  
-  > 页面过渡动画相关
+* [Book's Story](https://github.com/Acclorite/book-story)（提供了过渡动画）
 
 因为你们的付出
 才让 FreshNow 拥有了得以站在巨人肩膀上的机会，Respect🫡
