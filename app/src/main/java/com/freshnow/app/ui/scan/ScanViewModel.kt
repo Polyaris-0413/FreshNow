@@ -53,13 +53,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     @Volatile
     private var latestFrame: ByteArray? = null
 
-    // 下面两个只在一帧的处理流程里读写，而那段代码跑在 viewModelScope（主线程）上，故不需要同步
+    // 服务这一帧的处理流程里读写，而那段代码跑在 viewModelScope（主线程）上，故不需要同步
 
     /** 连续处于问题状态（未配置或请求失败）的帧数 */
     private var problemFrames = 0
-
-    /** 本轮问题是否已经弹过说明对话框：用户关掉后不再重复弹，直到服务恢复或他去过设置页 */
-    private var serviceDialogShown = false
 
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
@@ -134,39 +131,42 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 服务这一帧是通的：问题计数归零，并解除「已提示过」——恢复之后再出问题要能重新提示一句
+     * 服务这一帧是通的：问题计数归零，并收起对话框——已经通得上了，再挂着报错就成了错误信息
      */
     private fun onServiceUsable() {
         problemFrames = 0
-        serviceDialogShown = false
         _uiState.update { it.copy(serviceDialogMessage = null) }
     }
 
     /**
-     * 服务这一帧用不了：攒够帧数才弹说明对话框，单帧失败往往只是一次抖动，不值得打断扫描。
-     * 正文用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里
+     * 服务这一帧用不了：攒够帧数就弹说明对话框，单帧失败往往只是一次抖动，不值得打断扫描。
+     * 正文用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里。
+     *
+     * 弹窗期间不求值：每帧都写一次 StateFlow 会白白触发重组。用户关掉后计数已归零，
+     * 下帧若还是连不上就重新弹——服务一直不可用的话，用户每关一次就被再提醒一次
      */
     private fun onServiceProblem(message: String) {
+        if (_uiState.value.serviceDialogMessage != null) return
         problemFrames++
-        if (serviceDialogShown || problemFrames < PROBLEM_FRAMES_BEFORE_PROMPT) return
-        serviceDialogShown = true
+        if (problemFrames < PROBLEM_FRAMES_BEFORE_PROMPT) return
+        problemFrames = 0
         _uiState.update { it.copy(serviceDialogMessage = message) }
     }
 
     /**
-     * 用户关掉了说明对话框：本轮问题不再重复弹
+     * 用户关掉了说明对话框：计数归零，下帧还是连不上就会再弹一次
      */
     fun onServiceDialogDismiss() {
+        problemFrames = 0
         _uiState.update { it.copy(serviceDialogMessage = null) }
     }
 
     /**
-     * 用户从对话框去了设置页：计数一并清零，回来时若还是连不上，需再攒够帧数才会重新提示。
+     * 用户从对话框去了设置页：同样把计数归零，回来时若还是连不上，需再攒够帧数才会重新提示。
      * 立刻重弹会像是刚才那下没关掉
      */
     fun onServiceDialogOpenSettings() {
         problemFrames = 0
-        serviceDialogShown = false
         _uiState.update { it.copy(serviceDialogMessage = null) }
     }
 
@@ -195,7 +195,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         const val RETRY_DELAY_MS = 2_000L
 
         // 连续失败多少帧才提示。一帧失败退避 2 秒，两帧即几秒钟：真的连不上很快能等到提示，
-        // 而偶发的一次抖动（下一帧就好了）不会弹窗
+        // 而偶发的一次抖动（下一帧就好了）不会弹窗。用户关掉后计数归零，因此服务一直不可用时
+        // 大约每隔这么久会再提醒一次
         const val PROBLEM_FRAMES_BEFORE_PROMPT = 2
     }
 }
