@@ -1,10 +1,12 @@
 package com.freshnow.app.ui.scan
 
+import android.content.ClipboardManager
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -12,7 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 「AI 服务用不了」说明对话框：文案要把可能的情况列全，两个入口各走各的路。
+ * 「AI 服务用不了」说明对话框：正文原样照登服务端返回，两个入口一个复制、一个回主页。
  *
  * 只摆对话框本体：它的出现时机由 ScanViewModel 决定，而设备上要复现「服务连不上」得真的把
  * 配置写坏或断网，那属于用户手点的那一遍。
@@ -35,15 +37,20 @@ class ScanServiceDialogTest {
         composeRule.onNodeWithText(detail).assertIsDisplayed()
     }
 
-    /** 「去设置」是主操作：本对话框的价值就在于能一步走到改配置的地方 */
+    /**
+     * 「复制」是主操作：本页的 AI 已经用不了了，把报错带给别的 AI 是此时唯一还有意义的动作。
+     * 验证真落到剪贴板上而不是只调用了一个回调
+     */
     @Test
-    fun openSettingsLeavesForSettings() {
-        var opened = 0
-        setContent(onOpenSettings = { opened++ })
+    fun copyPutsMessageOnClipboard() {
+        val detail = "HTTP 400 {\"error\":{\"message\":\"Model Not Exist\"}}"
+        setContent(message = detail)
 
-        composeRule.onNodeWithText("去设置").performClick()
+        composeRule.onNodeWithText("复制").performClick()
 
-        assertEquals(1, opened)
+        val clipboard = InstrumentationRegistry.getInstrumentation().targetContext
+            .getSystemService(ClipboardManager::class.java)
+        assertEquals(detail, clipboard.primaryClip?.getItemAt(0)?.text?.toString())
     }
 
     /**
@@ -61,16 +68,11 @@ class ScanServiceDialogTest {
 
     private fun setContent(
         message: String = "HTTP 500 服务暂时不可用",
-        onOpenSettings: () -> Unit = {},
         onAcknowledge: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
-                ServiceUnavailableDialog(
-                    message = message,
-                    onOpenSettings = onOpenSettings,
-                    onAcknowledge = onAcknowledge
-                )
+                ServiceUnavailableDialog(message = message, onAcknowledge = onAcknowledge)
             }
         }
     }

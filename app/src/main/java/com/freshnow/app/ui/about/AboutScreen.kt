@@ -12,8 +12,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +22,7 @@ import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.openInBrowser
+import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
@@ -165,9 +164,4 @@ internal fun AboutList(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }
-}
-
-/** 短提示用 Toast：关于页没有 SnackbarHost，而这两句不承载任何可撤销的操作 */
-private fun showToast(context: Context, text: String) {
-    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 }

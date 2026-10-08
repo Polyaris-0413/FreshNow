@@ -57,11 +57,7 @@ fun FreshNowNavHost(
             )
         }
         composable(FreshNowRoute.SCAN) {
-            ScanScreen(
-                onBack = { navController.navigateUp() },
-                // 压栈而不是切换目的地：从设置回来仍落在扫描页，相机与累加记录都还在
-                onNavigateToSettings = { navController.navigate(FreshNowRoute.SETTINGS) }
-            )
+            ScanScreen(onBack = { navController.navigateUp() })
         }
         composable(
             route = FreshNowRoute.RECORD_DETAIL,

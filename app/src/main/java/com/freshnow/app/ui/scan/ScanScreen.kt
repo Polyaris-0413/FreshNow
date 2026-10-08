@@ -1,6 +1,8 @@
 package com.freshnow.app.ui.scan
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +54,7 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import com.freshnow.app.ui.showToast
 
 // 取景框的宽高比。必须与 CameraPreview 的居中正方形裁剪保持一致：那里无条件裁正方形，
 // 这里一旦改成非 1f，显示的取景范围与真正送出去的画面就会错开，而且不会有任何报错
@@ -66,7 +69,6 @@ private val SERVICE_ERROR_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight / 
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScanViewModel = viewModel()
 ) {
@@ -227,10 +229,6 @@ fun ScanScreen(
         if (showSaveDialog) return@let
         ServiceUnavailableDialog(
             message = message,
-            onOpenSettings = {
-                viewModel.closeServiceDialog()
-                onNavigateToSettings()
-            },
             onAcknowledge = {
                 viewModel.closeServiceDialog()
                 // 服务都用不了，留在本页只是等下一次弹窗；但已扫到的内容不能因为服务挂了就静默丢掉，
@@ -248,8 +246,9 @@ fun ScanScreen(
  * ——密钥、模型名、额度、地址后缀各自错法不同，转述一句反而把真正的线索盖掉。
  * 底栏那份错误文案已经删了，所以这里是用户唯一能看到错误原因的地方。
  *
- * 两个按钮都会离开本页：「去设置」去改配置，「知道了」回主页。规范限制对话框最多两个动作，
- * 而服务不可用时的合理出路本就只有这两条。
+ * 两个按钮：「复制」把正文放进剪贴板，好拿去问别的 AI——本页的 AI 已经用不了了，这是此时唯一
+ * 还有意义的动作，因此放在确认位；「知道了」回主页，留给不想深究的人。
+ * 规范限制对话框最多两个动作，而服务不可用时的合理出路本就只有这两条。
  *
  * 提为 internal 是为了能在仪器化测试里直接断言两个入口：设备上要复现「服务连不上」，
  * 得真的把配置写坏或断网。
@@ -257,25 +256,42 @@ fun ScanScreen(
 @Composable
 internal fun ServiceUnavailableDialog(
     message: String,
-    onOpenSettings: () -> Unit,
     onAcknowledge: () -> Unit
 ) {
+    val context = LocalContext.current
+    val copiedToast = stringResource(R.string.scan_service_dialog_copied)
+
     AlertDialog(
         onDismissRequest = onAcknowledge,
         title = { Text(text = stringResource(R.string.scan_service_dialog_title)) },
-        // 服务端的报错是原样一段，没有换行也会很长，让它自己滚，别把对话框抻成整屏
         text = {
-            Text(
-                text = message,
-                modifier = Modifier
-                    .heightIn(max = SERVICE_ERROR_MAX_HEIGHT)
-                    .verticalScroll(rememberScrollState()),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)) {
+                // 正文是服务端的原话，用户未必知道拿它怎么办，这行字说明它的用处
+                Text(
+                    text = stringResource(R.string.scan_service_dialog_copy_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                // 原样一段，没有换行也会很长，让它自己滚，别把对话框抻成整屏
+                Text(
+                    text = message,
+                    modifier = Modifier
+                        .heightIn(max = SERVICE_ERROR_MAX_HEIGHT)
+                        .verticalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         },
         confirmButton = {
-            TextButton(onClick = onOpenSettings) {
-                Text(text = stringResource(R.string.scan_service_dialog_open_settings))
+            TextButton(
+                onClick = {
+                    // 写进剪贴板这一步在界面上看不出来，所以必须回一句提示
+                    context.getSystemService(ClipboardManager::class.java)
+                        .setPrimaryClip(ClipData.newPlainText(null, message))
+                    showToast(context, copiedToast)
+                }
+            ) {
+                Text(text = stringResource(R.string.scan_service_dialog_copy))
             }
         },
         dismissButton = {
