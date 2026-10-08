@@ -17,16 +17,6 @@ android {
         // 录制 baseline profile 与宏基准本身都要求 API 28 起
         minSdk = 28
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // 宏基准默认把「跑在模拟器上」当成错误而直接中止。本项目的基准只能在托管虚拟机上跑，
-        // 真机这条路实测不通：设备上那个自装的 com.freshnow.app 与本机构建的签名不一致，
-        // 覆盖安装直接 INSTALL_FAILED_UPDATE_INCOMPATIBLE；而 OnePlus 的 ROM 连
-        // `pm grant ... CAMERA` 都拒绝（grantRuntimePermission 被系统挡下），而扫描页一进去
-        // 就弹权限框，脚本会挂在弹窗上。
-        //
-        // 代价就如官方那句警告：模拟器的帧时序不代表真机。所以这份结果只在同一台虚拟机内做
-        // 前后对比（改一处看有没有变差），不当成真机上的绝对帧率。
-        testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR"
     }
 
     targetProjectPath = ":app"
