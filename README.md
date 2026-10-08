@@ -4,7 +4,7 @@
 
 <h2 align="center">食不宜迟 FreshNow</h2>
 
-<p align="center">一款借助 LLM 管理食品保质期的应用</p>
+<p align="center">一款借助 LLM 管理食品保质期的应用。</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Android-8.0-0a0a0a" alt="Android 8.0" />
@@ -18,19 +18,19 @@
 
 ### AI
 
-* 不内置任何 OCR 算法，所有信息全部交由 AI 实时识别
-* 支持通过 OpenAI 协议接入模型
-* 支持自定义模型思考参数等配置
+* 不内置任何 OCR 算法，所有信息全部交由 AI 实时识别。
+* 支持通过 OpenAI 协议接入模型。
+* 支持自定义模型思考参数等配置。
 
 ### 界面
 
-* 使用 Material Design 3 设计
-* 动画恰到好处
+* 使用 Material Design 3 设计。
+* 动画恰到好处。
 
 ### 其他
 
-* 无广告、无追踪、无内购
-* 支持在线更新
+* 无广告、无追踪、无内购。
+* 支持在线更新。
 
 ## 截图
 
@@ -42,20 +42,22 @@
 
 ## 贡献
 
-如果你有相关意愿，欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
+如果你有相关意愿：<br />
+欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)。
 
 ## 下载
 
-请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本
+请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本。
 
-由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店
+由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店。
 
 ## 开源许可
 
-本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
+本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布。
 
 部分代码来自以下项目：
 
-* [Book's Story](https://github.com/Acclorite/book-story)（提供了好看的过渡动画）
+* [Book's Story](https://github.com/Acclorite/book-story)（提供了好看的过渡动画）。
 
-在此致敬，是你们的付出，才让 FreshNow 拥有了得以站在巨人肩膀上的机会 🫡
+在此致敬，是你们的付出，<br />
+才让 FreshNow 拥有了得以站在巨人肩膀上的机会。🫡
