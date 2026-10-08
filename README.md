@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/f1b80973-26fa-4f43-924e-9fc946006b9f" width="100" />
+  <img src="https://github.com/user-attachments/assets/f1b80973-26fa-4f43-924e-9fc946006b9f" width="50" />
 </p>
 
-<h1 align="center">食不宜迟 FreshNow</h1>
+<h1 align="center">食不宜迟 FreshNow</h2>
 
 <p align="center">一款借助 LLM 管理食品保质期的应用</p>
 
