@@ -30,9 +30,11 @@ class ScanValueFormatTest {
         assertEquals("2026-10-06", ScanValueFormat.date("20261006"))
     }
 
+    /** 前后夹着别的字不再从里面挑：整串必须就是一个日期，挑出来的可能不是用户写的那个 */
     @Test
-    fun date_withSurroundingText_keepsOnlyDate() {
-        assertEquals("2026-10-06", ScanValueFormat.date("生产日期 2026-10-06"))
+    fun date_withSurroundingText_isNotAccepted() {
+        assertEquals("生产日期 2026-10-06", ScanValueFormat.date("生产日期 2026-10-06"))
+        assertEquals("2026-10-06 2027-01-01", ScanValueFormat.date("2026-10-06 2027-01-01"))
     }
 
     /** 连数字都用中文写的日期，标签上确实存在 */

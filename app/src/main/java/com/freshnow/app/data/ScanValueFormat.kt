@@ -18,13 +18,12 @@ object ScanValueFormat {
 
     private val ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE
 
-    // 阿拉伯数字写的日期：2026-10-06 / 2026/10/6 / 2026年10月6日
+    // 日期不写 ^ $ 与前后断言：整串由 [parseDate] 的 matchEntire 保证，边界只有这一个来源
     //
-    // 前后都不许再连着数字：那是更长的数字串（如 2026-10-123 的日到底是 12 还是 123），
-    // 无从判断时宁可认不出，也不能悄悄截掉几位当成日期存下去
-    private val SEPARATED_DATE = Regex("""(?<!\d)(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})日?(?!\d)""")
+    // 阿拉伯数字写的日期：2026-10-06 / 2026/10/6 / 2026年10月6日
+    private val SEPARATED_DATE = Regex("""(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})日?""")
     // 紧凑写法：20261006
-    private val COMPACT_DATE = Regex("""(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)""")
+    private val COMPACT_DATE = Regex("""(\d{4})(\d{2})(\d{2})""")
     // 中文数字写的日期：二〇二六年十月六日（年份逐位读，月日按十/百规则读）
     private val CHINESE_DATE =
         Regex("""([〇零一二三四五六七八九]{4})年([一二两三四五六七八九十]{1,3})月([一二两三四五六七八九十]{1,3})日?""")
@@ -55,12 +54,20 @@ object ScanValueFormat {
 
     internal fun format(date: LocalDate): String = date.format(ISO_DATE)
 
+    /**
+     * 解析日期。整串必须恰好就是一个日期，这一段以外的字一律不算数。
+     *
+     * 写法的种类可以有好几种（阿拉伯数字、斜杠、中文年月日、紧凑、中文数字），但都是同一个日期的
+     * 等价写法，零歧义；而从一句话里挑出看着像日期的几个字则不是，挑出来的可能不是用户写的那个日期
+     * （2026-10-06 2027-01-01 该算哪一个）。与保质期同一条规矩：宁可认不出，也不能少算。
+     */
     internal fun parseDate(text: String): LocalDate? {
-        if (text.isEmpty()) return null
-        return runCatching { LocalDate.parse(text, ISO_DATE) }.getOrNull()
-            ?: SEPARATED_DATE.find(text)?.let(::toDate)
-            ?: COMPACT_DATE.find(text)?.let(::toDate)
-            ?: CHINESE_DATE.find(text)?.let(::chineseToDate)
+        val raw = text.trim()
+        if (raw.isEmpty()) return null
+        return runCatching { LocalDate.parse(raw, ISO_DATE) }.getOrNull()
+            ?: SEPARATED_DATE.matchEntire(raw)?.let(::toDate)
+            ?: COMPACT_DATE.matchEntire(raw)?.let(::toDate)
+            ?: CHINESE_DATE.matchEntire(raw)?.let(::chineseToDate)
     }
 
     /**

@@ -139,15 +139,18 @@ class AiVisionClient {
 
         // 思维链的键名各家不统一：DeepSeek / 智谱 / 通义 / 火山用 reasoning_content，OpenRouter 系用 reasoning
         val REASONING_KEYS = listOf("reasoning_content", "reasoning")
+        // 只写规则，不举取值例子：举了例子，就分不清模型是服从了规则的通用性、还是照着那个例子套，
+        // 而且例子本身会把这些写法教给模型。允许的单位是封闭枚举，属于规则的一部分，不算例子。
         val PROMPT = """
             你是食品标签识别助手。请从这张照片中读取以下四项，只输出 JSON，不要输出解释，也不要使用代码标记：
             {"productName":"","productionDate":"","expiryDate":"","shelfLife":""}
 
             规则：
             - productName：这是什么食品，用最简的通用品名，只写品类本身
-            - productionDate：标签上印刷的生产日期，写成 yyyy-MM-dd
-            - expiryDate：标签上印刷的过期日期或保质期截止日期，写成 yyyy-MM-dd
-            - shelfLife：标签上印刷的保质期，一律用阿拉伯数字写成「数字+单位」，标签上写的是中文数字也要换算成阿拉伯数字
+            - productionDate：标签上印刷的生产日期，只写 yyyy-MM-dd，不要带上标签上的其他字
+            - expiryDate：标签上印刷的过期日期或保质期截止日期，只写 yyyy-MM-dd，不要带上标签上的其他字
+            - shelfLife：标签上印刷的保质期，只写「整数 + 单位」这一个量，单位只允许 年、个月、天、周；
+              标签上写的是中文数字也要换算成阿拉伯数字；这个量以外的字都不要带上
             - 只填写这张照片里确实看得清的字段；看不清或没拍到的一律留空。
             - 留空表示「这张照片里没看到这一项」，不会清除此前已识别到的内容，所以不要为了补全而推测或编造。
             - 不要做任何日期推算或计算。

@@ -55,4 +55,17 @@ class AiVisionClientTest {
         assertFalse(payload.contains("thinking"))
         assertTrue(payload.contains("\"model\":\"demo-model\""))
     }
+
+    /**
+     * 提示词只写规则、不举取值例子：举了例子，就分不清模型是服从了规则的通用性、还是照着那个例子套，
+     * 而例子本身又会把这些写法教给模型。这条测试盯着别把例子加回来。
+     * （yyyy-MM-dd 是格式定义，不是取值例子，所以它必须留着。）
+     */
+    @Test
+    fun prompt_givesRulesWithoutExamples() {
+        val prompt = payloadOf("")
+
+        assertTrue(prompt.contains("yyyy-MM-dd"))
+        assertFalse("提示词里不该出现取值例子", prompt.contains("例如"))
+    }
 }
