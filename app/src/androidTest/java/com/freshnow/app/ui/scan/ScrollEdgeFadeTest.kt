@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Rule
 import org.junit.Test

@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +27,7 @@ import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ScanPhoto
+import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 @Composable
@@ -95,19 +96,31 @@ fun RecordDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                         horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                     ) {
-                        // 照片在采集或裁剪时就已落成正方形（见 ScanImageCodec），
-                        // 所以给定边长即可，与扫描页的取景框同一套尺寸规则：调用方给「多大」，组件保证「是方的」
+                        // 与竖屏同一条规则，只是取宽度的方向换了：宽度由可用高度决定。
+                        // 照片本身就落成正方形（见 ScanImageCodec），有图时自然撑成与高度等大的正方形；
+                        // 没图时占位块保持自己那点高度，不会被拉成一个大方块
                         ScanPhoto(
                             image = uiState.image,
-                            modifier = Modifier.size(photoSide)
+                            modifier = Modifier.width(photoSide)
                         )
-                        Column(
+                        // 右栏单独滚动，与扫描页同款：内容滑出折叠线时底边渐隐，提示「下面还有」
+                        val fieldsScroll = rememberScrollState()
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
                         ) {
-                            resultFields()
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(fieldsScroll)
+                            ) {
+                                resultFields()
+                            }
+                            ScrollEdgeFade(
+                                visible = fieldsScroll.canScrollForward,
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            )
                         }
                     }
                 } else {

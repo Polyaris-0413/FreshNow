@@ -20,6 +20,7 @@ import com.freshnow.app.data.local.FreshNowDatabase
 import com.freshnow.app.data.local.ScanRecord
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -67,7 +68,7 @@ class RecordDetailLayoutTest {
         }
 
         rule.setContent {
-            Box(modifier = Modifier.size(width = 480.dp, height = 320.dp)) {
+            Box(modifier = Modifier.size(width = 360.dp, height = 220.dp)) {
                 RecordDetailScreen(recordId = recordId, onBack = {}, onNavigateToEdit = {})
             }
         }
@@ -80,6 +81,12 @@ class RecordDetailLayoutTest {
         val photo = rule.onNodeWithContentDescription(context.getString(R.string.record_image_missing))
             .fetchSemanticsNode().boundsInRoot
         val name = rule.onNodeWithText(PRODUCT_NAME).fetchSemanticsNode().boundsInRoot
+
+        // 照片不能撑满整行：它一旦占满，字段就被挤到 0 宽，而上面那条「右边界 ≤ 左边界」照样成立。
+        // 不写死具体宽度：详情页有顶栏，可用高度取决于顶栏高度，不在这条用例里重算那套尺寸
+        val containerWidth = with(rule.density) { 360.dp.toPx() }
+        assertTrue("照片不应撑满整行（实际 ${photo.width}px）", photo.width < containerWidth * 0.9f)
+        assertTrue("字段不应被挤到最右侧之外", name.left < containerWidth)
 
         assertTrue(
             "照片（右边界 ${photo.right}）应当整个落在信息（左边界 ${name.left}）左侧",
