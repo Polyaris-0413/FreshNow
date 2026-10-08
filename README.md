@@ -49,9 +49,6 @@
 
 请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本
 
-由于未满足上架条件<br />
-本应用不会发布在 Google Play 及其他应用商店
-
 ## 开源许可
 
 本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
