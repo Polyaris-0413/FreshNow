@@ -40,3 +40,13 @@
 如果你有相关意愿：
 
 欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
+
+## 开源许可
+本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
+
+部分代码移植自以下开源项目:
+* [Book's Story](https://github.com/Acclorite/book-story)
+  > 过渡动画相关
+
+因为你们的付出
+才让 FreshNow 拥有了得以站在巨人肩膀上的机会，Respect🫡
