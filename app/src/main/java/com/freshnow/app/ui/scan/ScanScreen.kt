@@ -5,7 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +24,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,8 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -359,33 +358,48 @@ private fun CameraBox(
             )
             // 权限未授予时相机根本不存在，也就谈不上开灯，按钮同样不给
             if (torchAvailable) {
-                val flashlightLabel = stringResource(
-                    if (torchOn) R.string.scan_flashlight_off else R.string.scan_flashlight_on
+                // FilledIconToggleButton 自带的选中态配色是瞬时切换的，而这里要的是颜色过渡：
+                // 选中与未选中两组色都喂同一个动画值，开关语义仍由 checked 提供，颜色由我们演。
+                // 两端取值就是该组件的 token（未选中 = secondaryContainer 底 + primary 图标，
+                // 选中 = primary 底 + onPrimary 图标），见 FilledIconButtonTokens
+                val containerColor by animateColorAsState(
+                    targetValue = if (torchOn) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    },
+                    animationSpec = FreshNowTransitions.stateChange(),
+                    label = "flashlightContainerColor"
                 )
-                // 文案挂在按钮上而不是图标上：渐变期间新旧图标会同屏，挂在图标上会同时冒出两个语义节点
+                val contentColor by animateColorAsState(
+                    targetValue = if (torchOn) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    animationSpec = FreshNowTransitions.stateChange(),
+                    label = "flashlightContentColor"
+                )
                 FilledIconToggleButton(
                     checked = torchOn,
                     onCheckedChange = onTorchChange,
+                    colors = IconButtonDefaults.filledIconToggleButtonColors(
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        checkedContainerColor = containerColor,
+                        checkedContentColor = contentColor,
+                    ),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(FreshNowSpacing.xs)
-                        .semantics { contentDescription = flashlightLabel }
                 ) {
-                    // 两个图标之间的切换走页内状态切换那一档过渡（见 FreshNowTransitions.stateChange）
-                    AnimatedContent(
-                        targetState = torchOn,
-                        transitionSpec = { FreshNowTransitions.fadeSwap() },
-                        contentAlignment = Alignment.Center,
-                        label = "flashlightIcon"
-                    ) { isOn ->
-                        // 图标是状态（对准了没），按钮上的文案是动作（点下去会怎样），两者各说各的话
-                        Icon(
-                            painter = painterResource(
-                                if (isOn) R.drawable.ic_flashlight_on else R.drawable.ic_flashlight_off
-                            ),
-                            contentDescription = null
+                    // 开与关共用同一个图标，状态只由上面的颜色表达
+                    Icon(
+                        painter = painterResource(R.drawable.ic_flashlight_on),
+                        contentDescription = stringResource(
+                            if (torchOn) R.string.scan_flashlight_off else R.string.scan_flashlight_on
                         )
-                    }
+                    )
                 }
             }
         } else {
