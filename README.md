@@ -49,8 +49,8 @@
 ## 开源许可
 本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
 
-部分代码移植自以下开源项目:
-* [Book's Story](https://github.com/Acclorite/book-story)（提供了过渡动画）
+部分代码移植自以下项目:
+* [Book's Story](https://github.com/Acclorite/book-story)（提供了好看的过渡动画）
 
-因为你们的付出
-才让 FreshNow 拥有了得以站在巨人肩膀上的机会，Respect🫡
+在此致敬，是你们的付出  
+才让 FreshNow 拥有了得以站在巨人肩膀上的机会
