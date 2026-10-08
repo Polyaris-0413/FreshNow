@@ -21,14 +21,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,12 +46,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.MenuBottomSheet
+import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanPhoto
+import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -70,9 +76,10 @@ fun RecordEditScreen(
     val readFailedToast = stringResource(R.string.record_image_read_failed)
     val saveFailedToast = stringResource(R.string.record_image_save_failed)
 
-    // 换照片的来源选择是本页的状态，不进 ViewModel：它只是「对话框开着吗」，不需要跨进程重建
+    // 换照片的来源选择是本页的状态，不进 ViewModel：它只是「面板开着吗」，不需要跨进程重建
     var showImageSources by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
+    val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val galleryLauncher = rememberLauncherForActivityResult(
         // 系统的照片选择器：不需要读存储权限，Android 13 以下由系统退回自己的选择器
@@ -80,6 +87,10 @@ fun RecordEditScreen(
     ) { uri ->
         if (uri != null) viewModel.onImagePicked(uri)
     }
+
+    // 先收起面板再动手：拉起系统选择器或进拍照页与收起动画同时进行会互相打断
+    fun dismissSheetThen(action: () -> Unit) =
+        scope.hideSheetThen(imageSheetState, onHidden = { showImageSources = false }, action = action)
 
     // 选来的图读不出来时报一声。提示是个瞬时动作，读完立刻清掉标志，免得下次进来又弹一遍
     LaunchedEffect(uiState.imageReadFailed) {
@@ -181,23 +192,19 @@ fun RecordEditScreen(
     }
 
     if (showImageSources) {
-        ChangePhotoDialog(
+        ChangePhotoSheet(
             hasImage = uiState.image != null,
+            sheetState = imageSheetState,
             onDismissRequest = { showImageSources = false },
             onPickFromGallery = {
-                showImageSources = false
-                galleryLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
+                dismissSheetThen {
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
             },
-            onTakePhoto = {
-                showImageSources = false
-                showCamera = true
-            },
-            onRemove = {
-                showImageSources = false
-                viewModel.onImageRemoved()
-            }
+            onTakePhoto = { dismissSheetThen { showCamera = true } },
+            onRemove = { dismissSheetThen(viewModel::onImageRemoved) }
         )
     }
 }
@@ -205,34 +212,33 @@ fun RecordEditScreen(
 /**
  * 换照片：从哪来，或者不要了。
  *
- * 用居中的对话框而不是底部面板：这里要的是一句问话加几个并列的做法，而 M3 把「问一句 + 两三个
- * 动作」的形态放在对话框（主页的删除确认、扫描页的离开确认都是这一套）；底部面板在 M3 里是承载
- * 内容与长期交互的地方（设置页那两个编辑面板）。
+ * 就是一叠居中卡片（见 MenuBottomSheet），与主页顶栏「更多选项」展开后同一副外观：这里是
+ * 挑一个动作，不是一列设置项，M3 的 ListItem 长成「左图右文的一行行」是给后者的。
  *
- * 「从相册选择」与「拍照」拼成一块：两者是同一层级的两个来路，左右各占一半，中间一条
- * outlineVariant 分隔线（即 M3 的 connected buttons 形态）；上下排成两行的话，这一问会变成三行，
- * 与「移除照片」挤在同一列里，谁都不是重点。
- *
- * 「移除照片」放在对话框的确认位、用 error 色，与主页删除确认里那个「删除」同位置同做法：
- * 它是本对话框里唯一不可逆的一步，只有真的有照片时才出现（无图时它按下去也只是把草稿再置空）。
+ * 「从相册选择」与「拍照」拼成一块：两者是同一层级的两个来路，并排各占一半比上下叠成两张卡片
+ * 更读得出它们是一组；中间一条 outlineVariant 分隔线把两块分干净（M3 的 connected buttons
+ * 就是这么拼的）。「移除照片」自成一张卡——它是另一回事（不要了），且只在真有照片时才出现。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChangePhotoDialog(
+private fun ChangePhotoSheet(
     hasImage: Boolean,
+    sheetState: SheetState,
     onDismissRequest: () -> Unit,
     onPickFromGallery: () -> Unit,
     onTakePhoto: () -> Unit,
     onRemove: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(text = stringResource(R.string.record_image_change)) },
-        text = {
+    MenuBottomSheet(sheetState = sheetState, onDismissRequest = onDismissRequest) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                verticalAlignment = Alignment.CenterVertically
+                    .height(IntrinsicSize.Min)
             ) {
                 PhotoSourceAction(
                     text = stringResource(R.string.record_image_source_gallery),
@@ -246,45 +252,30 @@ private fun ChangePhotoDialog(
                     modifier = Modifier.weight(1f)
                 )
             }
-        },
-        confirmButton = {
-            if (hasImage) {
-                TextButton(
-                    onClick = onRemove,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text(text = stringResource(R.string.record_image_remove))
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text(text = stringResource(R.string.action_cancel))
-            }
         }
-    )
+        if (hasImage) {
+            MenuSheetItem(
+                text = stringResource(R.string.record_image_remove),
+                onClick = onRemove
+            )
+        }
+    }
 }
 
 /**
- * 拼接块里的一格。字阶与颜色取 M3 文字按钮的那一套（labelLarge + primary），
- * 它读起来就是个按钮，只是两块贴在一起而已。
+ * 拼接块里的一格。字阶与居中方式与 MenuSheetItem 一致（bodyLarge + 居中），
+ * 两块并排只是共用一张卡片而已。
  */
 @Composable
 private fun PhotoSourceAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
+    Text(
+        text = text,
         modifier = modifier
             .clickable(onClick = onClick)
             .padding(vertical = FreshNowSpacing.sm),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center
+    )
 }
 
 /**

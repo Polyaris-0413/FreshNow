@@ -9,14 +9,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,23 +22,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,7 +55,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,7 +63,10 @@ import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.component.FreshNowTopAppBar
+import com.freshnow.app.ui.component.MenuBottomSheet
+import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanThumbnail
+import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.scanValueText
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -154,14 +149,8 @@ fun HomeScreen(
     BackHandler(enabled = inSelectionMode) { onExitSelection() }
 
     // 先收起 bottom sheet 再跳转，避免收起动画与导航互相打断
-    fun dismissSheetThen(action: () -> Unit) {
-        scope.launch { sheetState.hide() }.invokeOnCompletion {
-            if (!sheetState.isVisible) {
-                showSheet = false
-                action()
-            }
-        }
-    }
+    fun dismissSheetThen(action: () -> Unit) =
+        scope.hideSheetThen(sheetState, onHidden = { showSheet = false }, action = action)
 
     // 顶栏的两副面孔用一个可空计数表示：null 是普通列表，非 null 是选择模式及其计数。
     //
@@ -251,39 +240,18 @@ fun HomeScreen(
     }
 
     if (showSheet) {
-        // M3 把拖动手柄整个槽（一块 32×48 的触摸区）包了一层不带形状的 clickable，涟漪于是按那块
-        // 矩形铺开，与里面 4dp 的胶囊完全不是一回事。手柄这里本来也不需要按压反馈——「点它收起
-        // 面板」没有歧义——所以直接关掉：给 `LocalRippleConfiguration` 传 null 就是 M3 为这件事留的
-        // 开关（见 Ripple.kt 的 KDoc）。手柄的点击、长按提示与无障碍语义都不受影响。
-        val defaultRippleConfiguration = LocalRippleConfiguration.current
-
-        CompositionLocalProvider(LocalRippleConfiguration provides null) {
-            ModalBottomSheet(
-                onDismissRequest = { showSheet = false },
-                sheetState = sheetState
-            ) {
-                // 面板内部把默认配置恢复回去，否则两张菜单卡片的按压反馈也会一起被关掉
-                CompositionLocalProvider(
-                    LocalRippleConfiguration provides defaultRippleConfiguration
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = FreshNowSpacing.sm)
-                            .padding(bottom = FreshNowSpacing.sm),
-                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
-                    ) {
-                        SheetMenuItem(
-                            text = stringResource(R.string.about),
-                            onClick = { dismissSheetThen(onNavigateToAbout) }
-                        )
-                        SheetMenuItem(
-                            text = stringResource(R.string.settings),
-                            onClick = { dismissSheetThen(onNavigateToSettings) }
-                        )
-                    }
-                }
-            }
+        MenuBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { showSheet = false }
+        ) {
+            MenuSheetItem(
+                text = stringResource(R.string.about),
+                onClick = { dismissSheetThen(onNavigateToAbout) }
+            )
+            MenuSheetItem(
+                text = stringResource(R.string.settings),
+                onClick = { dismissSheetThen(onNavigateToSettings) }
+            )
         }
     }
 
@@ -339,33 +307,6 @@ private fun SelectionCountTitle(count: Int, modifier: Modifier = Modifier) {
             Text(text = current.toString())
         }
         Text(text = stringResource(R.string.home_selected_count_suffix))
-    }
-}
-
-/**
- * 单个条目自成圆角框；两个条目结构相同，尺寸因此一致
- */
-@Composable
-private fun SheetMenuItem(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-        )
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = FreshNowSpacing.sm),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
