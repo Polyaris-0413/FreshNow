@@ -36,8 +36,8 @@ data class ScanUiState(
     val status: ScanStatus = ScanStatus.Idle,
     val reasoning: String = "",
     val showReasoning: Boolean = false,
-    /** AI 服务用不了时弹出的说明对话框：null 表示不弹，正文即服务端返回的原话 */
-    val serviceDialogMessage: String? = null
+    /** AI 服务用不了时弹出的说明对话框：null 表示不弹；有值时即「复制」写进剪贴板的那份日志 */
+    val serviceDialogLog: String? = null
 )
 
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
@@ -135,30 +135,31 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun onServiceUsable() {
         problemFrames = 0
-        _uiState.update { it.copy(serviceDialogMessage = null) }
+        _uiState.update { it.copy(serviceDialogLog = null) }
     }
 
     /**
      * 服务这一帧用不了：攒够帧数就弹说明对话框，单帧失败往往只是一次抖动，不值得打断扫描。
-     * 正文用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里。
+     * 日志用服务端返回的原话：转述过的「常见原因」往往对不上真正错在哪里，而这份日志要交给别的
+     * AI 去读，改写过就更查不出东西了。
      *
      * 弹窗期间不求值：每帧都写一次 StateFlow 会白白触发重组。已经弹了就等界面来关，
      * 关掉后从零重数，所以服务持续不可用时大约每隔几秒会再提醒一次
      */
-    private fun onServiceProblem(message: String) {
-        if (_uiState.value.serviceDialogMessage != null) return
+    private fun onServiceProblem(log: String) {
+        if (_uiState.value.serviceDialogLog != null) return
         problemFrames++
         if (problemFrames < PROBLEM_FRAMES_BEFORE_PROMPT) return
         problemFrames = 0
-        _uiState.update { it.copy(serviceDialogMessage = message) }
+        _uiState.update { it.copy(serviceDialogLog = log) }
     }
 
     /**
-     * 关掉说明对话框。两个按钮都要先关掉它，至于接下来是去设置还是回主页，由界面决定：
+     * 关掉说明对话框。两个按钮都要先关掉它，至于接下来是复制日志还是回主页，由界面决定：
      * 服务用不了的话，留在本页只能是被同一条报错反复打断
      */
     fun closeServiceDialog() {
-        _uiState.update { it.copy(serviceDialogMessage = null) }
+        _uiState.update { it.copy(serviceDialogLog = null) }
     }
 
     /**

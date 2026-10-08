@@ -63,9 +63,6 @@ private const val CAMERA_ASPECT_RATIO = 1f
 // 思维链面板的高度上限，约 12 行正文，超出部分面板内滚动
 private val REASONING_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight
 
-// 服务端报错正文的高度上限，约 6 行：够看住常见的错误码与 message，超出的部分在对话框内滚
-private val SERVICE_ERROR_MAX_HEIGHT = FreshNowSize.scrollableTextPanelHeight / 2
-
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
@@ -225,10 +222,17 @@ fun ScanScreen(
     }
 
     // 保存确认优先：有结果且服务正好连不上时两个对话框都该弹，叠在一起只会看到最上面那个
-    uiState.serviceDialogMessage?.let { message ->
+    uiState.serviceDialogLog?.let { log ->
         if (showSaveDialog) return@let
         ServiceUnavailableDialog(
-            message = message,
+            // 未配置时没有服务端日志可交出去，「复制」到的就是这句配置指引，正文就只能写它；
+            // 其余情况正文只教怎么用这份日志
+            body = if (uiState.status is ScanStatus.NotConfigured) {
+                log
+            } else {
+                stringResource(R.string.scan_service_dialog_message)
+            },
+            log = log,
             onAcknowledge = {
                 viewModel.closeServiceDialog()
                 // 服务都用不了，留在本页只是等下一次弹窗；但已扫到的内容不能因为服务挂了就静默丢掉，
@@ -242,12 +246,12 @@ fun ScanScreen(
 /**
  * AI 服务用不了时的说明。
  *
- * 正文就是服务端返回的原话（超时这类没返回体的情况则是本地异常的描述）：常见原因没法一概而论
- * ——密钥、模型名、额度、地址后缀各自错法不同，转述一句反而把真正的线索盖掉。
- * 底栏那份错误文案已经删了，所以这里是用户唯一能看到错误原因的地方。
+ * 正文只说明「怎么办」，不显示服务端返回了什么：日志是给别的 AI 读的，一键复制比在对话框里
+ * 摊开一段原始报错省事，正文也就不必再为长文本留滑块区。日志本身仍要经手一遍——[log] 就是
+ * 「复制」写进剪贴板的内容。
  *
- * 两个按钮：「复制」把正文放进剪贴板，好拿去问别的 AI——本页的 AI 已经用不了了，这是此时唯一
- * 还有意义的动作，因此放在确认位；「知道了」回主页，留给不想深究的人。
+ * 两个按钮：「复制」把 [log] 放进剪贴板，好拿去问别的 AI——本页的 AI 已经用不了了，这是此时
+ * 唯一还有意义的动作，因此放在确认位；「知道了」回主页，留给不想深究的人。
  * 规范限制对话框最多两个动作，而服务不可用时的合理出路本就只有这两条。
  *
  * 提为 internal 是为了能在仪器化测试里直接断言两个入口：设备上要复现「服务连不上」，
@@ -255,7 +259,8 @@ fun ScanScreen(
  */
 @Composable
 internal fun ServiceUnavailableDialog(
-    message: String,
+    body: String,
+    log: String,
     onAcknowledge: () -> Unit
 ) {
     val context = LocalContext.current
@@ -264,30 +269,13 @@ internal fun ServiceUnavailableDialog(
     AlertDialog(
         onDismissRequest = onAcknowledge,
         title = { Text(text = stringResource(R.string.scan_service_dialog_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)) {
-                // 正文是服务端的原话，用户未必知道拿它怎么办，这行字说明它的用处
-                Text(
-                    text = stringResource(R.string.scan_service_dialog_copy_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                // 原样一段，没有换行也会很长，让它自己滚，别把对话框抻成整屏
-                Text(
-                    text = message,
-                    modifier = Modifier
-                        .heightIn(max = SERVICE_ERROR_MAX_HEIGHT)
-                        .verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        },
+        text = { Text(text = body) },
         confirmButton = {
             TextButton(
                 onClick = {
                     // 写进剪贴板这一步在界面上看不出来，所以必须回一句提示
                     context.getSystemService(ClipboardManager::class.java)
-                        .setPrimaryClip(ClipData.newPlainText(null, message))
+                        .setPrimaryClip(ClipData.newPlainText(null, log))
                     showToast(context, copiedToast)
                 }
             ) {

@@ -45,9 +45,9 @@
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>
     <string name="scan_grant_permission">授予权限</string>
     <string name="scan_ai_not_configured">尚未配置 AI，请先在「设置 → 基础配置」中填写</string>
-    <!-- 服务用不了时扫描页不再自己列可能的原因：服务端返回的原话比转述更准，直接贴上来 -->
+    <!-- 服务用不了时不在对话框里摊开日志：日志是给别的 AI 读的，一键复制比展成一段长文本省事 -->
     <string name="scan_service_dialog_title">无法使用 AI 服务</string>
-    <string name="scan_service_dialog_copy_hint">可以把以下日志复制下来，发给其他 AI 助手分析：</string>
+    <string name="scan_service_dialog_message">请点击「复制」，将剪贴板内容发给其他 AI。</string>
     <string name="scan_service_dialog_copy">复制</string>
     <string name="scan_service_dialog_copied">已复制</string>
     <string name="scan_service_dialog_dismiss">知道了</string>
