@@ -42,7 +42,7 @@
 欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
 
 ## 下载
-请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases) 下载最新版本  
+请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本 
 
 由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店
 
