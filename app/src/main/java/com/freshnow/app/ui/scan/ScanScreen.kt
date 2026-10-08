@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -45,12 +47,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
@@ -72,15 +77,35 @@ fun ScanScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val activity = LocalActivity.current
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED
         )
     }
+    // 请求已发出、结果还没到。首次进入本页会自动弹一次，这段时间里系统弹窗正盖在界面上，
+    // 不能把「未授予且系统不再弹窗」判成永久拒绝
+    var awaitingPermissionAnswer by remember { mutableStateOf(!hasCameraPermission) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted -> hasCameraPermission = granted }
+    ) { granted ->
+        hasCameraPermission = granted
+        awaitingPermissionAnswer = false
+    }
+
+    // 权限也能在系统设置里改，回来时以真实权限为准（从设置页开完权限回来要立刻恢复取景）
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        hasCameraPermission =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+    }
+
+    // 系统不再弹窗（rationale 为 false）说明用户已拒两次、或已被策略禁止，此时再调请求不会有任何反应，
+    // 只能引导用户去设置页（见 Android 关于 shouldShowRequestPermissionRationale 的说明）
+    val permissionBlocked = !hasCameraPermission &&
+        !awaitingPermissionAnswer &&
+        activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) == false
 
     var showSaveDialog by remember { mutableStateOf(false) }
     // 手电筒是相机的状态而不是页面数据，不进 ViewModel；但换版式或旋转会重建 Activity，
@@ -98,7 +123,15 @@ fun ScanScreen(
     BackHandler(enabled = hasResult) { showSaveDialog = true }
 
     LaunchedEffect(Unit) {
-        if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+        if (!hasCameraPermission) {
+            awaitingPermissionAnswer = true
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun requestCameraPermission() {
+        awaitingPermissionAnswer = true
+        permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     FreshNowSubPage(
@@ -110,7 +143,11 @@ fun ScanScreen(
         val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
             CameraBox(
                 hasCameraPermission = hasCameraPermission,
-                onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                permissionBlocked = permissionBlocked,
+                // 被永久拒绝时再调请求不会有任何反应，改跳系统设置页
+                onRequestPermission = {
+                    if (permissionBlocked) openAppSettings(context) else requestCameraPermission()
+                },
                 torchOn = torchOn,
                 onTorchChange = { torchOn = it },
                 canAcceptFrame = viewModel::canAcceptFrame,
@@ -278,7 +315,7 @@ internal fun ServiceUnavailableDialog(
         confirmButton = {
             when (problem) {
                 ServiceProblem.NotConfigured -> TextButton(onClick = onOpenSettings) {
-                    Text(text = stringResource(R.string.scan_service_dialog_open_settings))
+                    Text(text = stringResource(R.string.action_open_settings))
                 }
 
                 is ServiceProblem.Failed -> TextButton(
@@ -415,6 +452,7 @@ private fun ReasoningPanel(reasoning: String) {
 @Composable
 private fun CameraBox(
     hasCameraPermission: Boolean,
+    permissionBlocked: Boolean,
     onRequestPermission: () -> Unit,
     torchOn: Boolean,
     onTorchChange: (Boolean) -> Unit,
@@ -485,23 +523,60 @@ private fun CameraBox(
                 }
             }
         } else {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(FreshNowSpacing.sm),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-            ) {
-                Text(
-                    text = stringResource(R.string.scan_permission_required),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+            CameraPermissionHint(
+                permissionBlocked = permissionBlocked,
+                onGrantPermission = onRequestPermission,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+}
+
+/**
+ * 没有相机权限时的空态。
+ *
+ * 做成「图 + 文 + 动作」三件套，而不是只摆一句提示加一个按钮：取景框里本来该有画面，只是一时
+ * 显示不出来，这正是 Material 定义的空态（内容显示不了的区域，用非交互图像 + 一句 tagline 交代，
+ * 需要用户动手时再补一个动作）。取值全走设计源：图标边长用 [FreshNowSize.icon]（那一档就是
+ * 空态/占位图标边长）、间距用 [FreshNowSpacing]，与主页的「还没有扫描记录」同一套。
+ *
+ * 图是装饰，语义由文案承担，因此不写 contentDescription，读屏软件不会把同一件事读两遍。
+ *
+ * 提为 internal 是为了能在仪器化测试里直接断言两种形态：设备上要复现「权限被永久拒绝」，
+ * 得真的把系统弹窗连拒两次。
+ */
+@Composable
+internal fun CameraPermissionHint(
+    permissionBlocked: Boolean,
+    onGrantPermission: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(FreshNowSpacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_camera),
+            contentDescription = null,
+            modifier = Modifier.size(FreshNowSize.icon),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = stringResource(
+                // 被永久拒绝时要交待清为何点下去不再弹窗，只说「需要权限」会让人以为按钮坏了
+                if (permissionBlocked) R.string.scan_permission_denied else R.string.scan_permission_required
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Button(onClick = onGrantPermission) {
+            Text(
+                text = stringResource(
+                    if (permissionBlocked) R.string.action_open_settings else R.string.scan_grant_permission
                 )
-                Button(onClick = onRequestPermission) {
-                    Text(text = stringResource(R.string.scan_grant_permission))
-                }
-            }
+            )
         }
     }
 }
