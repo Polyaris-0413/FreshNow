@@ -42,17 +42,17 @@
 
 ## 贡献
 
-如果你有相关意愿，欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)。
+如果你有相关意愿，欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
 
 ## 下载
 
-请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本。
+请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本
 
-由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店。
+由于未满足上架条件，本应用不会发布在 Google Play 及其他应用商店
 
 ## 开源许可
 
-本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布。
+本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
 
 部分代码来自以下项目：
 
