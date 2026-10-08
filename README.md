@@ -32,6 +32,6 @@
 ## 截图
 <p style="text-align: center;">
   <img width="32%" src="https://github.com/user-attachments/assets/b6c8dc7c-ccc2-4720-9a9a-b9a115a34fca" />
-  <img width="32%" src="https://github.com/user-attachments/assets/20dd65e6-7da5-4ca0-a4c8-064922cd2f6a" />
   <img width="32%" src="https://github.com/user-attachments/assets/5fbec4e3-0da0-42da-b752-4f196972ec96" />
+  <img width="32%" src="https://github.com/user-attachments/assets/20dd65e6-7da5-4ca0-a4c8-064922cd2f6a" />
 </p>
