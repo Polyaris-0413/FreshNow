@@ -74,17 +74,15 @@ class ExpiryCalculatorTest {
         )
     }
 
-    /** 「半个月」不再折成 15 天：如实报认不出，而不是给一个靠「1个月=30天」凑出来的日期 */
+    /** 「半」一律不认：如实报认不出，而不是折算出一个靠假设或额外解释才能成立的日期 */
     @Test
-    fun reportsUnparseableHalfMonth() {
-        assertEquals(
-            ExpiryOutcome.UnparseableShelfLife,
-            ExpiryCalculator.resolve("", "2025-01-01", "半个月")
-        )
-        assertEquals(
-            ExpiryOutcome.UnparseableShelfLife,
-            ExpiryCalculator.resolve("", "2025-01-01", "1.5个月")
-        )
+    fun reportsUnparseableHalf() {
+        listOf("半个月", "1.5个月", "半年", "一年半").forEach {
+            assertEquals(
+                ExpiryOutcome.UnparseableShelfLife,
+                ExpiryCalculator.resolve("", "2025-01-01", it)
+            )
+        }
     }
 
     /** 标签上写中文数字的情况，例如「十八个月」 */
@@ -93,10 +91,6 @@ class ExpiryCalculatorTest {
         assertEquals(
             ExpiryOutcome.Resolved("2026-07-01"),
             ExpiryCalculator.resolve("", "2025-01-01", "十八个月")
-        )
-        assertEquals(
-            ExpiryOutcome.Resolved("2026-05-01"),
-            ExpiryCalculator.resolve("", "2025-11-01", "半年")
         )
     }
 

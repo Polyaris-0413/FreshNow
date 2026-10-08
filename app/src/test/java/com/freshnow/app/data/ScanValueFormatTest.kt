@@ -91,24 +91,21 @@ class ScanValueFormatTest {
         assertEquals("24个月", ScanValueFormat.shelfLife("二十四个月"))
     }
 
-    /** 「半」落在年上是整月数（半年 = 6个月、一年半 = 18个月），算得出就换算 */
-    @Test
-    fun shelfLife_halfOfYear_isConverted() {
-        assertEquals("6个月", ScanValueFormat.shelfLife("半年"))
-        assertEquals("18个月", ScanValueFormat.shelfLife("一年半"))
-    }
-
     /**
-     * 「半个月」不再折成 15 天：1 个月是 28~31 天，凑出 15 天靠的是「1个月=30天」这个假设，
-     * 真实天数还随生产日期浮动。宁可让用户改写成「15天」，也不存一个猜出来的值
+     * 「半」一律不认：只认整数，规则才有一句话的余地（整数 + 年 / 个月 / 天 / 周）。
+     * 半年、一年半换算得出（6、18 个月），但留着它们就得解释「半在年后面可以、在月后面不行」，
+     * 而半个月这类本就要靠「1个月=30天」的假设
      */
     @Test
-    fun shelfLife_halfMonth_isNotGuessed() {
+    fun shelfLife_half_isNotAccepted() {
+        assertEquals("半年", ScanValueFormat.shelfLife("半年"))
+        assertEquals("一年半", ScanValueFormat.shelfLife("一年半"))
         assertEquals("半个月", ScanValueFormat.shelfLife("半个月"))
         assertEquals("1个月半", ScanValueFormat.shelfLife("1个月半"))
         assertEquals("1个半月", ScanValueFormat.shelfLife("1个半月"))
-        // 旧规则会从这里搜出「半月」当成 15 天
         assertEquals("两个半月", ScanValueFormat.shelfLife("两个半月"))
+        assertEquals("半天", ScanValueFormat.shelfLife("半天"))
+        assertEquals("半周", ScanValueFormat.shelfLife("半周"))
     }
 
     /**
@@ -129,12 +126,6 @@ class ScanValueFormatTest {
         assertEquals("14天", ScanValueFormat.shelfLife("2周"))
         assertEquals("14天", ScanValueFormat.shelfLife("2 个星期"))
         assertEquals("14天", ScanValueFormat.shelfLife("两个星期"))
-    }
-
-    /** 半周算不出整天数，如实返回失败（与「半天」同一规则），不四舍五入 */
-    @Test
-    fun shelfLife_halfWeek_isNotGuessed() {
-        assertEquals("半周", ScanValueFormat.shelfLife("半周"))
     }
 
     /** 端到端：周也能算出过期日期 */
