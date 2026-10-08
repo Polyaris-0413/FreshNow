@@ -30,11 +30,14 @@ object ScanValueFormat {
         Regex("""([〇零一二三四五六七八九]{4})年([一二两三四五六七八九十]{1,3})月([一二两三四五六七八九十]{1,3})日?""")
 
     // 保质期数量：阿拉伯数字、中文数字（一 两 十八 二十四），或「半」
+    //
+    // 数量前不许再连着数字、小数点或中文数字：那说明这里是更长的一串（1.5个月、-5天、一百二十天），
+    // 往后能找到的「5个月」「5天」「二十天」都不是用户写的那个量。与日期同一条规矩，
+    // 宁可认不出，也不能把「1.5个月」悄悄当成 5 个月
     private val SHELF_LIFE =
-        Regex("""(\d+|[一二两三四五六七八九十]+|半)\s*(个月|月|个星期|星期|个周|周|天|日|年)(半?)""")
+        Regex("""(?<![\d.．+\-−一二两三四五六七八九十百千〇零半])(\d+|[一二两三四五六七八九十]+|半)\s*(个月|月|个星期|星期|个周|周|天|日|年)(半?)""")
 
     private const val MAX_AMOUNT = 9999.0
-    private const val DAYS_PER_MONTH = 30
     private const val MONTHS_PER_YEAR = 12
     private const val DAYS_PER_WEEK = 7
     private const val HALF = 0.5
@@ -64,8 +67,13 @@ object ScanValueFormat {
      * 解析保质期。中文数字与「半」都认：标签上「两个月」「半年」「一年半」都很常见；
      * 周也认，酸奶、酸奶类短保商品常写「2周」。
      *
-     * 「半」会落在小数上，按 年 = 12 个月、月 = 30 天、周 = 7 天 折算成整数量（半年 = 6个月、
-     * 半个月 = 15天、一年半 = 18个月）；折算不出整数的（例如半天、半周）返回 null，不做四舍五入。
+     * 只做有定义的换算：1 年 = 12 个月、1 周 = 7 天，都是恒等式，所以「半年」= 6个月、
+     * 「一年半」= 18个月、「2周」= 14天 都能得到唯一结果。
+     *
+     * 不把月折成天：1 个月是 28~31 天，写成 30 天只是一个假设，「半个月」到底是 14 天还是 15 天
+     * 无从判断（真实天数还随生产日期浮动）。凡要靠这类假设才能凑出结果的写法一律返回 null——
+     * 与「认不出的原样返回」同一条规矩，宁可让用户改写成「15天」。同一条规矩下，
+     * 「半天」「半周」也算不出整天的数，一并返回 null。
      */
     internal fun parseShelfLife(text: String): Period? {
         val match = SHELF_LIFE.find(text.trim()) ?: return null
@@ -75,9 +83,7 @@ object ScanValueFormat {
 
         return when (match.groupValues[2]) {
             "年" -> wholeMonths(total * MONTHS_PER_YEAR)
-            "个月", "月" ->
-                if (total % 1.0 == 0.0) Period.ofMonths(total.toInt())
-                else wholeDays(total * DAYS_PER_MONTH)
+            "个月", "月" -> wholeMonths(total)
             "周", "个周", "星期", "个星期" -> wholeDays(total * DAYS_PER_WEEK)
             "天", "日" -> wholeDays(total)
             else -> null

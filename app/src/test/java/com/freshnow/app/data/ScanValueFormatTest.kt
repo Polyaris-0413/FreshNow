@@ -91,11 +91,35 @@ class ScanValueFormatTest {
         assertEquals("24个月", ScanValueFormat.shelfLife("二十四个月"))
     }
 
+    /** 「半」落在年上是整月数（半年 = 6个月、一年半 = 18个月），算得出就换算 */
     @Test
-    fun shelfLife_half_isConverted() {
+    fun shelfLife_halfOfYear_isConverted() {
         assertEquals("6个月", ScanValueFormat.shelfLife("半年"))
         assertEquals("18个月", ScanValueFormat.shelfLife("一年半"))
-        assertEquals("15天", ScanValueFormat.shelfLife("半个月"))
+    }
+
+    /**
+     * 「半个月」不再折成 15 天：1 个月是 28~31 天，凑出 15 天靠的是「1个月=30天」这个假设，
+     * 真实天数还随生产日期浮动。宁可让用户改写成「15天」，也不存一个猜出来的值
+     */
+    @Test
+    fun shelfLife_halfMonth_isNotGuessed() {
+        assertEquals("半个月", ScanValueFormat.shelfLife("半个月"))
+        assertEquals("1个月半", ScanValueFormat.shelfLife("1个月半"))
+        assertEquals("1个半月", ScanValueFormat.shelfLife("1个半月"))
+        // 旧规则会从这里搜出「半月」当成 15 天
+        assertEquals("两个半月", ScanValueFormat.shelfLife("两个半月"))
+    }
+
+    /**
+     * 数值前还粘着东西时不敢认：`1.5个月` 里往后能找到 `5个月`、`-5天` 里能找到 `5天`，
+     * 但那都不是用户写的量。与日期同一条规矩（见 date_withTooManyDigits_isKeptAsIs）
+     */
+    @Test
+    fun shelfLife_withLeadingNumericNoise_isKeptAsIs() {
+        assertEquals("1.5个月", ScanValueFormat.shelfLife("1.5个月"))
+        assertEquals("-5天", ScanValueFormat.shelfLife("-5天"))
+        assertEquals("一百二十天", ScanValueFormat.shelfLife("一百二十天"))
     }
 
     /** 酸奶、面包这类短保标签常写「周」，归到天 */

@@ -89,4 +89,18 @@ class RecordEditValidationTest {
 
         assertEquals(ExpiryOutcome.Resolved("2026-10-20"), vm.uiState.value.derivedExpiry)
     }
+
+    /** 靠「1个月=30天」这类假设才凑得出结果的写法不给保存，改写成「15天」即可 */
+    @Test
+    fun guessedShelfLifeIsFlagged() {
+        val vm = viewModel()
+
+        vm.onShelfLifeChange("半个月")
+        assertTrue(vm.uiState.value.shelfLifeInvalid)
+        assertFalse(vm.uiState.value.canSave)
+
+        vm.onShelfLifeChange("15天")
+        assertFalse(vm.uiState.value.shelfLifeInvalid)
+        assertTrue(vm.uiState.value.canSave)
+    }
 }
