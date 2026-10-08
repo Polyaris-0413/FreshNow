@@ -311,7 +311,6 @@ private fun ExtraRequestEditor(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text(text = stringResource(R.string.ai_settings_extra_label)) },
-            placeholder = { Text(text = stringResource(R.string.ai_settings_extra_example)) },
             supportingText = {
                 Text(
                     text = stringResource(R.string.ai_settings_extra_hint)
