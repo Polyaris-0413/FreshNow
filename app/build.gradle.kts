@@ -24,6 +24,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 让 debug 与 release 能在同一台设备上共存：包名不同 → 互不覆盖，也就不必让 debug
+            // 共用发布密钥（发布包是 AS 的 Generate Signed APK 向导用 -Pandroid.injected.signing.*
+            // 注入签名构建的，仓库里不存任何签名材料）。
+            // 后缀只能加在 debug 上：baselineprofile 的录制脚本认死 com.freshnow.app，而它跑在
+            // nonMinifiedRelease（从 release 派生）上，加了后缀就连不上目标应用。
+            applicationIdSuffix = ".debug"
+        }
         release {
             // packageScope 留空即默认的 "**"，R8 收缩范围覆盖整个应用
             optimization {
