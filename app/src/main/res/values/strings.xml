@@ -9,6 +9,7 @@
     <string name="action_delete">删除</string>
     <string name="action_exit_selection">退出选择</string>
     <string name="action_open_settings">去设置</string>
+    <string name="action_edit">编辑</string>
     <string name="about">关于</string>
     <string name="settings">设置</string>
 
@@ -41,6 +42,11 @@
     <string name="home_delete_dialog_message">记录和扫描照片都会被删除，无法恢复。</string>
     <string name="record_detail_title">记录详情</string>
     <string name="record_detail_missing">记录不存在</string>
+    <string name="record_edit_title">编辑记录</string>
+    <!-- 过期日期可编也可留空：留空即跟随推算，所以把推算结果和它的两种“算不出”分别说清 -->
+    <string name="record_edit_expiry_hint">留空则按生产日期与保质期推算：%1$s</string>
+    <string name="record_edit_expiry_hint_missing">留空则按生产日期与保质期推算，但缺了其中一项</string>
+    <string name="record_edit_expiry_hint_unparseable">留空则按生产日期与保质期推算，但保质期认不出写法</string>
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
     <string name="scan_permission_required">需要相机权限才能开始扫描</string>

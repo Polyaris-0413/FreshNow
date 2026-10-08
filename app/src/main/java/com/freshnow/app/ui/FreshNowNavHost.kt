@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.freshnow.app.R
 import com.freshnow.app.ui.detail.RecordDetailScreen
+import com.freshnow.app.ui.detail.RecordEditScreen
 import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
@@ -29,8 +30,11 @@ object FreshNowRoute {
 
     const val RECORD_ID_ARG = "recordId"
     const val RECORD_DETAIL = "record/{$RECORD_ID_ARG}"
+    const val RECORD_EDIT = "record/{$RECORD_ID_ARG}/edit"
 
     fun recordDetail(id: Long) = "record/$id"
+
+    fun recordEdit(id: Long) = "record/$id/edit"
 }
 
 @Composable
@@ -67,7 +71,18 @@ fun FreshNowNavHost(
             route = FreshNowRoute.RECORD_DETAIL,
             arguments = listOf(navArgument(FreshNowRoute.RECORD_ID_ARG) { type = NavType.LongType })
         ) { entry ->
+            val recordId = entry.arguments?.getLong(FreshNowRoute.RECORD_ID_ARG) ?: 0L
             RecordDetailScreen(
+                recordId = recordId,
+                onBack = { navController.navigateUp() },
+                onNavigateToEdit = { navController.navigate(FreshNowRoute.recordEdit(recordId)) }
+            )
+        }
+        composable(
+            route = FreshNowRoute.RECORD_EDIT,
+            arguments = listOf(navArgument(FreshNowRoute.RECORD_ID_ARG) { type = NavType.LongType })
+        ) { entry ->
+            RecordEditScreen(
                 recordId = entry.arguments?.getLong(FreshNowRoute.RECORD_ID_ARG) ?: 0L,
                 onBack = { navController.navigateUp() }
             )

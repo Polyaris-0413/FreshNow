@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 删除那段事务的验证。用内存库，不碰设备上应用自己的记录。
+ * 记录的写入路径：删除那段事务、以及编辑时的整行覆盖。用内存库，不碰设备上应用自己的记录。
  */
 @RunWith(AndroidJUnit4::class)
 class ScanRecordDaoTest {
@@ -55,6 +55,35 @@ class ScanRecordDaoTest {
 
         assertEquals(listOf(""), dao.deleteAndCollectImageNames(listOf(id)))
         assertNull(dao.findById(id))
+    }
+
+    @Test
+    fun update_replacesEditedFieldsOnly() = runBlocking {
+        val id = dao.insert(
+            record(name = "原名", imageName = "photo.jpg").copy(
+                shelfLife = "6个月",
+                savedAt = 111L
+            )
+        )
+        val saved = requireNotNull(dao.findById(id)) { "插入后应当能查到" }
+
+        dao.update(
+            saved.copy(
+                productName = "改后",
+                productionDate = "2026-10-01",
+                expiryDate = "2027-04-01",
+                shelfLife = "18个月"
+            )
+        )
+
+        val updated = requireNotNull(dao.findById(id)) { "更新后应当还能查到" }
+        assertEquals("改后", updated.productName)
+        assertEquals("2026-10-01", updated.productionDate)
+        assertEquals("2027-04-01", updated.expiryDate)
+        assertEquals("18个月", updated.shelfLife)
+        // 调用方只改文字字段，照片与保存时间要原样留着：后者被改掉会把记录提到列表最前面
+        assertEquals("photo.jpg", updated.imageName)
+        assertEquals(111L, updated.savedAt)
     }
 
     private fun record(name: String, imageName: String) = ScanRecord(

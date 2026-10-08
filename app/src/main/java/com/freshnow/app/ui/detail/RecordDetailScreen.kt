@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +40,7 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 fun RecordDetailScreen(
     recordId: Long,
     onBack: () -> Unit,
+    onNavigateToEdit: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecordDetailViewModel = viewModel()
 ) {
@@ -48,6 +50,14 @@ fun RecordDetailScreen(
     FreshNowSubPage(
         title = stringResource(R.string.record_detail_title),
         onBack = onBack,
+        actions = {
+            // 记录读不到时不给编辑入口：没有可改的东西
+            if (uiState.record != null) {
+                TextButton(onClick = onNavigateToEdit) {
+                    Text(text = stringResource(R.string.action_edit))
+                }
+            }
+        },
         modifier = modifier
     ) { innerPadding ->
         val record = uiState.record

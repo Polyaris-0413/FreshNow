@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -12,8 +13,15 @@ interface ScanRecordDao {
     @Insert
     suspend fun insert(record: ScanRecord): Long
 
+    /** 按主键整行覆盖。照片文件名、保存时间都跟着传进来的记录一起保留，调用方只需在原有记录上改字段 */
+    @Update
+    suspend fun update(record: ScanRecord)
+
     @Query("SELECT * FROM scan_records ORDER BY savedAt DESC")
     fun observeAll(): Flow<List<ScanRecord>>
+
+    @Query("SELECT * FROM scan_records WHERE id = :id")
+    fun observeById(id: Long): Flow<ScanRecord?>
 
     @Query("SELECT * FROM scan_records WHERE id = :id")
     suspend fun findById(id: Long): ScanRecord?

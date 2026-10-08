@@ -35,22 +35,29 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
 
     fun load(id: Long) {
         viewModelScope.launch {
-            val record = repository.find(id)
-            val image = record?.let {
-                withContext(Dispatchers.IO) { decode(repository.imageFile(it)) }
+            // 订阅而不是查一次：编辑页保存后回到本页，值要跟着变
+            var decodedName: String? = null
+            var decodedImage: Bitmap? = null
+            repository.observe(id).collect { record ->
+                if (record?.imageName != decodedName) {
+                    decodedName = record?.imageName
+                    decodedImage = record?.let {
+                        withContext(Dispatchers.IO) { decode(repository.imageFile(it)) }
+                    }
+                }
+                _uiState.value = RecordDetailUiState(
+                    record = record,
+                    expiry = record?.let {
+                        ExpiryCalculator.resolve(
+                            printedExpiry = it.expiryDate,
+                            productionDate = it.productionDate,
+                            shelfLife = it.shelfLife
+                        )
+                    } ?: ExpiryOutcome.InsufficientInput,
+                    image = decodedImage,
+                    loaded = true
+                )
             }
-            _uiState.value = RecordDetailUiState(
-                record = record,
-                expiry = record?.let {
-                    ExpiryCalculator.resolve(
-                        printedExpiry = it.expiryDate,
-                        productionDate = it.productionDate,
-                        shelfLife = it.shelfLife
-                    )
-                } ?: ExpiryOutcome.InsufficientInput,
-                image = image,
-                loaded = true
-            )
         }
     }
 
