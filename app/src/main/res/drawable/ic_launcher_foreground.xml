@@ -4,10 +4,25 @@
     android:viewportWidth="960"
     android:viewportHeight="960">
   <!--
-    前景只用一种颜色压在固定的蓝色背景上（见 values/ic_launcher_background.xml），
-    与自适应图标的一贯做法一致：底一色、图一色。
-    取 #FFF3E0（暖奶油白）而不是纯白：曲奇是暖色物件，奶油白比中性白更像"饼干"，
-    对 #4285F4 的对比度约 3.2:1，过图形元素的可辨识下限；旧的 #1F1F1F 中性黑压在饱和蓝上发闷。
+    前景色取值说明，免得 #FFF3E0 被当成随手写的十六进制：
+
+    1) 出处：它是 Material 调色板里的 Orange 50（该色板 Orange 50/100/200 = #FFF3E0 / #FFE0B2 / #FFCC80），
+       不是自定色。图标不能用主题的动态色：它要在应用主题之外显示（桌面、最近任务），
+       所以这里只能是固定色，而且必须与固定的背景色成对考虑。
+
+    2) 门槛：图形元素对相邻颜色需 3:1（项目设计源 M3 技能的 Accessibility 一条：
+       "UI components often need 3:1 for large text/borders and 4.5:1 for normal text"）。
+       背景固定为 #4285F4（见 values/ic_launcher_background.xml），按 WCAG 相对亮度算：
+         Orange 50  #FFF3E0  3.25:1  ← 采用：暖色系里唯一过线的一档
+         Orange 100 #FFE0B2  2.81:1  掉到线下，压不住蓝底
+         Orange 200 #FFCC80  2.41:1  更低
+         纯白       #FFFFFF  3.56:1  过线但中性，没有"饼干"味
+         旧的       #1F1F1F  4.63:1  对比从来够，问题是中性黑压在饱和蓝上发闷，看着像灰图标
+
+    3) 一种颜色而不是"轮廓一色 + 豆子一色"：曲奇是空心描边，三个豆子直接落在背景上。
+       两色方案要求两种颜色各自都对蓝底过 3:1，观感上也会读成"蓝底上飘着几个深点"，
+       而不是"饼干上有巧克力豆"。另外这份 drawable 同时充当自适应图标的 monochrome 层
+       （见 mipmap-anydpi-v26/ic_launcher.xml），主题化时系统只取 alpha 压成单色，多色本就会被抹平。
   -->
   <group android:scaleX="0.47666666"
       android:scaleY="0.47666666"
