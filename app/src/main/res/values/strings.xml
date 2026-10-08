@@ -19,6 +19,9 @@
     <string name="scan_value_unknown">未知</string>
     <string name="scan_expiry_unparseable">无法推算</string>
     <string name="scan_clear">清空</string>
+    <!-- 两条文案说的是「点一下会发生什么」，不是「当前是什么状态」：切换态图标的读法在两种设备上不一致 -->
+    <string name="scan_flashlight_on">开启手电筒</string>
+    <string name="scan_flashlight_off">关闭手电筒</string>
     <!-- 问的是「要不要离开」，而不是重复一遍保存动作：这里的处境是刚扫到的东西还没存就要走 -->
     <string name="scan_save_dialog_title">离开扫描页？</string>
     <string name="scan_save_dialog_message">本次扫描结果尚未保存。</string>

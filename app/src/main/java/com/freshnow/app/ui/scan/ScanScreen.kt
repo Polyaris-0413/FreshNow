@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,11 +31,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
@@ -72,6 +76,9 @@ fun ScanScreen(
     ) { granted -> hasCameraPermission = granted }
 
     var showSaveDialog by remember { mutableStateOf(false) }
+    // 手电筒是相机的状态而不是页面数据，不进 ViewModel；但换版式或旋转会重建 Activity，
+    // 灯要跟着用户的意图重新亮起，所以用 rememberSaveable
+    var torchOn by rememberSaveable { mutableStateOf(false) }
     val hasResult = uiState.record.hasAnyValue
 
     // 保存成功即退出扫描页：结果已经进了列表，留在本页没有意义，也避免误以为还没保存
@@ -97,6 +104,8 @@ fun ScanScreen(
             CameraBox(
                 hasCameraPermission = hasCameraPermission,
                 onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                torchOn = torchOn,
+                onTorchChange = { torchOn = it },
                 canAcceptFrame = viewModel::canAcceptFrame,
                 onFrame = viewModel::submitFrame,
                 modifier = sizeConstraint
@@ -314,15 +323,22 @@ private fun ReasoningPanel(reasoning: String) {
  * 分工：调用方给「多大」（竖屏 fillMaxWidth、横屏 fillMaxHeight），本组件保证「是方的」。
  * 方形不是审美偏好而是功能约束——CameraPreview 会把送给 AI 的整帧裁成居中正方形，
  * 所以取景框一旦不是方的，「看到什么就裁什么」就会静默失效：用户看到整幅画面，模型只收到中间一块。
+ *
+ * 手电筒叠在取景框内角：它是相机的配件，贴在画面上才读得出属于相机。放在这里也是两种版式
+ * 唯一共用的节点——横屏时取景框在左栏，按钮跟着相机走，不会跑到右侧的结果栏去。
  */
 @Composable
 private fun CameraBox(
     hasCameraPermission: Boolean,
     onRequestPermission: () -> Unit,
+    torchOn: Boolean,
+    onTorchChange: (Boolean) -> Unit,
     canAcceptFrame: () -> Boolean,
     onFrame: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 无闪光灯的设备没有可开的灯。这是设备属性，不是编译期常量，所以问一次相机再决定出不出现
+    var torchAvailable by remember { mutableStateOf(false) }
     Box(
         modifier = modifier
             .aspectRatio(CAMERA_ASPECT_RATIO)
@@ -331,10 +347,32 @@ private fun CameraBox(
     ) {
         if (hasCameraPermission) {
             CameraPreview(
+                torchOn = torchOn,
+                onTorchAvailabilityChange = { torchAvailable = it },
                 canAcceptFrame = canAcceptFrame,
                 onFrame = onFrame,
                 modifier = Modifier.fillMaxSize()
             )
+            // 权限未授予时相机根本不存在，也就谈不上开灯，按钮同样不给
+            if (torchAvailable) {
+                FilledIconToggleButton(
+                    checked = torchOn,
+                    onCheckedChange = onTorchChange,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(FreshNowSpacing.xs)
+                ) {
+                    // 图标是状态（对准了没），文案是动作（点下去会怎样），两者各说各的话
+                    Icon(
+                        painter = painterResource(
+                            if (torchOn) R.drawable.ic_flashlight_on else R.drawable.ic_flashlight_off
+                        ),
+                        contentDescription = stringResource(
+                            if (torchOn) R.string.scan_flashlight_off else R.string.scan_flashlight_on
+                        )
+                    )
+                }
+            }
         } else {
             Column(
                 modifier = Modifier

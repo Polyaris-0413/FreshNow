@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.view.ViewGroup
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -18,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -40,9 +42,14 @@ private const val OPAQUE_ALPHA = 0xFF shl 24
 
 /**
  * 实时预览 + 取帧回调。取帧前先问 [canAcceptFrame]，避免在请求进行或冷却期内白做一次 JPEG 编码
+ *
+ * [torchOn] 由调用方持有：相机实例每次重新绑定（换版式、Activity 重建）都会回到关灯状态，
+ * 状态留在这里就会与硬件失步——调用方拿着它，重绑后本组件按它再下发一次，两端始终一致。
  */
 @Composable
 fun CameraPreview(
+    torchOn: Boolean,
+    onTorchAvailabilityChange: (Boolean) -> Unit,
     canAcceptFrame: () -> Boolean,
     onFrame: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
@@ -87,6 +94,10 @@ fun CameraPreview(
         onDispose { executor.shutdown() }
     }
 
+    // 绑定后才存在，故用状态保存：开关变化、以及重新绑定之后，都靠它下发一次
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    val notifyTorchAvailability by rememberUpdatedState(onTorchAvailabilityChange)
+
     LaunchedEffect(Unit) {
         val cameraProvider = context.awaitCameraProvider()
         val preview = Preview.Builder()
@@ -105,12 +116,20 @@ fun CameraPreview(
             }
 
         cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(
+        camera = cameraProvider.bindToLifecycle(
             lifecycleOwner,
             CameraSelector.DEFAULT_BACK_CAMERA,
             preview,
             analysis
         )
+        notifyTorchAvailability(camera?.cameraInfo?.hasFlashUnit() == true)
+    }
+
+    // 无闪光灯的设备上 enableTorch 只会失败，先按可用性挡掉，与调用方显示按钮的判据同源
+    LaunchedEffect(camera, torchOn) {
+        val bound = camera ?: return@LaunchedEffect
+        if (!bound.cameraInfo.hasFlashUnit()) return@LaunchedEffect
+        bound.cameraControl.enableTorch(torchOn)
     }
 }
 
