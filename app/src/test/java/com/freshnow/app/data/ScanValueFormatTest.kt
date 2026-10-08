@@ -119,6 +119,21 @@ class ScanValueFormatTest {
         assertEquals("一百二十天", ScanValueFormat.shelfLife("一百二十天"))
     }
 
+    /**
+     * 复合写法不认：整串里出现两段以上数量+单位（1年6个月、一年三个月、18个月零3天）一律判为认不出。
+     * 不做求和，是因为「6个月(180天)」这类主值 + 换算说明同样是两段，靠分隔符分不出两者
+     */
+    @Test
+    fun shelfLife_compound_isNotAccepted() {
+        assertEquals("1年6个月", ScanValueFormat.shelfLife("1年6个月"))
+        assertEquals("一年三个月", ScanValueFormat.shelfLife("一年三个月"))
+        assertEquals("18个月零3天", ScanValueFormat.shelfLife("18个月零3天"))
+        // 主值 + 括号里的换算说明也是两段，一并拒掉（与上面无法区分）
+        assertEquals("6个月(180天)", ScanValueFormat.shelfLife("6个月(180天)"))
+        // 一段不受影响：前面有文字也不会被当成第二段
+        assertEquals("18个月", ScanValueFormat.shelfLife("常温下保质期18个月"))
+    }
+
     /** 酸奶、面包这类短保标签常写「周」，归到天 */
     @Test
     fun shelfLife_weeks_becomeDays() {

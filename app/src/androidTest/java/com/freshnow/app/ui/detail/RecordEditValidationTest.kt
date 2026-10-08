@@ -90,17 +90,19 @@ class RecordEditValidationTest {
         assertEquals(ExpiryOutcome.Resolved("2026-10-20"), vm.uiState.value.derivedExpiry)
     }
 
-    /** 靠假设或额外解释才成立的写法不给保存：「半个月」要靠 30 天假设，「半年」虽精确但不收 */
+    /**
+     * 靠假设、额外解释或拼两段才成立的写法不给保存：半个月 要靠 30 天假设，半年 要额外解释，
+     * 1年6个月、一年三个月 是复合写法
+     */
     @Test
     fun guessedShelfLifeIsFlagged() {
         val vm = viewModel()
 
-        vm.onShelfLifeChange("半个月")
-        assertTrue(vm.uiState.value.shelfLifeInvalid)
-        assertFalse(vm.uiState.value.canSave)
-
-        vm.onShelfLifeChange("半年")
-        assertTrue(vm.uiState.value.shelfLifeInvalid)
+        listOf("半个月", "半年", "1年6个月", "一年三个月").forEach {
+            vm.onShelfLifeChange(it)
+            assertTrue("$it 应当判为认不出", vm.uiState.value.shelfLifeInvalid)
+            assertFalse(vm.uiState.value.canSave)
+        }
 
         vm.onShelfLifeChange("6个月")
         assertFalse(vm.uiState.value.shelfLifeInvalid)

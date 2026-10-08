@@ -33,9 +33,11 @@ object ScanValueFormat {
     //
     // 数量前不许再连着数字、小数点或中文数字：那说明这里是更长的一串（1.5个月、-5天、一百二十天），
     // 往后能找到的「5个月」「5天」「二十天」都不是用户写的那个量。末尾同理，后面跟着「半」的也不认，
-    // 否则「一年半」会被读成「一年」。与日期同一条规矩：宁可认不出，也不能少算
+    // 否则「一年半」会被读成「一年」。复合写法（1年6个月、18个月零3天）由 [parseShelfLife] 的「只认一段」拦下——
+    // 「零」不能算在这个集合里，否则「零3天」不算第二段，复合反而漏网。
+    // 与日期同一条规矩：宁可认不出，也不能少算
     private val SHELF_LIFE =
-        Regex("""(?<![\d.．+\-−一二两三四五六七八九十百千〇零半])(\d+|[一二两三四五六七八九十]+)\s*(个月|月|个星期|星期|个周|周|天|日|年)(?!半)""")
+        Regex("""(?<![\d.．\-−一二两三四五六七八九十百千半])(\d+|[一二两三四五六七八九十]+)\s*(个月|月|个星期|星期|个周|周|天|日|年)(?!半)""")
 
     private const val MAX_AMOUNT = 9999
     private const val MONTHS_PER_YEAR = 12
@@ -73,9 +75,14 @@ object ScanValueFormat {
      *
      * 也不把月折成天：1 个月是 28~31 天，写成 30 天只是一个假设。靠假设才能凑出结果的一律返回 null——
      * 与「认不出的原样返回」同一条规矩。
+     *
+     * 还要求整串里恰好只有一段数量+单位，所以复合成两个量的写法一律返回 null。
      */
     internal fun parseShelfLife(text: String): Period? {
-        val match = SHELF_LIFE.find(text.trim()) ?: return null
+        // 只认一段。复合写法（1年6个月、一年三个月、18个月零3天）会被拆成两段以上，一律不接受——
+        // 不求和是因为「6个月(180天)」这类主值 + 换算说明也会拆成两段，把两段叠起来不是同一件事，
+        // 而仅靠分隔符分不出这两种情况。宁可让用户只写一个量，也不猜他的意思
+        val match = SHELF_LIFE.findAll(text.trim()).singleOrNull() ?: return null
         val amount = parseAmount(match.groupValues[1]) ?: return null
         if (amount <= 0 || amount > MAX_AMOUNT) return null
 

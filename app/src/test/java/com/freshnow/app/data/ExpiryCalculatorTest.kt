@@ -94,6 +94,17 @@ class ExpiryCalculatorTest {
         )
     }
 
+    /** 复合写法同样认不出：只认一段，不做求和 */
+    @Test
+    fun reportsUnparseableCompoundShelfLife() {
+        listOf("1年6个月", "一年三个月", "18个月零3天").forEach {
+            assertEquals(
+                ExpiryOutcome.UnparseableShelfLife,
+                ExpiryCalculator.resolve("", "2025-01-01", it)
+            )
+        }
+    }
+
     @Test
     fun reportsInsufficientInputWhenProductionDateMissing() {
         assertEquals(
