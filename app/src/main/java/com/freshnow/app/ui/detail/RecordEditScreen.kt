@@ -12,7 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,7 +60,6 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanPhoto
-import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
@@ -295,12 +292,11 @@ private fun EditForm(
             onExpiryDateChange = viewModel::onExpiryDateChange,
             onShelfLifeChange = viewModel::onShelfLifeChange,
             onChangePhoto = onChangePhoto,
-            // 滚动与键盘避让都交给表单自己：横屏作用于右栏，竖屏作用于整页，两者不是同一层。
-            // imePadding 若挂在这里，横屏下键盘一弹就会削掉外层高度，按可用高度定宽的照片跟着缩、
-            // 右栏反而变宽——输一个字整块版式都在跳
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(FreshNowSpacing.sm)
         )
     }
@@ -402,18 +398,19 @@ internal fun RecordEditForm(
     onChangePhoto: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 照片是一个可编辑项，与四个文本框同一层意思，所以两种版式都把它与字段一起排
-    val photo: @Composable (Modifier) -> Unit = { photoModifier ->
-        // 不给「点按更换」这类文案：表单里没有哪个字段需要写一句「点我输入」
-        OutlinedCard(modifier = photoModifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+    ) {
+        // 描边卡片包着照片：它就是一个可编辑项，与其他几个文本框同一层意思。
+        // 不给「点按更换」这类文案：表单里没有哪个字段需要写一句「点我输入」。
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             ScanPhoto(
                 image = uiState.image,
                 onClick = onChangePhoto,
                 onClickLabel = stringResource(R.string.record_image_change)
             )
         }
-    }
-    val fields: @Composable () -> Unit = {
         EditField(
             value = uiState.productName,
             onValueChange = onProductNameChange,
@@ -444,55 +441,6 @@ internal fun RecordEditForm(
             // 本项之后没有可跳的下一项，输入法的动作键收在「完成」
             imeAction = ImeAction.Done
         )
-    }
-
-    BoxWithConstraints(modifier = modifier) {
-        // 与扫描页、详情页同一条判据（见 ScanScreen）：宽不小于高时高度才是稀缺资源。
-        // 上下排会把正方形照片撑成远超可视区的高条，四个输入框被顶出屏幕；
-        // 改为左右并排，照片按可用高度取正方形，表单在右栏单独滚动。
-        if (maxWidth >= maxHeight) {
-            // 先取出宽度：进了 Row 之后，这一作用域的成员会被 RowScope 挡住
-            val photoWidth = maxHeight
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-            ) {
-                // 只定宽，高度交给照片自己：有图时方图撑成正方形，没图时占位块保持它那点高度
-                photo(Modifier.width(photoWidth))
-                val fieldsScroll = rememberScrollState()
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            // 键盘只避让表单这一栏：照片在外层，不跟着键盘改变尺寸
-                            .imePadding()
-                            .verticalScroll(fieldsScroll),
-                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-                    ) {
-                        fields()
-                    }
-                    ScrollEdgeFade(
-                        visible = fieldsScroll.canScrollForward,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imePadding()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-            ) {
-                photo(Modifier.fillMaxWidth())
-                fields()
-            }
-        }
     }
 }
 

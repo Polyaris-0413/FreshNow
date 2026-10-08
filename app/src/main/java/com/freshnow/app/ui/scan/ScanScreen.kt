@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -114,89 +113,42 @@ fun ScanScreen(
             )
         }
 
-        BoxWithConstraints(
+        // 【有意偏离 M3 规范，请勿「按规范」改回去】
+        // M3 要求 600dp 起切换多窗格、并给大屏内容加 840dp 宽度上限。本项目只面向手机形态，
+        // 不做平板/折叠屏多窗格，也不做宽度约束——Activity 锁竖屏（见 AndroidManifest），
+        // 所以这里不按宽高比分支，只有一种版式。
+        //
+        // 取景框撑满宽度、结果是主角，两者都要在，只能让位给滚动：相机跟着结果一起滚，
+        // 滚上去之后取景框会移出可视区。这是竖屏下早就有的取舍。
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(FreshNowSpacing.sm)
+                .padding(FreshNowSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
         ) {
-            // 【有意偏离 M3 规范，请勿「按规范」改回去】
-            // M3 要求 600dp 起切换多窗格、并给大屏内容加 840dp 宽度上限。本项目只面向手机形态，
-            // 不做平板/折叠屏多窗格，也不做宽度约束——全应用没有窗口尺寸类分支。
-            // 因此这里唯一的尺寸判断只针对「高度比宽度更紧张」这一种情况。
-            //
-            // 宽不小于高时高度才是稀缺资源：上下排布会把正方形取景框撑成远高于可视区的长条，
-            // 取景框只露出顶部一截、识别结果被顶到屏幕外，且露出的画面对不上「看到什么就裁什么」
-            // 的裁剪假设。此时改为左右并排，取景框按可用高度取正方形，结果在右侧单独滚动，
-            // 相机在滚动时保持可见。
-            //
-            // 让这条分支命中的不是「把手机转过来」：Activity 已锁竖屏（见 AndroidManifest），
-            // 旋转不再重建本页。真正会走到这里的是分屏、自由窗口这类由系统给定窗口尺寸的场景，
-            // 以及会忽略竖屏锁的大屏设备。判据只看可用空间，所以这些场景照样适用。
-            if (maxWidth >= maxHeight) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-                ) {
-                    // 只定高：边长即取可用高度，宽度不够时取景框内部的 aspectRatio 会按宽度回落。
-                    // 操作区在右侧栏内，因此这里的可用高度不受它影响
-                    cameraBox(Modifier.fillMaxHeight())
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-                    ) {
-                        val resultsScroll = rememberScrollState()
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                        ) {
-                            ScanResultColumn(
-                                uiState = uiState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(resultsScroll)
-                            )
-                            ScrollEdgeFade(
-                                visible = resultsScroll.canScrollForward,
-                                modifier = Modifier.align(Alignment.BottomCenter)
-                            )
-                        }
-                        actionBar()
-                    }
-                }
-            } else {
+            val pageScroll = rememberScrollState()
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(pageScroll),
                     verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                 ) {
-                    val pageScroll = rememberScrollState()
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) {
-                        // 竖屏下相机跟着结果一起滚；横屏下它在滚动区之外，滚动时保持可见
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(pageScroll),
-                            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-                        ) {
-                            // 只定宽；方形由 CameraBox 自己保证
-                            cameraBox(Modifier.fillMaxWidth())
-                            ScanResultColumn(uiState = uiState)
-                        }
-                        ScrollEdgeFade(
-                            visible = pageScroll.canScrollForward,
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-                    }
-                    actionBar()
+                    // 只定宽；方形由 CameraBox 自己保证
+                    cameraBox(Modifier.fillMaxWidth())
+                    ScanResultColumn(uiState = uiState)
                 }
+                ScrollEdgeFade(
+                    visible = pageScroll.canScrollForward,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
+            actionBar()
         }
     }
 
