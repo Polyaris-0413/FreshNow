@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -165,6 +166,9 @@ internal fun RecordEditForm(
  * （规范：until the error is fixed, the error replaces the helper text）。
  *
  * 错误要等字段失焦才报，但已经写错的旧值一打开就报（见 [RecordEditForm]）。
+ *
+ * 输入法的「完成」也要算一次结束：本字段之后没有可跳的下一项，按「完成」只会收起键盘、
+ * 不失焦，于是敲完一个认不出的值盯着屏幕看，什么都不会出现——那看起来就像这个字段不校验。
  */
 @Composable
 private fun EditField(
@@ -176,6 +180,7 @@ private fun EditField(
     hint: String? = null,
     imeAction: ImeAction = ImeAction.Next
 ) {
+    val focusManager = LocalFocusManager.current
     var leftField by remember { mutableStateOf(false) }
     // 初值取「进来时就已写错」：这种值不是用户刚敲的，不说的话保存为什么灰着就没法解释
     var reported by remember { mutableStateOf(error != null) }
@@ -204,7 +209,8 @@ private fun EditField(
             else -> null
         },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = imeAction)
+        keyboardOptions = KeyboardOptions(imeAction = imeAction),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
     )
 }
 
