@@ -81,8 +81,18 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     /** 读进来的那条记录，保存时在它上面改字段：照片文件名、保存时间都靠它原样带过去 */
     private var loaded: ScanRecord? = null
 
-    /** 读入草稿。只读一次、不订阅：正在编辑的值不该被库里的写入抢走 */
+    /** 已经读过哪条记录。用它判重而不是 uiState.loaded：后者是给界面看的状态，不是「已经读过库」的证据 */
+    private var loadedId: Long? = null
+
+    /**
+     * 读入草稿。只读一次、不订阅：正在编辑的值不该被库里的写入抢走。
+     *
+     * 已经读过同一个 id 就直接返回。屏幕旋转会重建本页，[LaunchedEffect] 跟着重跑，而这里是一次
+     * 整体替换——草稿会被库里的旧值盖回去，裁剪中还没保存的图也会被重置成 null、退回编辑步骤。
+     */
     fun load(id: Long) {
+        if (loadedId == id) return
+        loadedId = id
         viewModelScope.launch {
             val record = repository.find(id)
             loaded = record

@@ -295,11 +295,12 @@ private fun EditForm(
             onExpiryDateChange = viewModel::onExpiryDateChange,
             onShelfLifeChange = viewModel::onShelfLifeChange,
             onChangePhoto = onChangePhoto,
-            // 滚动交给表单自己：横屏时滚的是右栏，竖屏时是整页，两者不是同一层
+            // 滚动与键盘避让都交给表单自己：横屏作用于右栏，竖屏作用于整页，两者不是同一层。
+            // imePadding 若挂在这里，横屏下键盘一弹就会削掉外层高度，按可用高度定宽的照片跟着缩、
+            // 右栏反而变宽——输一个字整块版式都在跳
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .imePadding()
                 .padding(FreshNowSpacing.sm)
         )
     }
@@ -467,6 +468,8 @@ internal fun RecordEditForm(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            // 键盘只避让表单这一栏：照片在外层，不跟着键盘改变尺寸
+                            .imePadding()
                             .verticalScroll(fieldsScroll),
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
                     ) {
@@ -482,6 +485,7 @@ internal fun RecordEditForm(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .imePadding()
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
