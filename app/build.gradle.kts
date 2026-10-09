@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // 同步的载荷是 @Serializable 的数据类，这个插件负责在编译期给它们生成序列化器
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     // 同一个插件在 app 侧是「消费方」：负责给录制用的构建类型补 <profileable> 与签名兜底，
     // 并决定 profile 落到哪个源集。只把它用在 :baselineprofile 上时，app 侧这套不会启用。

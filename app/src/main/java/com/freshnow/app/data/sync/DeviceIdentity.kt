@@ -1,6 +1,7 @@
 package com.freshnow.app.data.sync
 
 import android.content.Context
+import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -46,6 +47,12 @@ class DeviceIdentity(private val dataStore: DataStore<Preferences>) {
         cached = resolved
         return resolved
     }
+
+    /**
+     * 本机在对方设备列表里的名字。取机型名，用户一眼能认出是哪台设备；
+     * 读不到机型时给个中性的占位，而不是空字符串——空名字在列表里是一行没有内容的条目。
+     */
+    fun deviceName(): String = Build.MODEL?.takeIf { it.isNotBlank() } ?: "Android"
 
     @Volatile
     private var cached: String? = null
