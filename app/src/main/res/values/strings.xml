@@ -137,6 +137,7 @@
     <string name="sync_pairing_code_title">本机配对码</string>
     <string name="sync_pairing_code_hint">在另一台设备上输入这个码。两分钟内有效。</string>
     <string name="sync_paired_devices_title">已配对设备</string>
+    <string name="sync_no_paired_devices">还没有配对的设备</string>
     <string name="sync_nearby_devices_title">附近可配对的设备</string>
     <string name="sync_nearby_searching">正在查找同一网络下的设备…</string>
     <string name="sync_nearby_empty">没有找到设备</string>
@@ -163,8 +164,6 @@
     <string name="sync_manual_add">手动添加设备</string>
     <string name="sync_manual_add_support">对方找不到时，填它的地址</string>
     <string name="sync_manual_address_label">对方设备地址</string>
-    <string name="sync_manual_address_hint">例如 192.168.1.5</string>
     <string name="sync_local_address_title">本机地址</string>
-    <string name="sync_local_address_hint">对方找不到本机时，填这个地址</string>
     <string name="action_close">关闭</string>
 </resources>

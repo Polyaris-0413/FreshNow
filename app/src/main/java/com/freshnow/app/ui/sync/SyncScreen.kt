@@ -149,10 +149,18 @@ internal fun SyncScreen(
                 text = stringResource(R.string.sync_paired_devices_title),
                 modifier = Modifier.padding(top = FreshNowSpacing.md)
             )
-            // 没配对过就不写任何东西：这一段不需要空态——怎么配上上面「配对」那一段
-            // 已经说了，再写一遍只是重复
-            peers.forEach { peer ->
-                PairedDeviceRow(peer = peer, onForget = { viewModel.forget(peer.deviceId) })
+            // 没配对过就说一句：这一段空着的话，用户看不出是「还没有」还是「没加载出来」
+            if (peers.isEmpty()) {
+                ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(R.string.sync_no_paired_devices))
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+            } else {
+                peers.forEach { peer ->
+                    PairedDeviceRow(peer = peer, onForget = { viewModel.forget(peer.deviceId) })
+                }
             }
 
             SectionHeading(
@@ -322,18 +330,6 @@ private fun PairingCodeContent(code: String, addresses: List<String>) {
                 )
             )
         }
-        if (addresses.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.sync_local_address_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(
-                    start = FreshNowSpacing.sm,
-                    end = FreshNowSpacing.sm,
-                    top = FreshNowSpacing.xxs
-                )
-            )
-        }
     }
 }
 
@@ -354,7 +350,6 @@ private fun ManualPairingDialog(
                     value = address,
                     onValueChange = { address = it.trim() },
                     label = { Text(text = stringResource(R.string.sync_manual_address_label)) },
-                    supportingText = { Text(text = stringResource(R.string.sync_manual_address_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
