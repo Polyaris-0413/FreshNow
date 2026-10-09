@@ -77,20 +77,20 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
     fun pair(peer: DiscoveredPeer, code: String) {
         viewModelScope.launch {
-            val paired = coordinator.pairWith(peer, code)
-            _message.value = if (paired) {
-                SyncMessage.Paired(peer.deviceName.ifBlank { peer.deviceId.take(8) })
-            } else {
-                SyncMessage.PairFailed
-            }
+            val outcome = coordinator.pairWith(peer, code)
+            _message.value = outcome
+                ?.let { SyncMessage.Paired(it.deviceName, it.applied) }
+                ?: SyncMessage.PairFailed
         }
     }
 
     /** 手填地址配对，给 mDNS 用不了的网络留的路 */
     fun pairWithAddress(address: String, code: String) {
         viewModelScope.launch {
-            val paired = coordinator.pairWithAddress(address, code)
-            _message.value = if (paired) SyncMessage.Paired(address) else SyncMessage.PairFailed
+            val outcome = coordinator.pairWithAddress(address, code)
+            _message.value = outcome
+                ?.let { SyncMessage.Paired(it.deviceName, it.applied) }
+                ?: SyncMessage.PairFailed
         }
     }
 
@@ -101,7 +101,8 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
 /** 一次操作的结果。带着参数而不是拼好的字符串，文案由界面那一侧按当前语言取 */
 internal sealed interface SyncMessage {
-    data class Paired(val deviceName: String) : SyncMessage
+    /** [applied] 是配完那次同步从对方拿回来几条，0 表示这次没连上 */
+    data class Paired(val deviceName: String, val applied: Int) : SyncMessage
     data object PairFailed : SyncMessage
     data class Synced(val peerName: String, val applied: Int) : SyncMessage
     data object Unreachable : SyncMessage

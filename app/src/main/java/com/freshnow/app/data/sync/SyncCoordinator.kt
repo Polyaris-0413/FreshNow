@@ -33,6 +33,14 @@ internal sealed interface SyncReport {
 }
 
 /**
+ * 一次配对的结果。
+ *
+ * [applied] 单独拿出来而不是并回配对成败：配对成了、同步没成是常事（对方刚好把应用关了），
+ * 而那时该说「已配对」，不该让用户把配对码再输一遍。
+ */
+internal data class PairOutcome(val deviceName: String, val applied: Int)
+
+/**
  * 同步这件事对界面露出的全部。
  *
  * 做成进程级单例（[getInstance]）而不是每个 ViewModel 各拿一个：服务端要占一个端口、mDNS 广播
@@ -149,13 +157,14 @@ internal class SyncCoordinator private constructor(context: Context) {
     }
 
     /**
-     * 用 [peer] 的地址和用户输入的码去配上它，成功后本机也把它记下来。
+     * 用 [peer] 的地址和用户输入的码去配上它，成功后本机也把它记下来，并立即同步一次。
      *
      * 配对请求里的密钥由本机生成，对方存下来再回传同一把——两边拿到的是同一个值，
      * 之后谁发起同步都能解开对方的载荷。
      */
-    suspend fun pairWith(peer: DiscoveredPeer, code: String): Boolean =
+    suspend fun pairWith(peer: DiscoveredPeer, code: String): PairOutcome? =
         rememberPairing(address = peer.address, fallbackName = peer.deviceName, code = code)
+            ?.let { syncRightAfterPairing(it) }
 
     /**
      * 配一台地址要手填的设备。
@@ -166,14 +175,34 @@ internal class SyncCoordinator private constructor(context: Context) {
      * 地址里不带端口（用 [DEFAULT_PORT]）：让用户在手机上多抄五个数字，抄错的代价是「配对码
      * 没错但就是配不上」，而用户没有任何办法看出问题出在哪一段。
      */
-    suspend fun pairWithAddress(address: String, code: String): Boolean =
+    suspend fun pairWithAddress(address: String, code: String): PairOutcome? =
         rememberPairing(address = withDefaultPort(address), fallbackName = "", code = code)
+            ?.let { syncRightAfterPairing(it) }
+
+    /**
+     * 配完就同步一次。
+     *
+     * 配对的意图就是让两台设备共享数据，而刚配完这一刻对方肯定在线（它刚处理完那个配对请求）——
+     * 这是最不用赌的同步时机。不同步的话，用户配完什么都看不到，会以为没配上，
+     * 而真正要做的那个「切到后台再切回来」没有任何地方提示他。
+     *
+     * 只同步刚配上的这一台就够了：同步是一次双向交换，对方处理这次请求时会把本机的数据一并合上，
+     * 一个来回两边就都有了。
+     *
+     * 失败不报错：配对本身已经成了，这次没拉到数据下次进前台还会再来，
+     * 而把它当成配对失败会让用户重输一遍配对码。
+     */
+    private suspend fun syncRightAfterPairing(peer: SyncPeer): PairOutcome {
+        val address = peer.lastAddress.takeIf { it.isNotEmpty() }
+        val outcome = address?.let { engine.syncWith(peer, it) }
+        return PairOutcome(deviceName = peer.deviceName, applied = outcome?.applied ?: 0)
+    }
 
     private suspend fun rememberPairing(
         address: String,
         fallbackName: String,
         code: String
-    ): Boolean {
+    ): SyncPeer? {
         val response = client.pair(
             address = address,
             code = code,
@@ -182,19 +211,18 @@ internal class SyncCoordinator private constructor(context: Context) {
                 deviceName = identity.deviceName(),
                 secret = SyncCrypto.newSecret().toSecretText()
             )
-        ) ?: return false
+        ) ?: return null
 
-        peers.remember(
-            SyncPeer(
-                deviceId = response.deviceId,
-                deviceName = response.deviceName.ifBlank { fallbackName }
-                    .ifBlank { response.deviceId.take(8) },
-                secret = response.secret,
-                lastAddress = address,
-                pairedAt = System.currentTimeMillis()
-            )
+        val peer = SyncPeer(
+            deviceId = response.deviceId,
+            deviceName = response.deviceName.ifBlank { fallbackName }
+                .ifBlank { response.deviceId.take(8) },
+            secret = response.secret,
+            lastAddress = address,
+            pairedAt = System.currentTimeMillis()
         )
-        return true
+        peers.remember(peer)
+        return peer
     }
 
     /** 补上约定端口。用户已经写好端口时原样用 */

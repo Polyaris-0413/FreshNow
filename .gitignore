@@ -25,11 +25,12 @@ captures/
 .cxx
 *.hprof
 
-# AS 向导（Generate Signed APK / Bundle）的默认输出目录：里面有已签名的 apk 与 R8 的
-# mapping.txt。mapping.txt 能把发布包反混淆，绝不该入库；apk/aab 也不该跟着源码走
+# AS 向导（Generate Signed APK / Bundle）与 Build APK(s) 的输出目录：里面有已签名的 apk
+# 与 R8 的 mapping.txt。mapping.txt 能把发布包反混淆，绝不该入库；apk/aab 也不该跟着源码走
 # （要发布用 GitHub Releases，git add -f 可强制）。
 app/release/
 baselineprofile/release/
+app/debug/
 *.apk
 *.aab
 mapping.txt
