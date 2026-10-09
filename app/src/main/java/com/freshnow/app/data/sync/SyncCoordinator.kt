@@ -1,6 +1,8 @@
 package com.freshnow.app.data.sync
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.local.ScanRecord
@@ -234,18 +236,46 @@ internal class SyncCoordinator private constructor(context: Context) {
     /**
      * 本机的局域网地址，手动配对时念给对方听。
      *
-     * 排除回环与未启用的接口：用户要的是「对方该往哪个地址连」，把 127.0.0.1 或某个已经断开的
-     * 虚拟网卡地址报出来，对方照着输只会一直连不上。
+     * 取的是**当前 WiFi 网络**的地址，而不是枚举设备上所有网卡。真机上往往还挂着 VPN 隧道
+     * （tun0、vgate0 之类）和移动数据的网卡，它们也有地址、也都满足「已启用、非回环」，
+     * 但对方在同一个 WiFi 下根本连不过去。全列出来只会让用户对着三个地址不知道该填哪个。
+     *
+     * 拿不到 WiFi 地址时（本机开着热点，或系统不让查）退回枚举网卡，但把 VPN 隧道剔掉——
+     * 那种地址对方一定连不上，列出来纯是干扰。
      */
     suspend fun localAddresses(): List<String> = withContext(Dispatchers.IO) {
         runCatching {
-            NetworkInterface.getNetworkInterfaces().toList()
-                .filter { it.isUp && !it.isLoopback }
-                .flatMap { it.inetAddresses.toList() }
-                .filterIsInstance<Inet4Address>()
-                .mapNotNull { it.hostAddress }
+            val manager = appContext.getSystemService(ConnectivityManager::class.java)
+            val wifi = manager?.let(::wifiAddresses).orEmpty()
+            (wifi.ifEmpty(::networkInterfaceAddresses)).distinct()
         }.getOrDefault(emptyList())
     }
+
+    private fun wifiAddresses(manager: ConnectivityManager): List<String> =
+        manager.allNetworks
+            .filter { network ->
+                val capabilities = manager.getNetworkCapabilities(network)
+                // 必须把 VPN 剔掉：VPN 建在 WiFi 上时，它的 NetworkCapabilities 会**同时**
+                // 带 TRANSPORT_WIFI（底层网络的传输方式被继承下来），只按 WiFi 过滤会把
+                // VPN 的地址一起捞进来——那正是对方连不过去的那个
+                capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true &&
+                    !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+            }
+            .flatMap { network -> manager.getLinkProperties(network)?.linkAddresses.orEmpty() }
+            .mapNotNull { it.address }
+            .filterIsInstance<Inet4Address>()
+            .mapNotNull { it.hostAddress }
+
+    private fun networkInterfaceAddresses(): List<String> =
+        NetworkInterface.getNetworkInterfaces().toList()
+            .filter { it.isUp && !it.isLoopback && !it.isVpnTunnel() }
+            .flatMap { it.inetAddresses.toList() }
+            .filterIsInstance<Inet4Address>()
+            .mapNotNull { it.hostAddress }
+
+    /** VPN 隧道的接口名。vgate 是厂商自己起的名字（见真机上的 vgate0）*/
+    private fun NetworkInterface.isVpnTunnel(): Boolean =
+        name.lowercase().let { n -> VPN_INTERFACE_PREFIXES.any { n.startsWith(it) } }
 
     /**
      * 解除与一台设备的配对。
@@ -394,6 +424,9 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     companion object {
         private const val TAG = "FreshNowSync"
+
+        /** VPN 隧道的接口名前缀，回退到枚举网卡时用 */
+        private val VPN_INTERFACE_PREFIXES = listOf("tun", "tap", "ppp", "vgate")
 
         /**
          * 等发现出结果的上限。取到 6 秒是因为 mDNS 本来就慢：设备刚起来时它要先把查询发出去、

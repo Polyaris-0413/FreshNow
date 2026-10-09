@@ -84,7 +84,7 @@
     <!-- 同一个名字用两处：设置页的那一行，以及它打开的那一页的标题。
          标题另起一条的话，两处日后会各白漂移 -->
     <string name="manual_entry">手动输入</string>
-    <string name="behavior_manual_entry_support">主页的「添加」直接打开录入页</string>
+    <string name="behavior_manual_entry_support">不再借助 AI 进行识别</string>
     <string name="behavior_sort_order_title">排序方式</string>
     <!-- 两种排序在菜单与设置项行上各出现一次，文案只有这一份来源（见 SortOrder.label） -->
     <string name="sort_order_created_at">按创建时间</string>
@@ -117,7 +117,7 @@
     <string name="project_issue_url" translatable="false">https://github.com/Polyaris-0413/FreshNow/issues</string>
     <string name="ai_settings_basic_group_title">基础配置</string>
     <string name="ai_settings_show_reasoning_title">显示思维链</string>
-    <string name="ai_settings_show_reasoning_support">在扫描页显示模型的推理过程</string>
+    <string name="ai_settings_show_reasoning_support">显示模型的推理过程</string>
     <string name="ai_settings_extra_title">思考参数</string>
     <string name="ai_settings_extra_label">附加请求参数</string>
     <string name="ai_settings_extra_hint">思考档位越低，结果生成越快，但准确度会下降。留空或写法不规范时，跟随服务商默认配置。</string>

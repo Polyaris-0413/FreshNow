@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 读当前 WiFi 网络的地址（同步页要把它显示给对方看）。普通权限，装完就有 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- 同步要持组播锁才能稳定收到 mDNS 报文，否则部分机型在省电时会静默收不到发现结果 -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- Android 17（API 37）起局域网访问要用户授权，在那之前的系统上这个声明会被忽略。
