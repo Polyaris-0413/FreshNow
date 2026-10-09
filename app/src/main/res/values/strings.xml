@@ -79,6 +79,11 @@
     <string name="scan_reasoning_empty">模型未返回思维链</string>
 
     <string name="ai_settings_section_title">AI</string>
+    <string name="behavior_settings_section_title">行为</string>
+    <!-- 同一个名字用两处：设置页的那一行，以及它打开的那一页的标题。
+         标题另起一条的话，两处日后会各白漂移 -->
+    <string name="manual_entry">手动输入</string>
+    <string name="behavior_manual_entry_support">主页的「添加」直接打开录入页</string>
     <string name="debug_settings_section_title">调试</string>
     <string name="app_settings_section_title">应用</string>
     <string name="app_settings_version_title">版本</string>

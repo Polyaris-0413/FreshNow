@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 设置页只放可调项：AI 与调试。应用信息、项目入口、法律信息都在关于页（见 AboutScreenTest）。
+ * 设置页只放可调项：AI、行为与调试。应用信息、项目入口、法律信息都在关于页（见 AboutScreenTest）。
  *
  * 只摆 [SettingsList] 本体（不含落盘与编辑面板）：走真实的 SettingsScreen 会连设备上真实的
  * DataStore，跑一次就把用户的 AI 配置覆盖掉——这一点 AiSettingsRepositoryTest 里已写明，
@@ -56,6 +56,39 @@ class SettingsScreenTest {
         assertEquals(listOf(false), changes)
     }
 
+    /**
+     * 「手动输入」归在「行为」分区下，且行为那一段夹在「AI」与「调试」之间。
+     *
+     * 分区是纯版式概念、没有语义节点，只能按位置验。顺序的理：面向用户的开关排在前，调试排最后。
+     */
+    @Test
+    fun manualEntrySitsUnderBehaviorSection() {
+        setContent()
+
+        val aiTitle = top("AI")
+        val behaviorTitle = top("行为")
+        val manualEntryRow = top("手动输入")
+        val debugTitle = top("调试")
+
+        assertTrue("「行为」应当排在「AI」之后：ai=$aiTitle behavior=$behaviorTitle", behaviorTitle > aiTitle)
+        assertTrue(
+            "「手动输入」应当在「行为」标题之下：behavior=$behaviorTitle row=$manualEntryRow",
+            manualEntryRow > behaviorTitle
+        )
+        assertTrue("「调试」应当排在「行为」之后：behavior=$behaviorTitle debug=$debugTitle", debugTitle > behaviorTitle)
+    }
+
+    /** 与「显示思维链」同一条规矩：整行可点即切换 */
+    @Test
+    fun tappingManualEntryRowTogglesIt() {
+        val changes = mutableListOf<Boolean>()
+        setContent(onManualEntryChange = { changes += it })
+
+        composeRule.onNodeWithText("手动输入").performClick()
+
+        assertEquals("开关关着时点一下应当是打开", listOf(true), changes)
+    }
+
     /** 应用信息、项目与法律入口都不在设置里——它们归关于页，别又长回来一份 */
     @Test
     fun aboutContentIsNotOnSettings() {
@@ -68,16 +101,21 @@ class SettingsScreenTest {
 
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top
 
-    private fun setContent(onShowReasoningChange: (Boolean) -> Unit = {}) {
+    private fun setContent(
+        onShowReasoningChange: (Boolean) -> Unit = {},
+        onManualEntryChange: (Boolean) -> Unit = {}
+    ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
                 SettingsList(
                     summary = "未配置",
                     extraSummary = "跟随服务商默认",
                     showReasoning = true,
+                    manualEntry = false,
                     onBasicConfigClick = {},
                     onExtraRequestClick = {},
-                    onShowReasoningChange = onShowReasoningChange
+                    onShowReasoningChange = onShowReasoningChange,
+                    onManualEntryChange = onManualEntryChange
                 )
             }
         }

@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.AiSettings
 import com.freshnow.app.data.AiSettingsRepository
+import com.freshnow.app.data.BehaviorSettings
+import com.freshnow.app.data.BehaviorSettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,11 +16,13 @@ import kotlinx.coroutines.launch
 
 /**
  * [saved] 为已落盘的配置，设置项行展示它；其余字段是编辑面板的草稿，仅打开面板时从 [saved] 重置
+ * [behavior] 同理是行为那一组已落盘的值；两组开关都没有草稿，即时生效
  * [loaded] 表示 [saved] 是否已从 DataStore 读出，为 false 时界面不应渲染设置项
  */
 data class SettingsUiState(
     val loaded: Boolean = false,
     val saved: AiSettings = AiSettings(),
+    val behavior: BehaviorSettings = BehaviorSettings(),
     val baseUrl: String = "",
     val modelName: String = "",
     val apiKey: String = "",
@@ -31,6 +35,7 @@ data class SettingsUiState(
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AiSettingsRepository(application)
+    private val behaviorRepository = BehaviorSettingsRepository(application)
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -38,7 +43,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     init {
         viewModelScope.launch {
             val saved = repository.aiSettings.first()
-            _uiState.update { it.copy(loaded = true, saved = saved) }
+            val behavior = behaviorRepository.behaviorSettings.first()
+            _uiState.update { it.copy(loaded = true, saved = saved, behavior = behavior) }
         }
     }
 
@@ -77,6 +83,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val updated = _uiState.value.saved.copy(showReasoning = value)
         _uiState.update { it.copy(saved = updated) }
         viewModelScope.launch { repository.save(updated) }
+    }
+
+    /**
+     * 「手动输入」与「显示思维链」同一条规矩：开关即时生效，先更新界面再落盘
+     */
+    fun onManualEntryChange(value: Boolean) {
+        val updated = _uiState.value.behavior.copy(manualEntry = value)
+        _uiState.update { it.copy(behavior = updated) }
+        viewModelScope.launch { behaviorRepository.save(updated) }
     }
 
     /**

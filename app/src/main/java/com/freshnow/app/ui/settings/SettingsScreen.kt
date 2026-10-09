@@ -84,6 +84,7 @@ fun SettingsScreen(
                     stringResource(R.string.ai_settings_extra_default)
                 },
                 showReasoning = uiState.saved.showReasoning,
+                manualEntry = uiState.behavior.manualEntry,
                 onBasicConfigClick = {
                     viewModel.startEditing()
                     editing = SettingsEditor.BasicConfig
@@ -93,6 +94,7 @@ fun SettingsScreen(
                     editing = SettingsEditor.ExtraRequest
                 },
                 onShowReasoningChange = viewModel::onShowReasoningChange,
+                onManualEntryChange = viewModel::onManualEntryChange,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -140,9 +142,11 @@ internal fun SettingsList(
     summary: String,
     extraSummary: String,
     showReasoning: Boolean,
+    manualEntry: Boolean,
     onBasicConfigClick: () -> Unit,
     onExtraRequestClick: () -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
+    onManualEntryChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -177,6 +181,33 @@ internal fun SettingsList(
                 Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             },
             modifier = Modifier.clickable(onClick = onExtraRequestClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        SectionHeading(
+            text = stringResource(R.string.behavior_settings_section_title),
+            // 与上一段之间留段间距（设计源的 24），两个分区才分得开
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
+
+        // 与「显示思维链」同一种行：整行可点、角色给 Switch（开关自己不吃点击），
+        // 说明文字写在下面一行而不是摆在标题里——开关说的是「怎么用「添加」」，标题只给出名字
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.manual_entry))
+            },
+            supportingContent = { Text(text = stringResource(R.string.behavior_manual_entry_support)) },
+            trailingContent = {
+                Switch(checked = manualEntry, onCheckedChange = null)
+            },
+            modifier = Modifier.toggleable(
+                value = manualEntry,
+                role = Role.Switch,
+                onValueChange = onManualEntryChange
+            ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 

@@ -28,6 +28,14 @@ object FreshNowRoute {
     const val SETTINGS = "settings"
     const val OPEN_SOURCE = "openSource"
 
+    /**
+     * 手动录入（行为开关开着时的「添加」）。
+     *
+     * 不是 `record/new`：那条路会被 `record/{recordId}` 当成一个 id 去解析（NavType.LongType），
+     * 对不上就会在导航时抛异常；这一页本来也不是「某条记录」，另起一个平级名字更清楚。
+     */
+    const val MANUAL_ENTRY = "manualEntry"
+
     const val RECORD_ID_ARG = "recordId"
     const val RECORD_DETAIL = "record/{$RECORD_ID_ARG}"
     const val RECORD_EDIT = "record/{$RECORD_ID_ARG}/edit"
@@ -41,6 +49,10 @@ object FreshNowRoute {
 fun FreshNowNavHost(
     navController: NavHostController = rememberNavController()
 ) {
+    // 页面之间的跳转一律走这里，而不是直接调 navController：转场没演完就再出发会把动画挤掉，
+    // 表现为硬切加一下黑闪（见 SettledNavigator）
+    val navigator = rememberSettledNavigator(navController)
+
     NavHost(
         navController = navController,
         startDestination = FreshNowRoute.HOME,
@@ -54,17 +66,25 @@ fun FreshNowNavHost(
     ) {
         composable(FreshNowRoute.HOME) {
             HomeRoute(
-                onNavigateToScan = { navController.navigate(FreshNowRoute.SCAN) },
-                onNavigateToAbout = { navController.navigate(FreshNowRoute.ABOUT) },
-                onNavigateToSettings = { navController.navigate(FreshNowRoute.SETTINGS) },
-                onNavigateToRecord = { id -> navController.navigate(FreshNowRoute.recordDetail(id)) }
+                onNavigateToScan = { navigator.navigate(FreshNowRoute.SCAN) },
+                onNavigateToManualEntry = { navigator.navigate(FreshNowRoute.MANUAL_ENTRY) },
+                onNavigateToAbout = { navigator.navigate(FreshNowRoute.ABOUT) },
+                onNavigateToSettings = { navigator.navigate(FreshNowRoute.SETTINGS) },
+                onNavigateToRecord = { id -> navigator.navigate(FreshNowRoute.recordDetail(id)) }
+            )
+        }
+        // 手动录入：库里还没有这条记录，recordId 给 null；保存之后保存按钮那边会退回主页
+        composable(FreshNowRoute.MANUAL_ENTRY) {
+            RecordEditScreen(
+                recordId = null,
+                onBack = { navigator.navigateUp() }
             )
         }
         composable(FreshNowRoute.SCAN) {
             ScanScreen(
-                onBack = { navController.navigateUp() },
+                onBack = { navigator.navigateUp() },
                 // 压栈而不是切换目的地：从设置回来仍落在扫描页，相机与累加记录都还在
-                onNavigateToSettings = { navController.navigate(FreshNowRoute.SETTINGS) }
+                onNavigateToSettings = { navigator.navigate(FreshNowRoute.SETTINGS) }
             )
         }
         composable(
@@ -74,8 +94,8 @@ fun FreshNowNavHost(
             val recordId = entry.arguments?.getLong(FreshNowRoute.RECORD_ID_ARG) ?: 0L
             RecordDetailScreen(
                 recordId = recordId,
-                onBack = { navController.navigateUp() },
-                onNavigateToEdit = { navController.navigate(FreshNowRoute.recordEdit(recordId)) }
+                onBack = { navigator.navigateUp() },
+                onNavigateToEdit = { navigator.navigate(FreshNowRoute.recordEdit(recordId)) }
             )
         }
         composable(
@@ -84,20 +104,20 @@ fun FreshNowNavHost(
         ) { entry ->
             RecordEditScreen(
                 recordId = entry.arguments?.getLong(FreshNowRoute.RECORD_ID_ARG) ?: 0L,
-                onBack = { navController.navigateUp() }
+                onBack = { navigator.navigateUp() }
             )
         }
         composable(FreshNowRoute.ABOUT) {
             AboutScreen(
-                onBack = { navController.navigateUp() },
-                onNavigateToOpenSource = { navController.navigate(FreshNowRoute.OPEN_SOURCE) }
+                onBack = { navigator.navigateUp() },
+                onNavigateToOpenSource = { navigator.navigate(FreshNowRoute.OPEN_SOURCE) }
             )
         }
         composable(FreshNowRoute.SETTINGS) {
-            SettingsScreen(onBack = { navController.navigateUp() })
+            SettingsScreen(onBack = { navigator.navigateUp() })
         }
         composable(FreshNowRoute.OPEN_SOURCE) {
-            OpenSourceScreen(onBack = { navController.navigateUp() })
+            OpenSourceScreen(onBack = { navigator.navigateUp() })
         }
     }
 }

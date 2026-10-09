@@ -53,9 +53,6 @@ class ScanRecordRepository(
      * 返回 false 只表示照片没换成（新旧文件都写好之后才失败）：旧照片原样保留，其余字段已经落盘，
      * 调用方只需就这一件事提示用户。写盘失败不拦下整次编辑，与 [ScanImageStore.write] 的取舍一致——
      * 没有可用画面时本来就有「这条记录没有图片」这个正常状态。
-     *
-     * 换照片的顺序固定为新文件 → 改行 → 删旧文件，不能倒：先删旧文件的话，
-     * 中途任何一步失败都会把照片永久弄丢。
      */
     suspend fun update(record: ScanRecord, image: ImageChange): Boolean = when (image) {
         ImageChange.Keep -> {
@@ -72,22 +69,59 @@ class ScanRecordRepository(
         }
 
         is ImageChange.Replace -> {
-            val newName = imageStore.write(image.bytes)
-            if (newName == null) {
-                // 写新文件就失败了：行里的照片名一个字都不改，旧照片继续用
-                dao.update(record)
-                false
-            } else {
-                runCatching { dao.update(record.copy(imageName = newName)) }
-                    .onFailure {
-                        // 行没改成，新文件不能留下：它就是一张谁也找不到的孤儿图
-                        imageStore.delete(newName)
-                        throw it
-                    }
-                imageStore.delete(record.imageName)
-                true
+            val replaced = replaceImage(image.bytes, oldName = record.imageName) { newName ->
+                dao.update(record.copy(imageName = newName))
             }
+            // 写新文件就失败了：行里的照片名一个字都不改，旧照片继续用
+            if (!replaced) dao.update(record)
+            replaced
         }
+    }
+
+    /**
+     * 新建一条记录（手动录入）。照片的处理与 [update] 是同一套：先落图、再落行，顺序的理由见 [replaceImage]。
+     *
+     * 返回 false 只表示照片没写成功：这条记录照样落库，只是没有图片（与扫描时「没有可用画面」
+     * 是同一个状态）。写库整体失败会抛出，由调用方决定怎么办。
+     */
+    suspend fun insert(record: ScanRecord, image: ImageChange): Boolean = when (image) {
+        // 新记录本来就没有照片，Keep 与 Remove 在这里是同一件事
+        ImageChange.Keep, ImageChange.Remove -> {
+            dao.insert(record.copy(imageName = ""))
+            true
+        }
+
+        is ImageChange.Replace -> {
+            val replaced = replaceImage(image.bytes, oldName = "") { newName ->
+                dao.insert(record.copy(imageName = newName))
+            }
+            // 图没写成功：记录照样落库，只是没有图片
+            if (!replaced) dao.insert(record.copy(imageName = ""))
+            replaced
+        }
+    }
+
+    /**
+     * 换照片：先写新文件、再落行、最后删旧文件，不能倒——先删旧文件的话，中途任何一步失败
+     * 都会把照片永久弄丢。返回 false 表示新图没写成功，此时行还没动过。
+     *
+     * [writeRow] 拿到的就是新文件名，负责把行改成指向它；它若抛出，刚写的图会被删掉再抛出去，
+     * 否则留下的就是一张谁也找不到的孤儿图。
+     */
+    private suspend fun replaceImage(
+        bytes: ByteArray,
+        oldName: String,
+        writeRow: suspend (newName: String) -> Unit
+    ): Boolean {
+        val newName = imageStore.write(bytes) ?: return false
+        runCatching { writeRow(newName) }
+            .onFailure {
+                imageStore.delete(newName)
+                throw it
+            }
+        // 旧文件名可能是空串（新记录），delete 空串是无操作
+        imageStore.delete(oldName)
+        return true
     }
 
     /**

@@ -36,6 +36,8 @@ import kotlinx.coroutines.withContext
 data class RecordEditUiState(
     val loaded: Boolean = false,
     val found: Boolean = false,
+    /** 这是一条还没落库的新记录（手动录入）：保存时是首次写入而不是覆盖，标题也不一样 */
+    val isNew: Boolean = false,
     val productName: String = "",
     val productionDate: String = "",
     val expiryDate: String = "",
@@ -58,12 +60,21 @@ data class RecordEditUiState(
  * form if errors are detected"*——写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」。
  *
  * 照片不进这个判据：它没有「认不出」这种状态，而读取失败是提示而不是校验（见 imageReadFailed）。
+ *
+ * 新记录另外要求至少填了一项：与扫描页「一个字段都没读到就不存」同一条规矩，免得手滑存下一堆
+ * 什么都没有的记录。已有记录不受这条约束——把字段清空是一次编辑，不该被拦下。
  */
 val RecordEditUiState.canSave: Boolean
-    get() = !saving && !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid
+    get() = !saving && !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid &&
+        (!isNew || hasAnyValue)
+
+/** 四个字段里有没有哪一个填了东西。扫描侧的同名判据在 ScanResult.hasAnyValue */
+val RecordEditUiState.hasAnyValue: Boolean
+    get() = productName.isNotBlank() || productionDate.isNotBlank() ||
+        expiryDate.isNotBlank() || shelfLife.isNotBlank()
 
 /**
- * 改一条已保存记录的文字字段与照片。
+ * 改一条记录的文字字段与照片，或者手填一条还没有的新记录（手动录入，见 [RecordEditViewModel.startNew]）。
  *
  * 四项放在同一份草稿里一起改、一起存：过期日期可能是标签印刷的值，也可能是由生产日期与保质期
  * 推算出来的派生值，这条联动必须在同一屏里看得见——逐个字段就地改会把它藏起来（见 ExpiryCalculator）。
@@ -78,11 +89,14 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     private val _uiState = MutableStateFlow(RecordEditUiState())
     val uiState: StateFlow<RecordEditUiState> = _uiState.asStateFlow()
 
-    /** 读进来的那条记录，保存时在它上面改字段：照片文件名、保存时间都靠它原样带过去 */
+    /** 读进来的那条记录，保存时在它上面改字段：照片文件名、保存时间都靠它原样带过去。新记录时为 null */
     private var loaded: ScanRecord? = null
 
     /** 已经读过哪条记录。用它判重而不是 uiState.loaded：后者是给界面看的状态，不是「已经读过库」的证据 */
     private var loadedId: Long? = null
+
+    /** 已经开过手填的草稿。与 [loadedId] 一样只是个判重标记，两者不会同时成立 */
+    private var startedNew = false
 
     /**
      * 读入草稿。只读一次、不订阅：正在编辑的值不该被库里的写入抢走。
@@ -93,6 +107,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     fun load(id: Long) {
         if (loadedId == id) return
         loadedId = id
+        startedNew = false
         viewModelScope.launch {
             val record = repository.find(id)
             loaded = record
@@ -115,6 +130,20 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
 
     fun onProductNameChange(value: String) {
         _uiState.update { it.copy(productName = value) }
+    }
+
+    /**
+     * 开一份手填的新记录草稿：不读库，四个字段与照片都是空的。
+     *
+     * 与 [load] 同样只做一次：本页重建（返回、进程内重建）会再调一次，重开一份空草稿会把用户
+     * 已经敲进去的内容擦掉。
+     */
+    fun startNew() {
+        if (startedNew) return
+        startedNew = true
+        loadedId = null
+        loaded = null
+        _uiState.value = RecordEditUiState(loaded = true, found = true, isNew = true)
     }
 
     fun onProductionDateChange(value: String) {
@@ -223,12 +252,26 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         val current = _uiState.value
         val record = loaded
         viewModelScope.launch {
-            // 记录已经读不到了（比如在别处被删掉）就没有可存的东西，当作照片也没问题，直接退出
-            val imageSaved = if (record == null) {
-                true
-            } else {
-                runCatching {
-                    repository.update(
+            val imageSaved = try {
+                when {
+                    // 手填的新记录：库里还没有它，这一次是首次写入，保存时间就在这一刻定下。
+                    // 没有记录可编辑时用的也是这一支，于是手动录入与「扫描后存下」在库里长得一样
+                    current.isNew -> repository.insert(
+                        ScanRecord(
+                            productName = current.productName.trim(),
+                            productionDate = ScanValueFormat.date(current.productionDate.trim()),
+                            expiryDate = ScanValueFormat.date(current.expiryDate.trim()),
+                            shelfLife = ScanValueFormat.shelfLife(current.shelfLife.trim()),
+                            imageName = "",
+                            savedAt = System.currentTimeMillis()
+                        ),
+                        current.imageChange
+                    )
+
+                    // 记录已经读不到了（比如在别处被删掉）就没有可存的东西，当作照片也没问题，直接退出
+                    record == null -> true
+
+                    else -> repository.update(
                         record.copy(
                             productName = current.productName.trim(),
                             productionDate = ScanValueFormat.date(current.productionDate.trim()),
@@ -237,12 +280,13 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                         ),
                         current.imageChange
                     )
-                }.getOrElse {
-                    // 写库本身就失败了：留在本页并放开保存，让用户再试一次。
-                    // 抛出去只会把应用崩掉，而这一次失败对用户来说是「没存上」不是「应用坏了」
-                    _uiState.update { it.copy(saving = false) }
-                    return@launch
                 }
+            } catch (e: Exception) {
+                // 写库本身就失败了：留在本页并放开保存，让用户再试一次。
+                // 抛出去只会把应用崩掉，而这一次失败对用户来说是「没存上」不是「应用坏了」。
+                // 按 Exception 而不是 Throwable 捕：本页被销毁时的取消不该被当成一次写入失败
+                _uiState.update { it.copy(saving = false) }
+                return@launch
             }
             onSaved(imageSaved)
         }

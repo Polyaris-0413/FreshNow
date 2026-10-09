@@ -665,6 +665,43 @@ class HomeScreenTest {
         assertTrue("中途应当还没推到位：middle=$pushedMiddle end=$pushedEnd", pushedMiddle < pushedEnd)
     }
 
+    /**
+     * 行为开关「手动输入」决定「添加」去哪一页：关着进扫描，开着进录入页。
+     *
+     * 两条路在同一个用例里各走一遍，而不是拆成两个：这条判据的全部内容就是「两者取其一」，
+     * 拆开就断不出「两个回调都被叫到」这种错。
+     */
+    @Test
+    fun addGoesToScanOrManualEntryByBehaviorSwitch() {
+        val manualEntry = mutableStateOf(false)
+        val targets = mutableListOf<String>()
+        composeRule.setContent {
+            FreshNowTheme(dynamicColor = false) {
+                HomeScreen(
+                    records = null,
+                    newRecordIds = emptySet(),
+                    justEmptied = false,
+                    selectedIds = emptySet(),
+                    manualEntry = manualEntry.value,
+                    onRecordClick = {},
+                    onRecordToggle = {},
+                    onExitSelection = {},
+                    onDeleteSelected = {},
+                    onNavigateToScan = { targets += SCAN },
+                    onNavigateToManualEntry = { targets += MANUAL_ENTRY },
+                    onNavigateToAbout = {},
+                    onNavigateToSettings = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("添加").performClick()
+        composeRule.runOnUiThread { manualEntry.value = true }
+        composeRule.onNodeWithContentDescription("添加").performClick()
+
+        assertEquals("关着时进扫描、开着时进录入页", listOf(SCAN, MANUAL_ENTRY), targets)
+    }
+
     /** 需要一个改得动列表或选中状态的容器，与其它用例只摆一个静态状态不同 */
     private fun setContentTracking(
         records: MutableState<List<HomeRecordItem>>,
@@ -679,11 +716,13 @@ class HomeScreenTest {
                     newRecordIds = newRecordIds.value,
                     justEmptied = justEmptied.value,
                     selectedIds = selectedIds.value,
+                    manualEntry = false,
                     onRecordClick = {},
                     onRecordToggle = {},
                     onExitSelection = {},
                     onDeleteSelected = {},
                     onNavigateToScan = {},
+                    onNavigateToManualEntry = {},
                     onNavigateToAbout = {},
                     onNavigateToSettings = {}
                 )
@@ -730,10 +769,13 @@ class HomeScreenTest {
         newRecordIds: Set<Long> = emptySet(),
         justEmptied: Boolean = false,
         selectedIds: Set<Long> = emptySet(),
+        manualEntry: Boolean = false,
         onRecordClick: (Long) -> Unit = {},
         onRecordToggle: (Long) -> Unit = {},
         onExitSelection: () -> Unit = {},
-        onDeleteSelected: () -> Unit = {}
+        onDeleteSelected: () -> Unit = {},
+        onNavigateToScan: () -> Unit = {},
+        onNavigateToManualEntry: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
@@ -744,11 +786,13 @@ class HomeScreenTest {
                     newRecordIds = newRecordIds,
                     justEmptied = justEmptied,
                     selectedIds = selectedIds,
+                    manualEntry = manualEntry,
                     onRecordClick = onRecordClick,
                     onRecordToggle = onRecordToggle,
                     onExitSelection = onExitSelection,
                     onDeleteSelected = onDeleteSelected,
-                    onNavigateToScan = {},
+                    onNavigateToScan = onNavigateToScan,
+                    onNavigateToManualEntry = onNavigateToManualEntry,
                     onNavigateToAbout = {},
                     onNavigateToSettings = {}
                 )
@@ -785,6 +829,10 @@ class HomeScreenTest {
     }
 
     private companion object {
+        /** 「添加」的两个去处，只作为判据用，不是真的路由名 */
+        const val SCAN = "scan"
+        const val MANUAL_ENTRY = "manualEntry"
+
         const val PREVIEW_NAME = "home_list_preview.png"
         const val SELECTION_PREVIEW_NAME = "home_selection_preview.png"
         const val COUNT_ROLL_PREVIEW_NAME = "home_count_roll_preview.png"

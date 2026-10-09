@@ -83,6 +83,7 @@ import java.time.LocalDateTime
 @Composable
 fun HomeRoute(
     onNavigateToScan: () -> Unit,
+    onNavigateToManualEntry: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToRecord: (Long) -> Unit,
@@ -93,6 +94,7 @@ fun HomeRoute(
     val newRecordIds by viewModel.newRecordIds.collectAsStateWithLifecycle()
     val justEmptied by viewModel.justEmptied.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
+    val manualEntry by viewModel.manualEntry.collectAsStateWithLifecycle()
 
     // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
     // 清在这里而不是合成里，是因为此刻那些条目已经不存在了，清早了也漏不掉谁
@@ -108,11 +110,13 @@ fun HomeRoute(
         newRecordIds = newRecordIds,
         justEmptied = justEmptied,
         selectedIds = selectedIds,
+        manualEntry = manualEntry,
         onRecordClick = onNavigateToRecord,
         onRecordToggle = viewModel::toggleSelection,
         onExitSelection = viewModel::clearSelection,
         onDeleteSelected = viewModel::deleteSelected,
         onNavigateToScan = onNavigateToScan,
+        onNavigateToManualEntry = onNavigateToManualEntry,
         onNavigateToAbout = onNavigateToAbout,
         onNavigateToSettings = onNavigateToSettings,
         modifier = modifier
@@ -128,11 +132,14 @@ fun HomeScreen(
     /** 上一次查库把列表查空了且此前有记录，见 HomeViewModel.justEmptied */
     justEmptied: Boolean,
     selectedIds: Set<Long>,
+    /** 行为里的「手动输入」：开着时「添加」直接进录入页，见 [onNavigateToManualEntry] */
+    manualEntry: Boolean,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
     onExitSelection: () -> Unit,
     onDeleteSelected: () -> Unit,
     onNavigateToScan: () -> Unit,
+    onNavigateToManualEntry: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -216,7 +223,11 @@ fun HomeScreen(
                 enter = fadeIn(FreshNowTransitions.stateChange()),
                 exit = fadeOut(FreshNowTransitions.stateChange())
             ) {
-                FloatingActionButton(onClick = onNavigateToScan) {
+                FloatingActionButton(
+                    // 「添加」去哪一页由行为开关决定：扫描是本应用的主线，手动录入是给拍不到标签的场景
+                    // 留的旁路。分岔放在这里而不是外面，是为了让这一处点击的两个去处都摆在眼前
+                    onClick = { if (manualEntry) onNavigateToManualEntry() else onNavigateToScan() }
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_add),
                         contentDescription = stringResource(R.string.action_add)
@@ -582,11 +593,13 @@ private fun HomeScreenPreview() {
             newRecordIds = emptySet(),
             justEmptied = false,
             selectedIds = emptySet(),
+            manualEntry = false,
             onRecordClick = {},
             onRecordToggle = {},
             onExitSelection = {},
             onDeleteSelected = {},
             onNavigateToScan = {},
+            onNavigateToManualEntry = {},
             onNavigateToAbout = {},
             onNavigateToSettings = {}
         )
@@ -602,11 +615,13 @@ private fun HomeScreenSelectionPreview() {
             newRecordIds = emptySet(),
             justEmptied = false,
             selectedIds = setOf(1L),
+            manualEntry = false,
             onRecordClick = {},
             onRecordToggle = {},
             onExitSelection = {},
             onDeleteSelected = {},
             onNavigateToScan = {},
+            onNavigateToManualEntry = {},
             onNavigateToAbout = {},
             onNavigateToSettings = {}
         )

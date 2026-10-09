@@ -3,6 +3,7 @@ package com.freshnow.app.ui.home
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
@@ -34,6 +35,18 @@ data class HomeRecordItem(
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
+
+    private val behaviorRepository = BehaviorSettingsRepository(application)
+
+    /**
+     * 行为里的「手动输入」：主页的「添加」按它决定去哪一页。
+     *
+     * 订阅而不是读一次：用户可能刚在设置页开了它再回来，读一次的话这一次点击还是走老路。
+     * 初值取「关」——扫描是本应用的主线，开关还没读出来时按主线走。
+     */
+    val manualEntry: StateFlow<Boolean> = behaviorRepository.behaviorSettings
+        .map { it.manualEntry }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
 
     /**
      * 列表内容。null 表示第一次查库还没回来。

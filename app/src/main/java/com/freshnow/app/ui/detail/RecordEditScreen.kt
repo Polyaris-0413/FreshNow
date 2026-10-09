@@ -130,12 +130,15 @@ internal fun EditStepTransition(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordEditScreen(
-    recordId: Long,
+    /** 要改的那条记录；null 表示手动录入一条新记录，库里还没有它 */
+    recordId: Long?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecordEditViewModel = viewModel()
 ) {
-    LaunchedEffect(recordId) { viewModel.load(recordId) }
+    LaunchedEffect(recordId) {
+        if (recordId == null) viewModel.startNew() else viewModel.load(recordId)
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val readFailedToast = stringResource(R.string.record_image_read_failed)
@@ -241,7 +244,12 @@ private fun EditForm(
     val saveFailedToast = stringResource(R.string.record_image_save_failed)
 
     FreshNowSubPage(
-        title = stringResource(R.string.record_edit_title),
+        // 新记录还没有名字可提，标题换成功能名：「编辑记录」会让人去找那条并不存在的记录
+        title = if (uiState.isNew) {
+            stringResource(R.string.manual_entry)
+        } else {
+            stringResource(R.string.record_edit_title)
+        },
         onBack = onBack,
         actions = {
             // 记录都读不到了就没有可存的东西，不留一个按下去没反应的按钮
