@@ -175,12 +175,13 @@ class RecordEditFormTest {
         composeRule.onNodeWithText(DATE_ERROR, substring = true).assertIsDisplayed()
     }
 
-    /** 保质期是另一套写法规则，给例子时要给保质期的例 */
+    /** 保质期是另一套写法规则：报的必须是它自己那条文案，不能拿日期那条顶替（那条带日期的例子） */
     @Test
-    fun unrecognizableShelfLifeHasItsOwnExample() {
+    fun unrecognizableShelfLifeHasItsOwnMessage() {
         setContent(uiState = EMPTY.copy(shelfLife = "很久", shelfLifeInvalid = true))
 
-        composeRule.onNodeWithText("认不出这个写法，如 6个月", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("认不出这个写法", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(DATE_ERROR).assertDoesNotExist()
     }
 
     private fun setContent(
