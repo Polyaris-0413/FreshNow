@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.openInBrowser
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
@@ -84,8 +85,7 @@ fun OpenSourceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         ) {
             PROJECTS.forEach { project ->
                 ListItem(
-                    headlineContent = { Text(text = project.name) },
-                    supportingContent = { Text(text = project.license) },
+                    headlineContent = { ListItemText(project.name, project.license) },
                     modifier = Modifier.clickable { openInBrowser(context, project.url) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )

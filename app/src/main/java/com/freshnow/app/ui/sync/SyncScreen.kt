@@ -44,6 +44,7 @@ import com.freshnow.app.R
 import com.freshnow.app.data.local.SyncPeer
 import com.freshnow.app.data.sync.DiscoveredPeer
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -112,8 +113,12 @@ internal fun SyncScreen(
                 leadingContent = {
                     Icon(painter = painterResource(R.drawable.ic_devices), contentDescription = null)
                 },
-                headlineContent = { Text(text = viewModel.deviceName) },
-                supportingContent = { Text(text = stringResource(R.string.sync_local_device_support)) },
+                headlineContent = {
+                    ListItemText(
+                        viewModel.deviceName,
+                        stringResource(R.string.sync_local_device_support)
+                    )
+                },
                 trailingContent = {
                     TextButton(onClick = viewModel::openPairingCode) {
                         Text(text = stringResource(R.string.sync_show_pairing_code))
@@ -143,9 +148,11 @@ internal fun SyncScreen(
             )
             if (peers.isEmpty()) {
                 ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.sync_no_paired_devices)) },
-                    supportingContent = {
-                        Text(text = stringResource(R.string.sync_no_paired_devices_support))
+                    headlineContent = {
+                        ListItemText(
+                            stringResource(R.string.sync_no_paired_devices),
+                            stringResource(R.string.sync_no_paired_devices_support)
+                        )
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
@@ -202,8 +209,12 @@ internal fun SyncScreen(
                 leadingContent = {
                     Icon(painter = painterResource(R.drawable.ic_add_link), contentDescription = null)
                 },
-                headlineContent = { Text(text = stringResource(R.string.sync_manual_add)) },
-                supportingContent = { Text(text = stringResource(R.string.sync_manual_add_support)) },
+                headlineContent = {
+                    ListItemText(
+                        stringResource(R.string.sync_manual_add),
+                        stringResource(R.string.sync_manual_add_support)
+                    )
+                },
                 modifier = Modifier.clickable { manualPairing = true },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
@@ -244,11 +255,13 @@ private fun PairedDeviceRow(peer: SyncPeer, onForget: () -> Unit) {
         leadingContent = {
             Icon(painter = painterResource(R.drawable.ic_devices), contentDescription = null)
         },
-        headlineContent = { Text(text = peer.deviceName.ifBlank { peer.deviceId.take(8) }) },
-        supportingContent = {
-            // 还没连上过就没有地址可说，此时不写这一行，而不是写一句占位的话——
-            // 「尚未连接过」和「连接过一次但地址已失效」在用户眼里是同一件事
-            peer.lastAddress.takeIf { it.isNotBlank() }?.let { Text(text = it) }
+        headlineContent = {
+            ListItemText(
+                peer.deviceName.ifBlank { peer.deviceId.take(8) },
+                // 还没连上过就没有地址可说，此时不写这一行，而不是写一句占位的话——
+                // 「尚未连接过」和「连接过一次但地址已失效」在用户眼里是同一件事
+                peer.lastAddress.takeIf { it.isNotBlank() }
+            )
         },
         trailingContent = {
             IconButton(onClick = onForget) {
@@ -417,10 +430,10 @@ private fun PairingCodeDialog(
 private fun PermissionNotice(blocked: Boolean, onRequest: () -> Unit) {
     val context = LocalContext.current
     ListItem(
-        headlineContent = { Text(text = stringResource(R.string.sync_permission_title)) },
-        supportingContent = {
-            Text(
-                text = stringResource(
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.sync_permission_title),
+                stringResource(
                     if (blocked) R.string.sync_permission_blocked else R.string.sync_permission_support
                 )
             )

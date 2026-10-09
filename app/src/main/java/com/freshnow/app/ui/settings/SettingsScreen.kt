@@ -39,13 +39,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.component.SortOrderMenuItems
@@ -195,9 +195,8 @@ internal fun SettingsList(
                 Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
             },
             headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_basic_group_title))
+                ListItemText(stringResource(R.string.ai_settings_basic_group_title), summary)
             },
-            supportingContent = { Text(text = summary) },
             modifier = Modifier.clickable(onClick = onBasicConfigClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
@@ -207,10 +206,7 @@ internal fun SettingsList(
                 Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
             },
             headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_extra_title))
-            },
-            supportingContent = {
-                Text(text = extraSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                ListItemText(stringResource(R.string.ai_settings_extra_title), extraSummary)
             },
             modifier = Modifier.clickable(onClick = onExtraRequestClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -229,9 +225,11 @@ internal fun SettingsList(
                 Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
             },
             headlineContent = {
-                Text(text = stringResource(R.string.manual_entry))
+                ListItemText(
+                    stringResource(R.string.manual_entry),
+                    stringResource(R.string.behavior_manual_entry_support)
+                )
             },
-            supportingContent = { Text(text = stringResource(R.string.behavior_manual_entry_support)) },
             trailingContent = {
                 Switch(checked = manualEntry, onCheckedChange = null)
             },
@@ -250,9 +248,8 @@ internal fun SettingsList(
                 Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
             },
             headlineContent = {
-                Text(text = stringResource(R.string.behavior_sort_order_title))
+                ListItemText(stringResource(R.string.behavior_sort_order_title), sortOrder.label())
             },
-            supportingContent = { Text(text = sortOrder.label()) },
             modifier = Modifier.clickable(onClick = onSortOrderClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
@@ -263,9 +260,11 @@ internal fun SettingsList(
                 Icon(painter = painterResource(R.drawable.ic_sync), contentDescription = null)
             },
             headlineContent = {
-                Text(text = stringResource(R.string.sync_title))
+                ListItemText(
+                    stringResource(R.string.sync_title),
+                    stringResource(R.string.sync_settings_support)
+                )
             },
-            supportingContent = { Text(text = stringResource(R.string.sync_settings_support)) },
             modifier = Modifier.clickable(onClick = onSyncClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
@@ -283,9 +282,11 @@ internal fun SettingsList(
                 Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
             },
             headlineContent = {
-                Text(text = stringResource(R.string.ai_settings_show_reasoning_title))
+                ListItemText(
+                    stringResource(R.string.ai_settings_show_reasoning_title),
+                    stringResource(R.string.ai_settings_show_reasoning_support)
+                )
             },
-            supportingContent = { Text(text = stringResource(R.string.ai_settings_show_reasoning_support)) },
             trailingContent = {
                 Switch(checked = showReasoning, onCheckedChange = null)
             },
