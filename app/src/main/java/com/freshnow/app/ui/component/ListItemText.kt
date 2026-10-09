@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 
 /**
  * 列表项的两行文字：一行标题加一行说明。
@@ -18,13 +19,15 @@ import androidx.compose.ui.Modifier
  * 说明也照常折行完整显示，不会被省略号截掉。
  *
  * 字号与颜色跟 ListItem 原本给 supportingContent 的那套一致（BodyMedium + onSurfaceVariant），
- * 所以换成这里之后视觉上看不出差别。
+ * 所以换成这里之后视觉上看不出差别。配色另有含义时（比如列表里那三档过期预警）用
+ * [supportingColor] 传进来，不要为了一行变色又把说明拆回去。
  */
 @Composable
 fun ListItemText(
     headline: String,
     supporting: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     Column(modifier = modifier) {
         // 字号沿用 ListItem 给标题的那一套，不在这里另写
@@ -33,7 +36,7 @@ fun ListItemText(
             Text(
                 text = supporting,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = supportingColor
             )
         }
     }

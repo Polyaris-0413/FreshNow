@@ -64,6 +64,7 @@ import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.component.FreshNowTopAppBar
+import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanThumbnail
@@ -554,13 +555,13 @@ private fun RecordRow(
                 alpha = outlineAlpha
             ),
         leadingContent = { ScanThumbnail(image = item.image) },
-        headlineContent = { Text(text = scanValueText(item.record.productName)) },
-        supportingContent = {
-            Text(
-                text = expiryCountdownText(days),
+        headlineContent = {
+            ListItemText(
+                headline = scanValueText(item.record.productName),
+                supporting = expiryCountdownText(days),
                 // 三档：已过期用错误色，快过期用警示色（M3 没有 warning 角色，见 FreshNowWarningColors），
                 // 其余保持次要文字色。「算不出天数」不参与分档——不知道就不假装知道
-                color = when {
+                supportingColor = when {
                     days == null -> MaterialTheme.colorScheme.onSurfaceVariant
                     days < 0 -> MaterialTheme.colorScheme.error
                     days <= EXPIRING_SOON_DAYS -> MaterialTheme.warningColors.warning
