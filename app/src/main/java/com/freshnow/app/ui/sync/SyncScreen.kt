@@ -66,8 +66,10 @@ internal fun SyncScreen(
     val pairingCode by viewModel.pairingCode.collectAsStateWithLifecycle()
     val syncing by viewModel.syncing.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val localAddresses by viewModel.localAddresses.collectAsStateWithLifecycle()
 
     var pairingWith by remember { mutableStateOf<DiscoveredPeer?>(null) }
+    var manualPairing by remember { mutableStateOf(false) }
     val permission = rememberLocalNetworkPermission()
 
     DisposableEffect(Unit) {
@@ -193,12 +195,24 @@ internal fun SyncScreen(
                     )
                 }
             }
+
+            // 发现不到时的另一条路。放在列表外面：发现得了的时候用户看不到它也好，
+            // 而一旦列表空着，它就是页面上最该被看见的那一行
+            ListItem(
+                leadingContent = {
+                    Icon(painter = painterResource(R.drawable.ic_add_link), contentDescription = null)
+                },
+                headlineContent = { Text(text = stringResource(R.string.sync_manual_add)) },
+                supportingContent = { Text(text = stringResource(R.string.sync_manual_add_support)) },
+                modifier = Modifier.clickable { manualPairing = true },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            )
         }
     }
 
     pairingCode?.let { code ->
         ModalBottomSheet(onDismissRequest = viewModel::closePairingCode) {
-            PairingCodeContent(code = code)
+            PairingCodeContent(code = code, addresses = localAddresses)
         }
     }
 
@@ -209,6 +223,16 @@ internal fun SyncScreen(
             onConfirm = { code ->
                 viewModel.pair(peer, code)
                 pairingWith = null
+            }
+        )
+    }
+
+    if (manualPairing) {
+        ManualPairingDialog(
+            onDismiss = { manualPairing = false },
+            onConfirm = { address, code ->
+                viewModel.pairWithAddress(address, code)
+                manualPairing = false
             }
         )
     }
@@ -240,7 +264,7 @@ private fun PairedDeviceRow(peer: SyncPeer, onForget: () -> Unit) {
 
 /** 本机配对码。字号给到 display：对面那台设备的人要照着念，越大越省事 */
 @Composable
-private fun PairingCodeContent(code: String) {
+private fun PairingCodeContent(code: String, addresses: List<String>) {
     Column(modifier = Modifier.padding(bottom = FreshNowSpacing.lg)) {
         Text(
             text = stringResource(R.string.sync_pairing_code_title),
@@ -266,7 +290,82 @@ private fun PairingCodeContent(code: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = FreshNowSpacing.sm)
         )
+
+        // 地址连同配对码一起给：发现不到的时候，对方除了这个码还要知道往哪个地址连
+        addresses.forEach { address ->
+            Text(
+                text = "${stringResource(R.string.sync_local_address_title)}：$address",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(
+                    start = FreshNowSpacing.sm,
+                    end = FreshNowSpacing.sm,
+                    top = FreshNowSpacing.xs
+                )
+            )
+        }
+        if (addresses.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.sync_local_address_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(
+                    start = FreshNowSpacing.sm,
+                    end = FreshNowSpacing.sm,
+                    top = FreshNowSpacing.xxs
+                )
+            )
+        }
     }
+}
+
+@Composable
+private fun ManualPairingDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (address: String, code: String) -> Unit
+) {
+    var address by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.sync_manual_add)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it.trim() },
+                    label = { Text(text = stringResource(R.string.sync_manual_address_label)) },
+                    supportingText = { Text(text = stringResource(R.string.sync_manual_address_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { input ->
+                        code = input.filter { it.isDigit() }.take(PAIRING_CODE_LENGTH)
+                    },
+                    label = { Text(text = stringResource(R.string.sync_enter_code_label)) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = FreshNowSpacing.xs)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(address, code) },
+                enabled = address.isNotEmpty() && code.length == PAIRING_CODE_LENGTH
+            ) {
+                Text(text = stringResource(R.string.sync_connect))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
 
 @Composable

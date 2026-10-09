@@ -33,6 +33,11 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
     private val _message = MutableStateFlow<SyncMessage?>(null)
 
+    private val _localAddresses = MutableStateFlow<List<String>>(emptyList())
+
+    /** 本机的局域网地址，显示在配对码旁边供对方手填 */
+    val localAddresses: StateFlow<List<String>> = _localAddresses
+
     /** 上一次操作的结果，界面报一句话之后由 [consumeMessage] 清掉 */
     val message: StateFlow<SyncMessage?> = _message
 
@@ -42,6 +47,9 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
     fun openPairingCode() {
         coordinator.openPairingWindow()
+        // 本机地址只在开窗时取一次：它要显示在配对码旁边供对方手填，而网络变了之后旧的地址
+        // 本来就要重新看，没必要一直盯着
+        viewModelScope.launch { _localAddresses.value = coordinator.localAddresses() }
     }
 
     fun closePairingCode() = coordinator.closePairingWindow()
@@ -75,6 +83,14 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
             } else {
                 SyncMessage.PairFailed
             }
+        }
+    }
+
+    /** 手填地址配对，给 mDNS 用不了的网络留的路 */
+    fun pairWithAddress(address: String, code: String) {
+        viewModelScope.launch {
+            val paired = coordinator.pairWithAddress(address, code)
+            _message.value = if (paired) SyncMessage.Paired(address) else SyncMessage.PairFailed
         }
     }
 

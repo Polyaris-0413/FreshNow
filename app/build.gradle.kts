@@ -39,6 +39,11 @@ android {
             optimization {
                 enable = true
             }
+            // AGP 只在内置默认规则之外找这里声明的文件，所以这一行是自定义规则唯一的入口
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
         // 插件的 nonMinifiedRelease 是 baseline profile 的录制载体：它的名字必须是原始名，
         // 之后由 R8 按映射改写成 release 的混淆名。但 AGP 9 的 optimization DSL 会被
@@ -48,6 +53,16 @@ android {
             optimization {
                 enable = false
             }
+        }
+        // 为了验「两台设备互相同步」而存在的第二份安装。
+        //
+        // 同一个包名装两份共享同一份数据，装不出两台设备来；而局域网同步的错处恰恰全在
+        // 「两边各自看到的状态不一样」上。这一份与 debug 一起装在同一台设备上，各自的库、
+        // 照片目录、设备身份互相隔离，中间走 127.0.0.1 上的真实 HTTP。
+        // 它只用于手工验证与调试，不参与发布。
+        maybeCreate("debugAlt").apply {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".debugalt"
         }
     }
     compileOptions {

@@ -8,13 +8,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 /** 一轮同步的结果，够界面报一句话 */
 internal sealed interface SyncReport {
@@ -53,6 +57,8 @@ internal class SyncCoordinator private constructor(context: Context) {
     private var session: Job? = null
     private var discoveryJob: Job? = null
     private var sessionStarted = false
+    private var backfilling = false
+    private var pairingWindow: Job? = null
 
     /** 已配对的对端，设置页的设备列表用 */
     val pairedPeers: Flow<List<SyncPeer>> = peers.peers
@@ -60,10 +66,10 @@ internal class SyncCoordinator private constructor(context: Context) {
     /** 本机显示给对方看的名字 */
     val deviceName: String get() = identity.deviceName()
 
-    private val _pairingCode = MutableStateFlow<String?>(null)
+    private val _pairingCode: StateFlow<String?> = pairing.code
 
     /** 当前显示给用户的配对码，null 表示配对窗口没开 */
-    val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
+    val pairingCode: StateFlow<String?> = _pairingCode
 
     private val _discovered = MutableStateFlow<List<DiscoveredPeer>>(emptyList())
 
@@ -105,12 +111,26 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     // ---- 配对 ----
 
-    /** 开配对窗口，返回要显示在屏幕上的码 */
-    fun openPairingWindow(): String = pairing.open().also { _pairingCode.value = it }
+    /**
+     * 开配对窗口，返回要显示在屏幕上的码。
+     *
+     * 两分钟后自动关：用户看到码就不再盯着屏幕了，而一个没人管的窗口等在那里，等于把「限时」
+     * 这件事交给用户自己去记。超时长度写在文案里（「码两分钟内有效」），两处必须一致。
+     */
+    fun openPairingWindow(): String {
+        val code = pairing.open()
+        pairingWindow?.cancel()
+        pairingWindow = scope.launch {
+            delay(PAIRING_WINDOW)
+            pairing.close()
+        }
+        return code
+    }
 
     fun closePairingWindow() {
+        pairingWindow?.cancel()
+        pairingWindow = null
         pairing.close()
-        _pairingCode.value = null
     }
 
     /**
@@ -119,40 +139,28 @@ internal class SyncCoordinator private constructor(context: Context) {
      * 配对请求里的密钥由本机生成，对方存下来再回传同一把——两边拿到的是同一个值，
      * 之后谁发起同步都能解开对方的载荷。
      */
-    suspend fun pairWith(peer: DiscoveredPeer, code: String): Boolean {
-        val response = client.pair(
-            address = peer.address,
-            responderDeviceId = peer.deviceId,
-            code = code,
-            request = PairRequest(
-                deviceId = identity.deviceId(),
-                deviceName = identity.deviceName(),
-                secret = SyncCrypto.newSecret().toSecretText()
-            )
-        ) ?: return false
-
-        peers.remember(
-            SyncPeer(
-                deviceId = response.deviceId,
-                deviceName = response.deviceName.ifBlank { peer.deviceName },
-                secret = response.secret,
-                lastAddress = peer.address,
-                pairedAt = System.currentTimeMillis()
-            )
-        )
-        return true
-    }
+    suspend fun pairWith(peer: DiscoveredPeer, code: String): Boolean =
+        rememberPairing(address = peer.address, fallbackName = peer.deviceName, code = code)
 
     /**
      * 配一台地址要手填的设备。
      *
-     * 这条路是给「mDNS 用不了」的网络留的：酒店、企业网里客户端之间常常被隔离，组播直接被丢，
+     * 这条路是给「mDNS 用不了」的网络留的：酒店、企业网里客户端之间常常被隔开，组播直接被丢，
      * 发现页面一片空白，而两台设备明明就在同一个网段。少了这条路，那些网络上这个功能等于没有。
+     *
+     * 地址里不带端口（用 [DEFAULT_PORT]）：让用户在手机上多抄五个数字，抄错的代价是「配对码
+     * 没错但就是配不上」，而用户没有任何办法看出问题出在哪一段。
      */
-    suspend fun pairWithAddress(address: String, deviceId: String, code: String): Boolean {
+    suspend fun pairWithAddress(address: String, code: String): Boolean =
+        rememberPairing(address = withDefaultPort(address), fallbackName = "", code = code)
+
+    private suspend fun rememberPairing(
+        address: String,
+        fallbackName: String,
+        code: String
+    ): Boolean {
         val response = client.pair(
             address = address,
-            responderDeviceId = deviceId,
             code = code,
             request = PairRequest(
                 deviceId = identity.deviceId(),
@@ -164,13 +172,36 @@ internal class SyncCoordinator private constructor(context: Context) {
         peers.remember(
             SyncPeer(
                 deviceId = response.deviceId,
-                deviceName = response.deviceName.ifBlank { response.deviceId.take(8) },
+                deviceName = response.deviceName.ifBlank { fallbackName }
+                    .ifBlank { response.deviceId.take(8) },
                 secret = response.secret,
                 lastAddress = address,
                 pairedAt = System.currentTimeMillis()
             )
         )
         return true
+    }
+
+    /** 补上约定端口。用户已经写好端口时原样用 */
+    private fun withDefaultPort(address: String): String {
+        val trimmed = address.trim().removePrefix("http://").removeSuffix("/")
+        return if (trimmed.contains(':')) trimmed else "$trimmed:$DEFAULT_PORT"
+    }
+
+    /**
+     * 本机的局域网地址，手动配对时念给对方听。
+     *
+     * 排除回环与未启用的接口：用户要的是「对方该往哪个地址连」，把 127.0.0.1 或某个已经断开的
+     * 虚拟网卡地址报出来，对方照着输只会一直连不上。
+     */
+    suspend fun localAddresses(): List<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            NetworkInterface.getNetworkInterfaces().toList()
+                .filter { it.isUp && !it.isLoopback }
+                .flatMap { it.inetAddresses.toList() }
+                .filterIsInstance<Inet4Address>()
+                .mapNotNull { it.hostAddress }
+        }.getOrDefault(emptyList())
     }
 
     suspend fun forget(deviceId: String) = peers.forget(deviceId)
@@ -214,6 +245,9 @@ internal class SyncCoordinator private constructor(context: Context) {
                 ).distinct()
                 candidates.firstNotNullOfOrNull { engine.syncWith(peer, it) }
             }
+            // 连上过才补图：两端同时在线的时刻正是补图最省的时机，而图本身不在交换里。
+            // 放到后台做，否则用户点一下同步要等到几百张图都拉完才能看到结果
+            if (outcomes.isNotEmpty()) backfillImagesInBackground()
             return if (outcomes.isEmpty()) SyncReport.Unreachable else SyncReport.Done(outcomes)
         } finally {
             _syncing.value = false
@@ -222,14 +256,49 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     /** 把一条记录的照片从对端取回来。已经有的直接返回 true，不会去打扰对端 */
     suspend fun fetchPhoto(record: ScanRecord): Boolean {
-        val peer = peers.find(record.updatedBy)
-            ?: peers.all().firstOrNull()
-            ?: return false
-        val address = _discovered.value.firstOrNull { it.deviceId == peer.deviceId }?.address
-            ?: peer.lastAddress.takeIf { it.isNotEmpty() }
-            ?: return false
+        val peer = peers.find(record.updatedBy) ?: peers.all().firstOrNull() ?: return false
+        val address = addressOf(peer) ?: return false
         return engine.fetchImage(record, peer, address)
     }
+
+    /**
+     * 把本地缺的照片逐张补回来。
+     *
+     * 逐张而不是并发：一次取图就是一次完整的 HTTP 往返加一次落盘，同时发几十张只会让手机
+     * 在几秒里同时干几十件事，而用户此刻多半正在看列表，卡顿比多等一会儿更明显。
+     */
+    private suspend fun backfillImages() {
+        val missing = records.recordsMissingImages()
+        if (missing.isEmpty()) return
+        val all = peers.all()
+        if (all.isEmpty()) return
+
+        for (record in missing) {
+            // 优先问改过这条的那台设备；它那里没有（比如这条是从第三台设备中转过来的）
+            // 就依次问其余的，多设备下不一定每台都存着所有图
+            val order = all.sortedByDescending { it.deviceId == record.updatedBy }
+            for (peer in order) {
+                val address = addressOf(peer) ?: continue
+                if (engine.fetchImage(record, peer, address)) break
+            }
+        }
+    }
+
+    private fun backfillImagesInBackground() {
+        if (backfilling) return
+        backfilling = true
+        scope.launch {
+            try {
+                backfillImages()
+            } finally {
+                backfilling = false
+            }
+        }
+    }
+
+    private fun addressOf(peer: SyncPeer): String? =
+        _discovered.value.firstOrNull { it.deviceId == peer.deviceId }?.address
+            ?: peer.lastAddress.takeIf { it.isNotEmpty() }
 
     /**
      * 发现一空就先起一次扫描并稍等片刻。
@@ -245,6 +314,9 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     companion object {
         private const val DISCOVERY_GRACE = 2_500L
+
+        /** 配对窗口的时长。与文案「码两分钟内有效」是同一个数 */
+        private const val PAIRING_WINDOW = 2 * 60 * 1000L
 
         @Volatile
         private var instance: SyncCoordinator? = null

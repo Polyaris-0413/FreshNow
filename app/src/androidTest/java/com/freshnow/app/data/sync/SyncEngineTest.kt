@@ -192,7 +192,6 @@ class SyncEngineTest {
 
         val response = deviceB.client.pair(
             deviceA.address,
-            deviceA.deviceId(),
             wrong,
             PairRequest(deviceB.deviceId(), deviceB.deviceName(), SyncCrypto.newSecret().toSecretText())
         )
@@ -213,7 +212,7 @@ class SyncEngineTest {
         )
 
         repeat(3) {
-            deviceB.client.pair(deviceA.address, deviceA.deviceId(), "999999", request)
+            deviceB.client.pair(deviceA.address, "999999", request)
         }
 
         assertFalse(deviceA.pairing.isOpen)
@@ -254,7 +253,6 @@ class SyncEngineTest {
         val response = requireNotNull(
             deviceB.client.pair(
                 deviceA.address,
-                deviceA.deviceId(),
                 code,
                 PairRequest(
                     deviceId = deviceB.deviceId(),

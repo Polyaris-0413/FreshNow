@@ -142,6 +142,20 @@ class ScanRecordRepository(
     fun imageFile(record: ScanRecord): File? = imageStore.find(record.imageName)
 
     /**
+     * 界面上应该有图、但本地文件不在的记录。
+     *
+     * 名单来自同步：对端传来的记录带着它那边的图片名，而图本身不走交换（一张几百 KB，
+     * 几百条就是几十 MB 的等待），于是本地先是一个空名字对应的占位图，等补图时再填上。
+     */
+    suspend fun recordsMissingImages(): List<ScanRecord> = withContext(Dispatchers.IO) {
+        dao.findAll().filter { record ->
+            record.deletedAt == 0L &&
+                record.imageName.isNotEmpty() &&
+                imageStore.find(record.imageName) == null
+        }
+    }
+
+    /**
      * 删除记录。
      *
      * 不真删行，只打墓碑：行一旦没了，对端就不知道有过这次删除，下次同步会把这条记录推回来，

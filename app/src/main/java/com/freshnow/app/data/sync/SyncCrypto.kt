@@ -29,6 +29,9 @@ internal object SyncCrypto {
     private const val PBKDF2_ITERATIONS = 100_000
     private const val CIPHER = "AES/GCM/NoPadding"
 
+    /** 配对时盐的长度。PBKDF2 的盐取到与散列输出同长即可 */
+    const val PAIRING_SALT_BYTES = 16
+
     /**
      * 把配对码变成密钥。
      *
@@ -37,13 +40,18 @@ internal object SyncCrypto {
      * 那需要攻击者先录下一次配对流量，而配对窗口那么短、还要两台设备凑在一起，不值得为它
      * 把配对码加长到用户记不住的长度。
      *
-     * [salt] 取被配对那台设备的设备号：同一个码在两次配对里派生出不同的密钥，上一次录下的
-     * 密文对这一次毫无用处。
+     * [salt] 由发起方每次随机生成、随请求明文发出。它不保密，作用只是让同一个码在两次配对里
+     * 派生出不同的密钥——上一次录下的密文对这一次毫无用处。不用对方的设备号当盐，是因为
+     * 「手动填地址」那条路上根本不知道对方是谁（那条路正是给 mDNS 用不了的网络留的）。
      */
-    fun derivePairingKey(code: String, salt: String): ByteArray {
-        val spec = PBEKeySpec(code.toCharArray(), salt.toByteArray(), PBKDF2_ITERATIONS, KEY_BITS)
+    fun derivePairingKey(code: String, salt: ByteArray): ByteArray {
+        val spec = PBEKeySpec(code.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_BITS)
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
     }
+
+    /** 一次配对的盐 */
+    fun newPairingSalt(): ByteArray =
+        ByteArray(PAIRING_SALT_BYTES).also { SecureRandom().nextBytes(it) }
 
     /** 生成一把新密钥。配对时由发起方生成一次，之后两台设备共用它 */
     fun newSecret(): ByteArray = ByteArray(SECRET_BYTES).also { SecureRandom().nextBytes(it) }

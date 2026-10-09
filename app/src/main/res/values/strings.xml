@@ -161,5 +161,11 @@
     <string name="sync_permission_grant">授予权限</string>
     <string name="sync_permission_blocked">权限已被拒绝，请在系统设置里开启后回到本页</string>
     <string name="sync_open_system_settings">去系统设置</string>
+    <string name="sync_manual_add">手动添加设备</string>
+    <string name="sync_manual_add_support">发现不到对方时，直接填它屏幕上显示的地址</string>
+    <string name="sync_manual_address_label">对方设备地址</string>
+    <string name="sync_manual_address_hint">例如 192.168.1.5</string>
+    <string name="sync_local_address_title">本机地址</string>
+    <string name="sync_local_address_hint">对方发现不到本机时，在它的「手动添加设备」里填这个地址</string>
     <string name="action_close">关闭</string>
 </resources>

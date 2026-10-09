@@ -15,6 +15,7 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import java.net.ServerSocket
 
 /** 请求头里带的设备号。服务端靠它查出该用哪把密钥，查不到就一律回绝 */
 internal const val HEADER_DEVICE = "X-FreshNow-Device"
@@ -22,6 +23,16 @@ internal const val HEADER_DEVICE = "X-FreshNow-Device"
 internal const val PATH_SYNC = "/sync"
 internal const val PATH_PAIR = "/pair"
 internal const val PATH_IMAGE = "/image"
+
+/**
+ * 约定的端口。
+ *
+ * 固定下来是为了「对方根本没被 mDNS 发现到」时还有路可走：那种网络（酒店、企业网、开了
+ * AP 隔离的路由器）下用户只能手动填地址，而地址里连同端口一起填，就等于让用户在手机上
+ * 抄一串 5 位数字——端口是随机的，这一点用户看不见也背不下来。
+ * 被占时退回系统分配，代价是那一次只能靠发现，但只要不撞上，绝大多数情况下撞不上。
+ */
+internal const val DEFAULT_PORT = 47820
 
 /**
  * 本机开的 HTTP 服务端。
@@ -45,10 +56,32 @@ internal class SyncServer(
     /** 起服务并返回实际端口 */
     suspend fun start(): Int {
         stop()
-        val started = embeddedServer(CIO, port = 0, host = "0.0.0.0") { routes() }
-        started.start(wait = false)
+        // 端口先探一下再启动，不靠「起了失败就换一个」：CIO 引擎是异步启动的，绑定失败的异常
+        // 在引擎自己的协程里抛出，调用方的 try 抱不到，那次失败会变成一个没人处理的异常，
+        // 把整个应用搅乱。探测与启动之间只隔一个系统调用，抢到的概率可以忽略
+        val (started, port) = startOn(if (portIsFree(DEFAULT_PORT)) DEFAULT_PORT else RANDOM_PORT)
+            ?: error("同步服务起不来")
         server = started
-        return started.engine.resolvedConnectors().first().port
+        return port
+    }
+
+    private fun portIsFree(port: Int): Boolean = runCatching {
+        ServerSocket(port).use { }
+        true
+    }.getOrDefault(false)
+
+    /** 在指定端口上起服务；绑定失败返回 null */
+    private suspend fun startOn(port: Int): Pair<EmbeddedServer<*, *>, Int>? {
+        val candidate = embeddedServer(CIO, port = port, host = "0.0.0.0") { routes() }
+        return try {
+            candidate.start(wait = false)
+            // resolvedConnectors 才是「真的绑上了」的证据：start(wait = false) 只是把启动交给
+            // 引擎线程，绑定失败要等到这里才会以异常的形式冒出来
+            candidate to candidate.engine.resolvedConnectors().first().port
+        } catch (e: Exception) {
+            runCatching { candidate.stop(gracePeriodMillis = 0, timeoutMillis = 0) }
+            null
+        }
     }
 
     fun stop() {
@@ -79,11 +112,16 @@ internal class SyncServer(
 
         post(PATH_PAIR) {
             val code = pairing.currentCode ?: return@post call.respond(HttpStatusCode.NotFound)
-            // 配对请求发生在配对之前，没有长期密钥可用，只能用配对码派生的那把
-            val key = SyncCrypto.derivePairingKey(code, identity.deviceId())
+            // 配对请求发生在配对之前，没有长期密钥可用，只能用配对码派生的那把。
+            // 盐由发起方放在密文前面一并送来，两段都要有才算一个完整的请求
             val body = call.receiveBody() ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val salt = body.takeIf { it.size > SyncCrypto.PAIRING_SALT_BYTES }
+                ?.copyOfRange(0, SyncCrypto.PAIRING_SALT_BYTES)
+                ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val key = SyncCrypto.derivePairingKey(code, salt)
             val request = runCatching {
-                syncJson.decodeFromString<PairRequest>(String(SyncCrypto.open(key, body)))
+                val sealed = body.copyOfRange(SyncCrypto.PAIRING_SALT_BYTES, body.size)
+                syncJson.decodeFromString<PairRequest>(String(SyncCrypto.open(key, sealed)))
             }.getOrNull()
             if (request == null) {
                 // 解不开就记一次失败尝试。这里分不清「码不对」与「载荷坏了」，而两者都该计一次
@@ -181,5 +219,10 @@ internal class SyncServer(
     ) {
         val bytes = SyncCrypto.seal(key, syncJson.encodeToString(message).toByteArray())
         respondBytes(bytes, ContentType.Application.OctetStream)
+    }
+
+    private companion object {
+        /** 交给系统分配。只在约定端口被占时用得上 */
+        const val RANDOM_PORT = 0
     }
 }

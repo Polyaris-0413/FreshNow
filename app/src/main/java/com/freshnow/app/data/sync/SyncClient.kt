@@ -61,22 +61,22 @@ internal class SyncClient(
     /**
      * 用配对码连上对方，请求它记住本机。
      *
-     * [responderDeviceId] 是对方（被配对的那台）的设备号，而它是配对码派生密钥的 salt 的一部分，
-     * 所以这个值必须来自对方自己播出来的信息，不能由调用方随便编——编错了密钥就对不上，
-     * 表现是「配对码没错但配对失败」，很难查。
+     * 盐由本机随机生成、明文放在密文前面一起发出去。它不保密，作用只是让同一个配对码在两次
+     * 配对里派生出不同的密钥；而「不依赖对方的设备号」这一点很要紧——手动填地址那条路上，
+     * 本机除了一个 IP 之外什么都不知道。
      */
     suspend fun pair(
         address: String,
-        responderDeviceId: String,
         code: String,
         request: PairRequest
     ): PairResponse? {
-        val key = SyncCrypto.derivePairingKey(code, responderDeviceId)
+        val salt = SyncCrypto.newPairingSalt()
+        val key = SyncCrypto.derivePairingKey(code, salt)
         val sealed = SyncCrypto.seal(key, encode(request))
         val response = request {
             client.post(url(address, PATH_PAIR)) {
                 contentType(ContentType.Application.OctetStream)
-                setBody(sealed)
+                setBody(salt + sealed)
             }
         } ?: return null
         val body: ByteArray = runCatching { response.body<ByteArray>() }.getOrNull() ?: return null
