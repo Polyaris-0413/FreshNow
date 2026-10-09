@@ -137,10 +137,10 @@
     <string name="sync_pairing_code_title">本机配对码</string>
     <string name="sync_pairing_code_hint">在另一台设备上输入这个码。两分钟内有效。</string>
     <string name="sync_paired_devices_title">已配对设备</string>
-    <string name="sync_no_paired_devices">还没有配对的设备</string>
     <string name="sync_nearby_devices_title">附近可配对的设备</string>
     <string name="sync_nearby_searching">正在查找同一网络下的设备…</string>
     <string name="sync_nearby_empty">没有找到设备</string>
+    <string name="sync_nearby_empty_support">确认两台设备在同一网络</string>
     <string name="sync_enter_code_title">输入配对码</string>
     <string name="sync_enter_code_label">6 位配对码</string>
     <string name="sync_enter_code_hint">输入对方设备屏幕上显示的 6 位数字</string>

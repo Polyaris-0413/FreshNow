@@ -109,16 +109,20 @@ internal fun SyncScreen(
                 text = stringResource(R.string.sync_local_device_title),
                 modifier = Modifier.padding(top = FreshNowSpacing.sm)
             )
+            // 设备名那一行把动作写在标题上，整行可点，尾部不放按钮：M3 的列表项尾部
+            // 惯例是图标或开关，在一行本来以文字为主的地方塞一个文字按钮进去，
+            // 会分不清哪个是标题、哪个能点
             ListItem(
                 leadingContent = {
                     Icon(painter = painterResource(R.drawable.ic_devices), contentDescription = null)
                 },
-                headlineContent = { Text(text = viewModel.deviceName) },
-                trailingContent = {
-                    TextButton(onClick = viewModel::openPairingCode) {
-                        Text(text = stringResource(R.string.sync_show_pairing_code))
-                    }
+                headlineContent = {
+                    ListItemText(
+                        headline = stringResource(R.string.sync_show_pairing_code),
+                        supporting = viewModel.deviceName
+                    )
                 },
+                modifier = Modifier.clickable(onClick = viewModel::openPairingCode),
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
@@ -158,17 +162,10 @@ internal fun SyncScreen(
                 text = stringResource(R.string.sync_paired_devices_title),
                 modifier = Modifier.padding(top = FreshNowSpacing.md)
             )
-            if (peers.isEmpty()) {
-                ListItem(
-                    headlineContent = {
-                        Text(text = stringResource(R.string.sync_no_paired_devices))
-                    },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            } else {
-                peers.forEach { peer ->
-                    PairedDeviceRow(peer = peer, onForget = { viewModel.forget(peer.deviceId) })
-                }
+            // 没配对过就不写任何东西：这一段不需要空态——怎么配上上面「配对」那一段
+            // 已经说了，再写一遍只是重复
+            peers.forEach { peer ->
+                PairedDeviceRow(peer = peer, onForget = { viewModel.forget(peer.deviceId) })
             }
 
             SectionHeading(
@@ -180,20 +177,34 @@ internal fun SyncScreen(
                 peers.any { it.deviceId == found.deviceId }
             }
             if (candidates.isEmpty()) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            text = stringResource(
-                                if (discovered.isEmpty()) {
-                                    R.string.sync_nearby_searching
-                                } else {
-                                    R.string.sync_nearby_empty
-                                }
+                // 「还没出结果」与「确实没有」是两种状态，说的话也不同：
+                // 前者只是在等，后者要告诉用户去查什么
+                if (discovered.isEmpty()) {
+                    ListItem(
+                        headlineContent = {
+                            Text(text = stringResource(R.string.sync_nearby_searching))
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                } else {
+                    // 空态给图标与说明，而不只是一行字：一行字借列表项的壳读起来像
+                    // 「一条内容」，看不出这里是「没有内容」
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_devices),
+                                contentDescription = null
                             )
-                        )
-                    },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
+                        },
+                        headlineContent = {
+                            ListItemText(
+                                headline = stringResource(R.string.sync_nearby_empty),
+                                supporting = stringResource(R.string.sync_nearby_empty_support)
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
             } else {
                 candidates.forEach { found ->
                     ListItem(
