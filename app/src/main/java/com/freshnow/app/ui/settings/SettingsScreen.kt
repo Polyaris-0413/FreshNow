@@ -262,7 +262,8 @@ internal fun SettingsList(
             headlineContent = {
                 ListItemText(
                     stringResource(R.string.sync_title),
-                    stringResource(R.string.sync_settings_support)
+                    stringResource(R.string.sync_settings_support),
+                    trailingLabel = stringResource(R.string.sync_beta_label)
                 )
             },
             modifier = Modifier.clickable(onClick = onSyncClick),

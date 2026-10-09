@@ -131,6 +131,8 @@
     <!-- 局域网同步 -->
     <string name="sync_title">局域网同步</string>
     <string name="sync_settings_support">在同一网络的设备之间同步记录</string>
+    <!-- 不当专有名词翻译：Beta 在中文界面里就是 Beta -->
+    <string name="sync_beta_label" translatable="false">Beta</string>
     <string name="sync_section_title">同步</string>
     <string name="sync_local_device_title">配对</string>
     <string name="sync_show_pairing_code">显示配对码</string>
