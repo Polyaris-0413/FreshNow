@@ -19,6 +19,9 @@ import org.junit.runner.RunWith
  *
  * 判据取「宽高相等」而不是某个具体 dp：宽度是随屏幕铺满的，高度跟着宽度走，
  * 钉住具体数值只会把版式写死。容差是给像素取整留的。
+ *
+ * 这条断言量的必须是**整块**：语义挂在占位块上（见 ScanPhoto），若哪天把它改挂到里面那枚
+ * 48dp 图标上，这里量到的就成了图标——无论占位块多高都会通过，这条断言也就没了咬合力。
  */
 @RunWith(AndroidJUnit4::class)
 class ScanPhotoTest {

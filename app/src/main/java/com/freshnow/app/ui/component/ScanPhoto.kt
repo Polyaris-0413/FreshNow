@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowSize
 
@@ -44,6 +46,8 @@ fun ScanPhoto(
     onClickLabel: String? = null
 ) {
     val shape = MaterialTheme.shapes.medium
+    // contentDescription 要在 clickable 之前取：下面那段 lambda 不是 composable，里面取不了资源
+    val missingLabel = stringResource(R.string.record_image_missing)
     val photoModifier = modifier
         .fillMaxWidth()
         .clip(shape)
@@ -58,12 +62,16 @@ fun ScanPhoto(
 
     if (image == null) {
         Box(
-            modifier = photoModifier.aspectRatio(1f),
+            // 语义挂在整块上，里面的图标只是装饰（与有图那一支对等：那边也是整块叫「扫描照片」）。
+            // 挂到图标上的话，读屏软件读的是那一枚 48dp 的图标，而这一块正方形的占位区没有名字
+            modifier = photoModifier
+                .aspectRatio(1f)
+                .semantics { contentDescription = missingLabel },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_no_image),
-                contentDescription = stringResource(R.string.record_image_missing),
+                contentDescription = null,
                 modifier = Modifier.size(FreshNowSize.icon),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
