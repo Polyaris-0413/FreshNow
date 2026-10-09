@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.openAppSettings
+import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
@@ -143,21 +145,6 @@ internal fun SyncScreen(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
-            // 上一次操作的结果。显示在设备列表之前：它是「刚发生了什么」，
-            // 而设备列表是「一直是什么样」，两者夹在一起时用户更容易注意到变化
-            message?.let { result ->
-                Text(
-                    text = result.text(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(
-                        start = FreshNowSpacing.sm,
-                        end = FreshNowSpacing.sm,
-                        top = FreshNowSpacing.xs
-                    )
-                )
-            }
-
             SectionHeading(
                 text = stringResource(R.string.sync_paired_devices_title),
                 modifier = Modifier.padding(top = FreshNowSpacing.md)
@@ -222,6 +209,21 @@ internal fun SyncScreen(
                     )
                 }
             }
+        }
+    }
+
+    // 上一次操作的结果用 Toast 报，不占列表里的一行。用的是全应用既有的那个约定
+    // （见 ui/Toast.kt）：这类提示不承载可撤销的操作，为它单独搭一套 Snackbar 宿主
+    // 会让同一件事在两个地方有两种长相。
+    //
+    // 报完就销掉：留在状态里的话，用户切走再回来会再弹一次，而那次什么操作都没发生。
+    val context = LocalContext.current
+    // 文案先在合成上下文里算好：text() 是 @Composable，而 LaunchedEffect 里跑的是普通协程
+    val messageText = message?.text()
+    message?.let {
+        LaunchedEffect(it) {
+            showToast(context, messageText.orEmpty())
+            viewModel.consumeMessage()
         }
     }
 
