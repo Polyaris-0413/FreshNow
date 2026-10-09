@@ -12,6 +12,7 @@
     <string name="action_edit">编辑</string>
     <string name="action_confirm">确定</string>
     <string name="action_take_photo">拍照</string>
+    <string name="action_sort">排序</string>
     <string name="about">关于</string>
     <string name="settings">设置</string>
 
@@ -84,6 +85,10 @@
          标题另起一条的话，两处日后会各白漂移 -->
     <string name="manual_entry">手动输入</string>
     <string name="behavior_manual_entry_support">主页的「添加」直接打开录入页</string>
+    <string name="behavior_sort_order_title">排序方式</string>
+    <!-- 两种排序在菜单与设置项行上各出现一次，文案只有这一份来源（见 SortOrder.label） -->
+    <string name="sort_order_created_at">按创建时间</string>
+    <string name="sort_order_expiry_date">按过期日期</string>
     <string name="debug_settings_section_title">调试</string>
     <string name="app_settings_section_title">应用</string>
     <string name="app_settings_version_title">版本</string>

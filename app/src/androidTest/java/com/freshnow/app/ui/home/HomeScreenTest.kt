@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -28,6 +30,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
+import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -683,6 +686,8 @@ class HomeScreenTest {
                     justEmptied = false,
                     selectedIds = emptySet(),
                     manualEntry = manualEntry.value,
+                    sortOrder = SortOrder.CREATED_AT,
+                    onSortOrderChange = {},
                     onRecordClick = {},
                     onRecordToggle = {},
                     onExitSelection = {},
@@ -702,6 +707,27 @@ class HomeScreenTest {
         assertEquals("关着时进扫描、开着时进录入页", listOf(SCAN, MANUAL_ENTRY), targets)
     }
 
+    /**
+     * 顶栏的排序动作：点开是两张卡（两种排序），点其中一张把所选的方式报出去。
+     *
+     * 当前那一项要标成选中：再打开面板时得认得出现在用的是哪种。顺带盯住这个动作在 overflow 之前。
+     */
+    @Test
+    fun sortAction_offersBothOrdersAndReportsTheChoice() {
+        val changes = mutableListOf<SortOrder>()
+        setContent(items = records(), onSortOrderChange = { changes += it })
+
+        composeRule.onNodeWithContentDescription("排序").performClick()
+        composeRule.onNodeWithText("按创建时间").assertIsSelected()
+        composeRule.onNodeWithText("按过期日期").assertIsNotSelected()
+
+        composeRule.onNodeWithText("按过期日期").performClick()
+        // 选完先收面板再回传（见 HomeScreen），收起动画得先演完
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(SortOrder.EXPIRY_DATE), changes)
+    }
+
     /** 需要一个改得动列表或选中状态的容器，与其它用例只摆一个静态状态不同 */
     private fun setContentTracking(
         records: MutableState<List<HomeRecordItem>>,
@@ -717,6 +743,8 @@ class HomeScreenTest {
                     justEmptied = justEmptied.value,
                     selectedIds = selectedIds.value,
                     manualEntry = false,
+                    sortOrder = SortOrder.CREATED_AT,
+                    onSortOrderChange = {},
                     onRecordClick = {},
                     onRecordToggle = {},
                     onExitSelection = {},
@@ -770,12 +798,14 @@ class HomeScreenTest {
         justEmptied: Boolean = false,
         selectedIds: Set<Long> = emptySet(),
         manualEntry: Boolean = false,
+        sortOrder: SortOrder = SortOrder.CREATED_AT,
         onRecordClick: (Long) -> Unit = {},
         onRecordToggle: (Long) -> Unit = {},
         onExitSelection: () -> Unit = {},
         onDeleteSelected: () -> Unit = {},
         onNavigateToScan: () -> Unit = {},
-        onNavigateToManualEntry: () -> Unit = {}
+        onNavigateToManualEntry: () -> Unit = {},
+        onSortOrderChange: (SortOrder) -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
@@ -787,6 +817,8 @@ class HomeScreenTest {
                     justEmptied = justEmptied,
                     selectedIds = selectedIds,
                     manualEntry = manualEntry,
+                    sortOrder = sortOrder,
+                    onSortOrderChange = onSortOrderChange,
                     onRecordClick = onRecordClick,
                     onRecordToggle = onRecordToggle,
                     onExitSelection = onExitSelection,

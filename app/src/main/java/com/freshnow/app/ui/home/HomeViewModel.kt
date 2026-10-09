@@ -3,22 +3,28 @@ package com.freshnow.app.ui.home
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
+import com.freshnow.app.data.ScanValueFormat
+import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDate
 
 /**
  * 列表条目：查库拿到记录后，过期日期与照片文件都在这里一并算好，界面只管画。
@@ -32,6 +38,28 @@ data class HomeRecordItem(
     val image: File?
 )
 
+/**
+ * 按 [order] 重排列表条目。
+ *
+ * 创建时间：新存的在前（与查库的 `ORDER BY savedAt DESC` 同一方向，这里再排一次是为了两种排序
+ * 共用一条出口）。
+ *
+ * 过期日期：快到期的在前（升序），**已过期的因此排在最上面**——那正是「该先处理」的语义。
+ * 过期日期算不出来的（印刷值认不出、或推不出）一律排到最后：它们不参与比较，谁先谁后由稳定
+ * 排序保留（也就是维持创建时间的顺序）。
+ */
+internal fun List<HomeRecordItem>.sortedFor(order: SortOrder): List<HomeRecordItem> = when (order) {
+    SortOrder.CREATED_AT -> sortedByDescending { it.record.savedAt }
+    SortOrder.EXPIRY_DATE -> sortedWith(compareBy(nullsLast()) { it.expiryDate() })
+}
+
+/**
+ * 这一条算得出的过期日期。判据与 [ExpiryCalculator.daysRemaining] 一致：印刷值认不出、
+ * 或算不出来的都给 null，不能拿着原文字符串去比大小（`2026年12月` 这种排出来的次序是假的）。
+ */
+private fun HomeRecordItem.expiryDate(): LocalDate? =
+    (expiry as? ExpiryOutcome.Resolved)?.let { ScanValueFormat.parseDate(it.date.trim()) }
+
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
@@ -39,14 +67,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val behaviorRepository = BehaviorSettingsRepository(application)
 
     /**
-     * 行为里的「手动输入」：主页的「添加」按它决定去哪一页。
+     * 行为设置。主页只用到其中两项：列表按哪个方式排，「添加」去哪一页。
      *
-     * 订阅而不是读一次：用户可能刚在设置页开了它再回来，读一次的话这一次点击还是走老路。
-     * 初值取「关」——扫描是本应用的主线，开关还没读出来时按主线走。
+     * 订阅而不是读一次：用户可能刚在设置页改过再回来，读一次的话这一次点击还是走老路。
+     * 初值取一份默认（扫描＋按创建时间），还没读出来时按主线走。
      */
-    val manualEntry: StateFlow<Boolean> = behaviorRepository.behaviorSettings
-        .map { it.manualEntry }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+    val behavior: StateFlow<BehaviorSettings> = behaviorRepository.behaviorSettings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), BehaviorSettings())
+
+    /** 改排序方式。先读库里现值再改：界面上那份可能还没收到第一帧，拿它改会把其它项一并写回默认值 */
+    fun onSortOrderChange(order: SortOrder) {
+        viewModelScope.launch {
+            val current = behaviorRepository.behaviorSettings.first()
+            behaviorRepository.save(current.copy(sortOrder = order))
+        }
+    }
 
     /**
      * 列表内容。null 表示第一次查库还没回来。
@@ -71,6 +106,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // 逐条查照片文件是否存在是盘上操作，挪到 IO 线程
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /**
+     * 列表内容按当前排序方式排好，界面只读这一条。
+     *
+     * 排序在内存里做，不重查库：过期日期可能是印刷值，也可能是现算出来的（见 ExpiryCalculator），
+     * SQL 排不了。初值同样是 null，与 [records] 一样表示「还没查完」。
+     */
+    val sortedRecords: StateFlow<List<HomeRecordItem>?> =
+        combine(records, behavior) { list, settings -> list?.sortedFor(settings.sortOrder) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     /** 上一次查库见到的 id，用来挑出刚存进来的那几条、以及判断是不是刚被删空 */
     private var knownIds: Set<Long> = emptySet()

@@ -7,6 +7,7 @@ import com.freshnow.app.data.AiSettings
 import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.BehaviorSettingsRepository
+import com.freshnow.app.data.SortOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,6 +91,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun onManualEntryChange(value: Boolean) {
         val updated = _uiState.value.behavior.copy(manualEntry = value)
+        _uiState.update { it.copy(behavior = updated) }
+        viewModelScope.launch { behaviorRepository.save(updated) }
+    }
+
+    /** 排序方式同样即时生效，且与主页顶栏那个菜单写的是同一份设置 */
+    fun onSortOrderChange(order: SortOrder) {
+        val updated = _uiState.value.behavior.copy(sortOrder = order)
         _uiState.update { it.copy(behavior = updated) }
         viewModelScope.launch { behaviorRepository.save(updated) }
     }

@@ -44,8 +44,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
+import com.freshnow.app.data.SortOrder
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.SectionHeading
+import com.freshnow.app.ui.component.SortOrderMenuItems
+import com.freshnow.app.ui.component.hideSheetThen
+import com.freshnow.app.ui.component.label
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.launch
@@ -64,6 +69,8 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var editing by remember { mutableStateOf<SettingsEditor?>(null) }
+    // 「排序方式」是单选，用的是动作面板而不是编辑面板（见 MenuBottomSheet），单独一个开关
+    var choosingSortOrder by remember { mutableStateOf(false) }
 
     // 收起编辑面板。收起动画结束再清 editing：动画期间面板还在，提前清掉会闪一下
     fun closeEditor() {
@@ -95,10 +102,30 @@ fun SettingsScreen(
                 },
                 onShowReasoningChange = viewModel::onShowReasoningChange,
                 onManualEntryChange = viewModel::onManualEntryChange,
+                sortOrder = uiState.behavior.sortOrder,
+                onSortOrderClick = { choosingSortOrder = true },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
+            )
+        }
+    }
+
+    // 排序方式是一个「挑一个」的选择，用动作面板（与主页顶栏那个同一份内容）
+    if (choosingSortOrder) {
+        MenuBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { choosingSortOrder = false }
+        ) {
+            SortOrderMenuItems(
+                current = uiState.behavior.sortOrder,
+                // 选完先收面板再写入：收起动画期间面板还在，提前改会让那两张卡的「选中」当场跳一下
+                onSelect = { order ->
+                    scope.hideSheetThen(sheetState, onHidden = { choosingSortOrder = false }) {
+                        viewModel.onSortOrderChange(order)
+                    }
+                }
             )
         }
     }
@@ -143,10 +170,12 @@ internal fun SettingsList(
     extraSummary: String,
     showReasoning: Boolean,
     manualEntry: Boolean,
+    sortOrder: SortOrder,
     onBasicConfigClick: () -> Unit,
     onExtraRequestClick: () -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
     onManualEntryChange: (Boolean) -> Unit,
+    onSortOrderClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -208,6 +237,20 @@ internal fun SettingsList(
                 role = Role.Switch,
                 onValueChange = onManualEntryChange
             ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        // 与「基础配置」那一行同一种做法：行上显示当前值，点开面板换一个。
+        // 当前值就是这一行的说明文字——设置页里「现在用的是哪种」得看得见
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.behavior_sort_order_title))
+            },
+            supportingContent = { Text(text = sortOrder.label()) },
+            modifier = Modifier.clickable(onClick = onSortOrderClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 

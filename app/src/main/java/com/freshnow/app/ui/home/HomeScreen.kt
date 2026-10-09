@@ -61,11 +61,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
+import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.component.FreshNowTopAppBar
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanThumbnail
+import com.freshnow.app.ui.component.SortOrderMenuItems
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.scanValueText
 import com.freshnow.app.ui.theme.FreshNowSize
@@ -90,11 +92,11 @@ fun HomeRoute(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
-    val records by viewModel.records.collectAsStateWithLifecycle()
+    val records by viewModel.sortedRecords.collectAsStateWithLifecycle()
     val newRecordIds by viewModel.newRecordIds.collectAsStateWithLifecycle()
     val justEmptied by viewModel.justEmptied.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
-    val manualEntry by viewModel.manualEntry.collectAsStateWithLifecycle()
+    val behavior by viewModel.behavior.collectAsStateWithLifecycle()
 
     // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
     // 清在这里而不是合成里，是因为此刻那些条目已经不存在了，清早了也漏不掉谁
@@ -110,7 +112,9 @@ fun HomeRoute(
         newRecordIds = newRecordIds,
         justEmptied = justEmptied,
         selectedIds = selectedIds,
-        manualEntry = manualEntry,
+        manualEntry = behavior.manualEntry,
+        sortOrder = behavior.sortOrder,
+        onSortOrderChange = viewModel::onSortOrderChange,
         onRecordClick = onNavigateToRecord,
         onRecordToggle = viewModel::toggleSelection,
         onExitSelection = viewModel::clearSelection,
@@ -134,6 +138,9 @@ fun HomeScreen(
     selectedIds: Set<Long>,
     /** 行为里的「手动输入」：开着时「添加」直接进录入页，见 [onNavigateToManualEntry] */
     manualEntry: Boolean,
+    /** 当前的排序方式，带进顶栏那个菜单里标出哪一项是选中的 */
+    sortOrder: SortOrder,
+    onSortOrderChange: (SortOrder) -> Unit,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
     onExitSelection: () -> Unit,
@@ -146,7 +153,9 @@ fun HomeScreen(
 ) {
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
-    var showSheet by remember { mutableStateOf(false) }
+    // 打开的是哪一个面板（null 表示没开）。两个入口合用一个面板与一份状态：
+    // 面板是模态的，不可能同时开两个（与设置页的 editing 同一个办法）
+    var openSheet by remember { mutableStateOf<HomeSheet?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // 选择模式由「有没有选中项」决定，不另存一个开关，见 HomeViewModel.selectedIds
@@ -155,9 +164,9 @@ fun HomeScreen(
     // 选择模式是个临时状态，返回键先离开它，而不是直接退出应用
     BackHandler(enabled = inSelectionMode) { onExitSelection() }
 
-    // 先收起 bottom sheet 再跳转，避免收起动画与导航互相打断
+    // 先收起 bottom sheet 再动手，避免收起动画与导航、写入互相打断
     fun dismissSheetThen(action: () -> Unit) =
-        scope.hideSheetThen(sheetState, onHidden = { showSheet = false }, action = action)
+        scope.hideSheetThen(sheetState, onHidden = { openSheet = null }, action = action)
 
     // 顶栏的两副面孔用一个可空计数表示：null 是普通列表，非 null 是选择模式及其计数。
     //
@@ -204,7 +213,14 @@ fun HomeScreen(
                     FreshNowTopAppBar(
                         title = { Text(text = stringResource(R.string.app_name)) },
                         actions = {
-                            IconButton(onClick = { showSheet = true }) {
+                            // 排序排在 overflow 之前：M3 的顶栏动作里 overflow 永远在最右
+                            IconButton(onClick = { openSheet = HomeSheet.Sort }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_sort),
+                                    contentDescription = stringResource(R.string.action_sort)
+                                )
+                            }
+                            IconButton(onClick = { openSheet = HomeSheet.Overflow }) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_more_vert),
                                     contentDescription = stringResource(R.string.action_more_options)
@@ -250,19 +266,29 @@ fun HomeScreen(
         )
     }
 
-    if (showSheet) {
+    openSheet?.let { sheet ->
         MenuBottomSheet(
             sheetState = sheetState,
-            onDismissRequest = { showSheet = false }
+            onDismissRequest = { openSheet = null }
         ) {
-            MenuSheetItem(
-                text = stringResource(R.string.about),
-                onClick = { dismissSheetThen(onNavigateToAbout) }
-            )
-            MenuSheetItem(
-                text = stringResource(R.string.settings),
-                onClick = { dismissSheetThen(onNavigateToSettings) }
-            )
+            when (sheet) {
+                HomeSheet.Overflow -> {
+                    MenuSheetItem(
+                        text = stringResource(R.string.about),
+                        onClick = { dismissSheetThen(onNavigateToAbout) }
+                    )
+                    MenuSheetItem(
+                        text = stringResource(R.string.settings),
+                        onClick = { dismissSheetThen(onNavigateToSettings) }
+                    )
+                }
+
+                // 选完先收面板再写入：收起动画期间面板还在，提前改会让那两张卡的「选中」当场跳一下
+                HomeSheet.Sort -> SortOrderMenuItems(
+                    current = sortOrder,
+                    onSelect = { order -> dismissSheetThen { onSortOrderChange(order) } }
+                )
+            }
         }
     }
 
@@ -296,6 +322,9 @@ fun HomeScreen(
         )
     }
 }
+
+/** 主页顶栏那两个动作各开哪一个面板，null 表示没开 */
+private enum class HomeSheet { Overflow, Sort }
 
 /**
  * 选中计数。前后两段文字不动，只有中间的数字滚——整句一起滚会把「已选」「项」也带着动，
@@ -594,6 +623,8 @@ private fun HomeScreenPreview() {
             justEmptied = false,
             selectedIds = emptySet(),
             manualEntry = false,
+            sortOrder = SortOrder.CREATED_AT,
+            onSortOrderChange = {},
             onRecordClick = {},
             onRecordToggle = {},
             onExitSelection = {},
@@ -616,6 +647,8 @@ private fun HomeScreenSelectionPreview() {
             justEmptied = false,
             selectedIds = setOf(1L),
             manualEntry = false,
+            sortOrder = SortOrder.CREATED_AT,
+            onSortOrderChange = {},
             onRecordClick = {},
             onRecordToggle = {},
             onExitSelection = {},

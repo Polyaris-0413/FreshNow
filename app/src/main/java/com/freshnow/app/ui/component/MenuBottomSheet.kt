@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,6 +18,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.CoroutineScope
@@ -70,13 +73,20 @@ fun MenuBottomSheet(
  * 面板里的一张卡片。整张可点，颜色取容器色最亮的一档，与面板自己的底色（surfaceContainerLow）
  * 拉开一层；文字居中而不左对齐：一叠卡片本来就不长，居中读起来更像「选一个」。
  *
+ * [selected] 是「单选里的当前项」：非 null 表示这是一叠可选项，选中那一项的文字换成 primary；
+ * 传 null（默认）表示这只是一个动作（关于、设置、移除照片）。
+ *
+ * 选项用 selectable 而不是 clickable：读屏软件才会把它念成「两项里的第几项、选没选中」，
+ * 单选该有的语义就在这里。不另加对勾图标：面板里选项本来就不多，换个颜色已经够读。
+ *
  * 提为 public 是为了让动作面板的调用方拼装内容（包括把两张并排拼成一块）。
  */
 @Composable
 fun MenuSheetItem(
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selected: Boolean? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -88,9 +98,21 @@ fun MenuSheetItem(
             text = text,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .then(
+                    if (selected == null) {
+                        Modifier.clickable(onClick = onClick)
+                    } else {
+                        Modifier.selectable(
+                            selected = selected,
+                            role = Role.RadioButton,
+                            onClick = onClick
+                        )
+                    }
+                )
                 .padding(vertical = FreshNowSpacing.sm),
             style = MaterialTheme.typography.bodyLarge,
+            // Color.Unspecified 即继承 LocalContentColor（卡片上的默认文字色）
+            color = if (selected == true) MaterialTheme.colorScheme.primary else Color.Unspecified,
             textAlign = TextAlign.Center
         )
     }
