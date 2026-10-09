@@ -267,7 +267,7 @@ internal fun SyncScreen(
 private fun PairedDeviceRow(peer: SyncPeer, onForget: () -> Unit) {
     ListItem(
         leadingContent = {
-            Icon(painter = painterResource(R.drawable.ic_devices), contentDescription = null)
+            Icon(painter = painterResource(R.drawable.ic_mobile), contentDescription = null)
         },
         headlineContent = {
             ListItemText(
