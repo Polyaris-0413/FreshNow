@@ -15,9 +15,6 @@ object FreshNowSize {
     /** 空态/占位图标边长，与缩略图同档 */
     val icon = 48.dp
 
-    /** 详情页无图时的占位块高度：刻意比真实照片矮，它只是占位、不假装是照片 */
-    val imagePlaceholderHeight = 144.dp
-
     /**
      * 滚动区底边渐隐带的高度。
      *

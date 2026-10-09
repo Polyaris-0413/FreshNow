@@ -5,8 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,8 +28,9 @@ import com.freshnow.app.ui.theme.FreshNowSize
  * 照片在采集或裁剪时就已按正方形落成（见 ScanImageCodec），这里按图片自身比例铺满宽度即可，
  * 不做二次裁剪——旧记录里可能存着更早期未裁方的图，同样按原比例显示。
  *
- * 没图时（保存时没有可用画面，或图片落盘、解码失败，以及用户刚移除了照片）用占位图标顶上去，
- * 高度固定得比照片矮一些，它只是占位、不假装是照片。
+ * 没图时（保存时没有可用画面，或图片落盘、解码失败，以及用户刚移除了照片）用占位图标顶上去。
+ * 占位块与照片同一尺寸（正方形），不另给一个高度：同一页里「有图 / 没图」不该换一套版式，
+ * 翻到下一条记录时照片区的高度也不该跳。
  *
  * [onClick] 非 null 时整块可点（编辑页用它换照片）：点击区就在照片本身，与文本框点哪里都能改
  * 是同一套操作习惯；[onClickLabel] 必须给，读屏软件会把这块读成一个只有内容描述、没有动作的
@@ -57,7 +58,7 @@ fun ScanPhoto(
 
     if (image == null) {
         Box(
-            modifier = photoModifier.height(FreshNowSize.imagePlaceholderHeight),
+            modifier = photoModifier.aspectRatio(1f),
             contentAlignment = Alignment.Center
         ) {
             Icon(
