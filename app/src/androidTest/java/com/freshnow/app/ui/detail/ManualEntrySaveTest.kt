@@ -30,7 +30,7 @@ class ManualEntrySaveTest {
     fun cleanUp() = runBlocking {
         val dao = FreshNowDatabase.getInstance(application).scanRecordDao()
         val ids = dao.observeAll().first().filter { it.productName == PRODUCT_NAME }.map { it.id }
-        if (ids.isNotEmpty()) dao.deleteByIds(ids)
+        if (ids.isNotEmpty()) dao.hardDelete(ids)
     }
 
     /** 空草稿不给存：与扫描页「一个字段都没读到就不存」同一条规矩，免得手滑存下一堆空记录 */

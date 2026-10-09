@@ -33,28 +33,51 @@ class ScanRecordDaoTest {
         database.close()
     }
 
+    /**
+     * 删除对界面就是消失，但对同步必须留下痕迹。
+     */
     @Test
-    fun deleteAndCollectImageNames_removesOnlyGivenRows() = runBlocking {
+    fun markDeleted_hidesRowsFromReads() = runBlocking {
         val kept = dao.insert(record(name = "留着", imageName = "keep.jpg"))
         val dropped = dao.insert(record(name = "删掉一", imageName = "a.jpg"))
         val alsoDropped = dao.insert(record(name = "删掉二", imageName = "b.jpg"))
 
-        val names = dao.deleteAndCollectImageNames(listOf(dropped, alsoDropped))
+        dao.markDeleted(listOf(dropped, alsoDropped), now = 500L, deviceId = "dev-1")
 
-        // 文件名要交得回来，否则调用方删不掉照片文件
-        assertEquals(setOf("a.jpg", "b.jpg"), names.toSet())
         assertNotNull(dao.findById(kept))
         assertNull(dao.findById(dropped))
         assertNull(dao.findById(alsoDropped))
     }
 
-    /** 没照片的记录（imageName 是空串）同样要能删，交回的名字就是空串本身 */
+    /**
+     * 墓碑行本身必须还在，否则对端不知道有过这次删除，下次同步会把这条推回来。
+     * 时刻与设备号也不能漏：删除就是一次修改，对端要拿它们跟自己的版本比新旧。
+     */
     @Test
-    fun deleteAndCollectImageNames_handlesRecordWithoutImage() = runBlocking {
-        val id = dao.insert(record(name = "没图", imageName = ""))
+    fun markDeleted_keepsRowWithItsMomentAndDevice() = runBlocking {
+        val id = dao.insert(record(name = "删掉", imageName = "a.jpg"))
 
-        assertEquals(listOf(""), dao.deleteAndCollectImageNames(listOf(id)))
-        assertNull(dao.findById(id))
+        dao.markDeleted(listOf(id), now = 500L, deviceId = "dev-1")
+
+        val stored = dao.findAll().single { it.id == id }
+        assertEquals(500L, stored.deletedAt)
+        assertEquals(500L, stored.updatedAt)
+        assertEquals("dev-1", stored.updatedBy)
+    }
+
+    /** 保留期到点才清：清早了，还没同步上的设备会以为这条从未被删过 */
+    @Test
+    fun deletePurgeable_clearsOnlyTombstonesPastTheirRetention() = runBlocking {
+        val expired = dao.insert(record(name = "过期墓碑", imageName = "a.jpg"))
+        val fresh = dao.insert(record(name = "新墓碑", imageName = "b.jpg"))
+        val alive = dao.insert(record(name = "正常记录", imageName = "c.jpg"))
+        dao.markDeleted(listOf(expired), now = 100L, deviceId = "dev-1")
+        dao.markDeleted(listOf(fresh), now = 900L, deviceId = "dev-1")
+
+        dao.deletePurgeable(cutoff = 500L)
+
+        val remaining = dao.findAll().map { it.id }.toSet()
+        assertEquals(setOf(fresh, alive), remaining)
     }
 
     @Test
@@ -92,6 +115,8 @@ class ScanRecordDaoTest {
         expiryDate = "",
         shelfLife = "",
         imageName = imageName,
-        savedAt = 0
+        savedAt = 0,
+        // 唯一索引不允许两条空 syncId：测试数据也要像真记录一样带着身份进场
+        syncId = "sync-$name"
     )
 }

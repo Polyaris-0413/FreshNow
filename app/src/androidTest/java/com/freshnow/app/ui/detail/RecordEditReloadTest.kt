@@ -31,7 +31,7 @@ class RecordEditReloadTest {
     fun cleanUp() {
         if (recordId != 0L) {
             runBlocking {
-                FreshNowDatabase.getInstance(application).scanRecordDao().deleteByIds(listOf(recordId))
+                FreshNowDatabase.getInstance(application).scanRecordDao().hardDelete(listOf(recordId))
             }
         }
     }
