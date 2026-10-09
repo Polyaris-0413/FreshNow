@@ -62,8 +62,10 @@ class AboutScreenTest {
     }
 
     /**
-     * 项目两行都去浏览器、各自带对链接；「开源声明」进的是页内那一页，不是浏览器。
+     * 项目三行都去浏览器、各自带对链接；「开源声明」进的是页内那一页，不是浏览器。
      * 两者的区别要守住，否则点「开源声明」会跳到某个外链上。
+     *
+     * 作者行给的必须是作者主页而不是仓库：给成仓库就成了「访问仓库」的重复入口。
      */
     @Test
     fun projectRowsOpenUrlsWhileOpenSourceStaysInApp() {
@@ -71,12 +73,14 @@ class AboutScreenTest {
         var navigated = false
         setAboutList(onOpenUrl = { opened += it }, onOpenSourceClick = { navigated = true })
 
+        composeRule.onNodeWithText("作者").performClick()
         composeRule.onNodeWithText("访问仓库").performClick()
         composeRule.onNodeWithText("问题反馈").performClick()
         composeRule.onNodeWithText("开源声明").performClick()
 
         assertEquals(
             listOf(
+                "https://github.com/Polyaris-0413",
                 "https://github.com/Polyaris-0413/FreshNow",
                 "https://github.com/Polyaris-0413/FreshNow/issues"
             ),

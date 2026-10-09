@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 /**
  * 关于：这个应用是什么、出处在哪。可调项不在这里，在设置页。
  *
- * 三个分区：应用（版本、检查更新）、项目（仓库、问题反馈）、法律信息（开源声明）。
+ * 三个分区：应用（版本、检查更新）、项目（作者、仓库、问题反馈）、法律信息（开源声明）。
  * 版本号是「值」，放标题右端；说明性的文字才放下面——见各行的注释。
  */
 @Composable
@@ -132,6 +132,7 @@ internal fun AboutList(
     // 链接在合成期解析好：clickable 的 lambda 不是 composable，里面取不了资源
     val repositoryUrl = stringResource(R.string.project_repository_url)
     val issueUrl = stringResource(R.string.project_issue_url)
+    val authorUrl = stringResource(R.string.project_author_url)
 
     Column(modifier = modifier) {
         SectionHeading(
@@ -182,7 +183,29 @@ internal fun AboutList(
             modifier = Modifier.padding(top = FreshNowSpacing.md)
         )
 
-        // 两行都去浏览器：链接从资源取，行本身不知道具体地址
+        // 三行都去浏览器：链接从资源取，行本身不知道具体地址
+        //
+        // 作者行放首行：先说这是谁做的，再说去哪看、去哪反馈。它指的是作者主页而不是仓库——
+        // 与「访问仓库」指向同一个仓库就成了一条重复的入口（昵称与 GitHub 用户名也不同，
+        // 由这一行来落这一处出处）。昵称是这一行的「值」，与版本号同一种摆法，放右端。
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_author), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.project_author_title))
+            },
+            trailingContent = {
+                Text(
+                    text = stringResource(R.string.project_author_name),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.clickable { onOpenUrl(authorUrl) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
         ListItem(
             leadingContent = {
                 Icon(painter = painterResource(R.drawable.ic_repository), contentDescription = null)
