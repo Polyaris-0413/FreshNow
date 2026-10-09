@@ -62,6 +62,7 @@ private enum class SettingsEditor { BasicConfig, ExtraRequest }
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onNavigateToSync: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel()
 ) {
@@ -104,6 +105,7 @@ fun SettingsScreen(
                 onManualEntryChange = viewModel::onManualEntryChange,
                 sortOrder = uiState.behavior.sortOrder,
                 onSortOrderClick = { choosingSortOrder = true },
+                onSyncClick = onNavigateToSync,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -176,6 +178,7 @@ internal fun SettingsList(
     onShowReasoningChange: (Boolean) -> Unit,
     onManualEntryChange: (Boolean) -> Unit,
     onSortOrderClick: () -> Unit,
+    onSyncClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -251,6 +254,19 @@ internal fun SettingsList(
             },
             supportingContent = { Text(text = sortOrder.label()) },
             modifier = Modifier.clickable(onClick = onSortOrderClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        // 同步是跨设备的行为，排在这一分区的末尾：上面的三项都只影响本机
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_sync), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.sync_title))
+            },
+            supportingContent = { Text(text = stringResource(R.string.sync_settings_support)) },
+            modifier = Modifier.clickable(onClick = onSyncClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 

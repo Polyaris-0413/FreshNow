@@ -4,6 +4,11 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 同步要持组播锁才能稳定收到 mDNS 报文，否则部分机型在省电时会静默收不到发现结果 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Android 17（API 37）起局域网访问要用户授权，在那之前的系统上这个声明会被忽略。
+         代码侧的开关见 SyncScreen 里的 hasLocalNetworkPermission -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <uses-feature
         android:name="android.hardware.camera.any"

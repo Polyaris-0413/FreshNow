@@ -127,7 +127,8 @@ class SettingsScreenTest {
         onShowReasoningChange: (Boolean) -> Unit = {},
         onManualEntryChange: (Boolean) -> Unit = {},
         sortOrder: SortOrder = SortOrder.CREATED_AT,
-        onSortOrderClick: () -> Unit = {}
+        onSortOrderClick: () -> Unit = {},
+        onSyncClick: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
@@ -141,7 +142,8 @@ class SettingsScreenTest {
                     onExtraRequestClick = {},
                     onShowReasoningChange = onShowReasoningChange,
                     onManualEntryChange = onManualEntryChange,
-                    onSortOrderClick = onSortOrderClick
+                    onSortOrderClick = onSortOrderClick,
+                    onSyncClick = onSyncClick
                 )
             }
         }

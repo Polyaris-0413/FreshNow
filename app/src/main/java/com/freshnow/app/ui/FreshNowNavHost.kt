@@ -17,6 +17,7 @@ import com.freshnow.app.ui.detail.RecordEditScreen
 import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
+import com.freshnow.app.ui.sync.SyncScreen
 import com.freshnow.app.ui.about.AboutScreen
 import com.freshnow.app.ui.about.OpenSourceScreen
 import com.freshnow.app.ui.theme.FreshNowTransitions
@@ -26,6 +27,7 @@ object FreshNowRoute {
     const val SCAN = "scan"
     const val ABOUT = "about"
     const val SETTINGS = "settings"
+    const val SYNC = "sync"
     const val OPEN_SOURCE = "openSource"
 
     /**
@@ -114,7 +116,13 @@ fun FreshNowNavHost(
             )
         }
         composable(FreshNowRoute.SETTINGS) {
-            SettingsScreen(onBack = { navigator.navigateUp() })
+            SettingsScreen(
+                onBack = { navigator.navigateUp() },
+                onNavigateToSync = { navigator.navigate(FreshNowRoute.SYNC) }
+            )
+        }
+        composable(FreshNowRoute.SYNC) {
+            SyncScreen(onBack = { navigator.navigateUp() })
         }
         composable(FreshNowRoute.OPEN_SOURCE) {
             OpenSourceScreen(onBack = { navigator.navigateUp() })
