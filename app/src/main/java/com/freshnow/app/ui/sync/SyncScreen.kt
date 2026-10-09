@@ -113,17 +113,29 @@ internal fun SyncScreen(
                 leadingContent = {
                     Icon(painter = painterResource(R.drawable.ic_devices), contentDescription = null)
                 },
-                headlineContent = {
-                    ListItemText(
-                        viewModel.deviceName,
-                        stringResource(R.string.sync_local_device_support)
-                    )
-                },
+                headlineContent = { Text(text = viewModel.deviceName) },
                 trailingContent = {
                     TextButton(onClick = viewModel::openPairingCode) {
                         Text(text = stringResource(R.string.sync_show_pairing_code))
                     }
                 },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            )
+
+            // 手动填地址这一条与「显示配对码」并列：两者都是建立配对的路，
+            // 只是一个等对方来、一个主动去连。原先它缩在「附近设备」那一块底下，
+            // 读起来像那一块的子项，而它其实正是「附近一个都发现不到」时的替代
+            ListItem(
+                leadingContent = {
+                    Icon(painter = painterResource(R.drawable.ic_add_link), contentDescription = null)
+                },
+                headlineContent = {
+                    ListItemText(
+                        stringResource(R.string.sync_manual_add),
+                        stringResource(R.string.sync_manual_add_support)
+                    )
+                },
+                modifier = Modifier.clickable { manualPairing = true },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
@@ -149,10 +161,7 @@ internal fun SyncScreen(
             if (peers.isEmpty()) {
                 ListItem(
                     headlineContent = {
-                        ListItemText(
-                            stringResource(R.string.sync_no_paired_devices),
-                            stringResource(R.string.sync_no_paired_devices_support)
-                        )
+                        Text(text = stringResource(R.string.sync_no_paired_devices))
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
@@ -202,22 +211,6 @@ internal fun SyncScreen(
                     )
                 }
             }
-
-            // 发现不到时的另一条路。放在列表外面：发现得了的时候用户看不到它也好，
-            // 而一旦列表空着，它就是页面上最该被看见的那一行
-            ListItem(
-                leadingContent = {
-                    Icon(painter = painterResource(R.drawable.ic_add_link), contentDescription = null)
-                },
-                headlineContent = {
-                    ListItemText(
-                        stringResource(R.string.sync_manual_add),
-                        stringResource(R.string.sync_manual_add_support)
-                    )
-                },
-                modifier = Modifier.clickable { manualPairing = true },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
         }
     }
 
