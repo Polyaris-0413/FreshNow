@@ -69,6 +69,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    sourceSets {
+        // 迁移测试（ScanRecordMigrationTest）要读 schemas/ 里的表结构。Room 自己的 Gradle 插件
+        // 会自动把那个目录挂进测试的 assets，而本项目用的是 KSP 的 schemaLocation 参数，
+        // 于是这里手动挂一次
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
     buildFeatures {
         compose = true
         // Room 需要按构建类型区分迁移策略（见 FreshNowDatabase），release 与 debug 走不同分支
@@ -111,6 +117,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    // 迁移动不动就弄丢用户已有的记录，而它只在升级那一刻跑一次——写错了一年到头都不会发现
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

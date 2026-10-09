@@ -211,7 +211,12 @@ internal class SyncCoordinator private constructor(context: Context) {
     fun startDiscovery() {
         if (discoveryJob?.isActive == true) return
         discoveryJob = scope.launch {
-            discovery.discover().collect { _discovered.value = it }
+            val me = identity.deviceId()
+            discovery.discover().collect { found ->
+                // 自己的广播自己也会收到（mDNS 会把服务同时报给发布者）。不过滤的话用户会在
+                // 「附近设备」里看到自己，而点下去配出的是「自己跟自己配对」这个没意义的怪状态
+                _discovered.value = found.filterNot { it.deviceId == me }
+            }
         }
     }
 

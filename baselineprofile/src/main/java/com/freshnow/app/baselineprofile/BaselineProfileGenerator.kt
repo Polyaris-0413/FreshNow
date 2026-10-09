@@ -12,8 +12,9 @@ import org.junit.runner.RunWith
 /**
  * 录制 FreshNow 的 baseline profile。
  *
- * 走四条主路径：冷启动进首页、扫描页（CameraX 的预览与分析器在工作线程上初始化）、设置页、
- * 关于页到开源声明页。控件一律按文案与描述符定位，不用坐标——坐标会随屏幕尺寸与字体缩放失效。
+ * 走五条主路径：冷启动进首页、扫描页（CameraX 的预览与分析器在工作线程上初始化）、设置页、
+ * 同步页、关于页到开源声明页。控件一律按文案与描述符定位，不用坐标——坐标会随屏幕尺寸与
+ * 字体缩放失效。
  *
  * 与 app/src/androidTest 下的界面测试不同，这里驱动的是装好的真实应用，会读写它自己的
  * DataStore（例如「显示思维链」被真的切换一次）。因此只能在一次性虚拟机上跑。
@@ -49,6 +50,10 @@ class BaselineProfileGenerator {
             clickText(SETTINGS)
             awaitText(BASIC_CONFIG)
             clickText(SHOW_REASONING)
+            // 同步页。进去会起服务端与 mDNS 发现，而在录制机上什么都发现不到也无妨：
+            // 这一段录的是界面合成与列表装配，不是网络那一层
+            clickText(SYNC_TITLE)
+            awaitText(SYNC_LOCAL_HINT)
             backToHome()
 
             // 关于页 → 开源声明页
@@ -124,6 +129,8 @@ class BaselineProfileGenerator {
         const val SETTINGS = "设置"
         const val BASIC_CONFIG = "基础配置"
         const val SHOW_REASONING = "显示思维链"
+        const val SYNC_TITLE = "局域网同步"
+        const val SYNC_LOCAL_HINT = "其他设备靠配对码与本机建立连接"
         const val ABOUT = "关于"
         const val LEGAL = "法律信息"
         const val OPEN_SOURCE = "开源声明"
