@@ -11,38 +11,98 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 
 /**
+ * 一次交换的结果。
+ *
+ * 「对端不认这段配对关系」要单独拿出来：它跟「没连上」对用户意味着完全不同的事，
+ * 而且本地那条配对记录应当就此删掉——留着只会每次同步都白试一遍。
+ */
+internal sealed interface SyncExchange {
+    data class Done(val payload: SyncPayload) : SyncExchange
+
+    /** 对端说它不认识本机（它解除了配对，或者重装过应用） */
+    data object PeerUnknown : SyncExchange
+
+    /** 没连上，或者回绝的理由与配对关系无关 */
+    data object Failed : SyncExchange
+}
+
+/**
  * 去连对端那一次。
  *
- * 所有失败都折成 null / 空，而不是往上抛：对端随时可能关掉应用、切走网络、换了端口，
+ * 所有失败都折成返回值，而不是往上抛：对端随时可能关掉应用、切走网络、换了端口，
  * 这些都不是「错误」而是局域网同步的常态，界面要显示的是「这次没连上」而不是一个异常。
- * 真要区分原因（密钥失效 vs 网络不通）时，看日志比看异常类型更有用。
  */
 internal class SyncClient(
     private val client: HttpClient = defaultHttpClient()
 ) {
 
-    /** 与一台对端交换整份状态，成功返回它对回来的那一份 */
+    /** 与一台对端交换整份状态 */
     suspend fun exchange(
         address: String,
         myDeviceId: String,
         peer: SyncPeer,
         payload: SyncPayload
-    ): SyncPayload? {
+    ): SyncExchange {
         val sealed = SyncCrypto.seal(peer.key(), encode(payload))
-        val response = request("与 $address 交换") {
+        val response = try {
             client.post(url(address, PATH_SYNC)) {
                 header(HEADER_DEVICE, myDeviceId)
                 contentType(ContentType.Application.OctetStream)
                 setBody(sealed)
             }
-        } ?: return null
-        return decode(response.body<ByteArray>(), peer)
+        } catch (e: Exception) {
+            Log.w(TAG, "与 $address 交换：连不上（${e.message}）")
+            return SyncExchange.Failed
+        }
+
+        if (response.status == HttpStatusCode.Unauthorized) {
+            // 两种 401 含义不同：带标记的是「本机不在对端的配对名单里」，
+            // 不带的是「载荷解不开」——后者可能是别人拿错的密钥来试，不该动本地的配对关系
+            val body = runCatching { response.bodyAsText() }.getOrNull()?.trim()
+            val responder = body
+                ?.takeIf { it.startsWith(UNKNOWN_PEER_MARKER) }
+                ?.removePrefix(UNKNOWN_PEER_MARKER)
+                ?.trim()
+            // 还要确认说这话的正是本机要找的那台。地址失效后（对方的 IP 被重新分配了、
+            // 或者记下的地址本来就指向了别的设备）请求会落到一台不相干的设备上，
+            // 它也会说「我不认识你」，而那时删掉的就是一段还好好的配对关系
+            return if (responder == peer.deviceId) {
+                Log.i(TAG, "与 $address 交换：对端已不认这段配对关系")
+                SyncExchange.PeerUnknown
+            } else {
+                Log.w(TAG, "与 $address 交换：对端回绝（${if (responder == null) "认证不过" else "回应的是另一台设备"}）")
+                SyncExchange.Failed
+            }
+        }
+        if (response.status != HttpStatusCode.OK) {
+            Log.w(TAG, "与 $address 交换：对端回了 HTTP ${response.status.value}")
+            return SyncExchange.Failed
+        }
+
+        val body = runCatching { response.body<ByteArray>() }.getOrNull()
+            ?: return SyncExchange.Failed
+        val decoded = decode<SyncPayload>(body, peer) ?: return SyncExchange.Failed
+        return SyncExchange.Done(decoded)
     }
+
+    /**
+     * 告诉对端「本机不再与它同步」。
+     *
+     * 失败不当作解除没生效：对方当时可能没开着应用，而它下次来同步时会从 401 的标记里
+     * 自己发现这件事（见 [SyncExchange.PeerUnknown]）。这次通知只是为了让它当场就知道。
+     */
+    suspend fun unpair(address: String, myDeviceId: String, peer: SyncPeer): Boolean =
+        request("与 $address 解除配对") {
+            client.post(url(address, PATH_UNPAIR)) {
+                header(HEADER_DEVICE, myDeviceId)
+            }
+        } != null
 
     /** 取一条记录的照片；对端没有这张图或记录已被删则返回 null */
     suspend fun fetchImage(

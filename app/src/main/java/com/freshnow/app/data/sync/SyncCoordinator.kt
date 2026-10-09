@@ -247,7 +247,23 @@ internal class SyncCoordinator private constructor(context: Context) {
         }.getOrDefault(emptyList())
     }
 
-    suspend fun forget(deviceId: String) = peers.forget(deviceId)
+    /**
+     * 解除与一台设备的配对。
+     *
+     * 先通知对方再删本机这条：本地记录一删，用来认证的密钥就没了，通知也就发不出去。
+     * 通知失败不影响解除本身——对方下次来同步时会从 401 的那个标记里自己发现
+     * （见 [SyncExchange.PeerUnknown]），而「解除了但对方还没发现」这个中间状态，
+     * 比「解除了却告诉用户已解除」诚实。
+     */
+    suspend fun forget(deviceId: String) {
+        val peer = peers.find(deviceId)
+        if (peer != null) {
+            addressOf(peer)?.let { address ->
+                runCatching { client.unpair(address, identity.deviceId(), peer) }
+            }
+        }
+        peers.forget(deviceId)
+    }
 
     // ---- 发现 ----
 

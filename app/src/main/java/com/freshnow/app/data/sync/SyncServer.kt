@@ -24,6 +24,19 @@ internal const val HEADER_DEVICE = "X-FreshNow-Device"
 internal const val PATH_SYNC = "/sync"
 internal const val PATH_PAIR = "/pair"
 internal const val PATH_IMAGE = "/image"
+internal const val PATH_UNPAIR = "/unpair"
+
+/**
+ * 服务端在「我不认识这个设备号」时回的标记，后面跟它自己的设备号。
+ *
+ * 为什么要把自己的身份也带上：客户端拿到这个标记会删掉本地那条配对记录，而它无法仅凭
+ * 这个标记判断话是谁说的。对端的地址失效后（DHCP 重新分配、或记下的地址已经指向了别的
+ * 设备），请求会落到一台不相干的设备上，那台也会说「我不认识你」——那时删掉的就是一段
+ * 还好好的配对关系。带上设备号，客户端才能确认「说这话的正是我要找的那台」。
+ *
+ * 与「载荷解不开」分开：后者可能是有人拿错的密钥来试，同样不该动配对关系。
+ */
+internal const val UNKNOWN_PEER_MARKER = "unknown-peer"
 
 /**
  * 约定的端口。
@@ -111,8 +124,7 @@ internal class SyncServer(
             call.respondSealed(peer, mine)
         }
 
-        post(PATH_PAIR) {
-            val code = pairing.currentCode ?: return@post call.respond(HttpStatusCode.NotFound)
+        post(PATH_PAIR) {            val code = pairing.currentCode ?: return@post call.respond(HttpStatusCode.NotFound)
             // 配对请求发生在配对之前，没有长期密钥可用，只能用配对码派生的那把。
             // 盐由发起方放在密文前面一并送来，两段都要有才算一个完整的请求
             val body = call.receiveBody() ?: return@post call.respond(HttpStatusCode.BadRequest)
@@ -150,6 +162,14 @@ internal class SyncServer(
                     secret = request.secret
                 )
             )
+        }
+
+        post(PATH_UNPAIR) {
+            // 认证就行，不必再看载荷：能通过认证已经证明请求出自持有密钥的那一方，
+            // 而「要解除配对」这件事没有别的参数
+            val peer = call.authenticatedPeer() ?: return@post
+            peers.forget(peer.deviceId)
+            call.respond(HttpStatusCode.OK)
         }
 
         get("$PATH_IMAGE/{syncId}") {
@@ -197,7 +217,9 @@ internal class SyncServer(
         val deviceId = request.headers[HEADER_DEVICE]
         val peer = deviceId?.let { peers.find(it) }
         if (peer == null) {
-            respond(HttpStatusCode.Unauthorized)
+            // 明说「我们不认识你」，并带上本机的设备号：对方据此删掉那条已经失效的配对关系。
+            // 带上身份是必要的——见 UNKNOWN_PEER_MARKER 的说明
+            respond(HttpStatusCode.Unauthorized, "$UNKNOWN_PEER_MARKER ${identity.deviceId()}")
             return null
         }
         return peer

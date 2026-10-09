@@ -1,5 +1,6 @@
 package com.freshnow.app.data.sync
 
+import android.util.Log
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.local.SyncPeer
@@ -42,17 +43,29 @@ internal class SyncEngine(
             records = records.snapshot().map { it.toDto() }
         )
 
-        val theirs = client.exchange(address, myDeviceId, peer, mine) ?: return null
-        val applied = records.mergeAll(theirs.records.map { it.toRecord() })
+        return when (val exchange = client.exchange(address, myDeviceId, peer, mine)) {
+            is SyncExchange.Done -> {
+                val applied = records.mergeAll(exchange.payload.records.map { it.toRecord() })
+                // 连上了才记地址：记下来的用途是「下次先试这个」，
+                // 一个连不上的地址记着只会让下次也先失败一遍
+                peers.rememberAddress(peer.deviceId, address)
+                SyncOutcome(
+                    peerName = exchange.payload.deviceName.ifBlank { peer.deviceName },
+                    applied = applied,
+                    sent = mine.records.size
+                )
+            }
 
-        // 连上了才记地址：记下来的用途是「下次先试这个」，一个连不上的地址记着只会让下次也先失败一遍
-        peers.rememberAddress(peer.deviceId, address)
+            SyncExchange.PeerUnknown -> {
+                // 对端那边已经没有本机了（它解除了配对，或者重装过应用）：本地这条留着
+                // 只会每次同步都白试一遍，而界面上还摆着一台永远连不上的设备
+                Log.i(TAG, "对端已不认这段配对关系，本机这边也删掉：${peer.deviceName}")
+                peers.forget(peer.deviceId)
+                null
+            }
 
-        return SyncOutcome(
-            peerName = theirs.deviceName.ifBlank { peer.deviceName },
-            applied = applied,
-            sent = mine.records.size
-        )
+            SyncExchange.Failed -> null
+        }
     }
     /**
      * 把一条记录的照片取到本地。本地已经有了就直接返回 true，不去打扰对端。
@@ -67,5 +80,9 @@ internal class SyncEngine(
             ?: return false
         records.attachImage(record.syncId, bytes)
         return true
+    }
+
+    private companion object {
+        const val TAG = "FreshNowSync"
     }
 }

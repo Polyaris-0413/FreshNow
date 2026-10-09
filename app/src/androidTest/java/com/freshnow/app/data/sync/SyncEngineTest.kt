@@ -228,6 +228,59 @@ class SyncEngineTest {
         assertEquals(1, deviceB.peers.all().size)
     }
 
+    /**
+     * 一方解除配对，另一方那边那条也得没。
+     *
+     * 否则用户会看到一台「已配对」但其实早就连不上的设备，而且每次同步都白白试它一遍。
+     */
+    @Test
+    fun unpairing_tellsTheOtherSide() = runBlocking {
+        pair()
+
+        val onA = requireNotNull(deviceA.peers.find(deviceB.deviceId()))
+        assertTrue(deviceA.client.unpair(deviceB.address, deviceA.deviceId(), onA))
+        deviceA.peers.forget(deviceB.deviceId())
+
+        assertNull("对方那边不该还挂着本机", deviceB.peers.find(deviceA.deviceId()))
+        assertEquals(0, deviceB.peers.all().size)
+    }
+
+    /**
+     * 通知没送到时的兼底：对方当时没开着应用，等它下次来同步时自己发现。
+     *
+     * 这里直接抹掉 A 那边的记录来模拟「解除成功但通知失败」——服务端查不到本机时
+     * 会回一个带标记的 401，对方据此删掉自己那条已经失效的记录。
+     */
+    @Test
+    fun aPeerDroppedOnTheOtherSide_isCleanedUpOnNextSync() = runBlocking {
+        pair()
+
+        deviceA.peers.forget(deviceB.deviceId())
+
+        syncInitiator(deviceB, with = deviceA)
+
+        assertNull("对方都不认了，本机这条留着只会每次白试", deviceB.peers.find(deviceA.deviceId()))
+    }
+
+    /**
+     * 地址失效后可能连到别的设备上：那台也会说「我不认识你」，但那段话与本次配对关系无关。
+     * 光看标记不够——必须确认说这话的正是本机要找的那台，否则地址一变就会误删一段还好好的配对。
+     */
+    @Test
+    fun aStrangerSayingItDoesNotKnowUs_keepsThePairing() = runBlocking {
+        pair()
+        val stranger = TestDevice("stranger").also { it.start() }
+        try {
+            val onB = requireNotNull(deviceB.peers.find(deviceA.deviceId()))
+
+            deviceB.engine.syncWith(onB, stranger.address)
+
+            assertNotNull("连错设备不该动本机的配对关系", deviceB.peers.find(deviceA.deviceId()))
+        } finally {
+            stranger.close()
+        }
+    }
+
     /** 没配对就去同步，对端必须回绝 */
     @Test
     fun syncingWithoutPairing_isRefused() = runBlocking {
