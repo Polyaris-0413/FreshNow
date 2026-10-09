@@ -1,6 +1,7 @@
 package com.freshnow.app.data.sync
 
 import android.content.Context
+import android.util.Log
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.local.SyncPeer
@@ -86,17 +87,31 @@ internal class SyncCoordinator private constructor(context: Context) {
     fun startSession() {
         // 用一个显式开关而不是「job 还活着吗」：会话里最后一步是同步，它跑完 job 就结束了，
         // 而那时服务端和 mDNS 广播都还在，用 job 的状态判会以为会话已经停了
+        Log.i(TAG, "进前台：startSession（已在会话中=$sessionStarted）")
         if (sessionStarted) return
         sessionStarted = true
         session = scope.launch {
-            val port = runCatching { server.start() }.getOrNull() ?: return@launch
-            discovery.advertise(identity.deviceId(), identity.deviceName(), port)
+            Log.i(TAG, "会话协程开始")
+            // 无论哪一步不成，都要接着往下走：本机主动去连别人根本不需要自己的服务端与广播，
+            // 把这两件非核心的事做成前置条件，它们一挂就连同步一起停了
+            val port = runCatching { server.start() }.getOrElse {
+                Log.w(TAG, "服务端起不来，本次只作为客户端同步：${it.message}")
+                null
+            }
+            if (port != null) {
+                Log.i(TAG, "服务端已起，端口 $port")
+                withTimeoutOrNull(NETWORK_STEP_TIMEOUT) {
+                    discovery.advertise(identity.deviceId(), identity.deviceName(), port)
+                }
+                Log.i(TAG, "mDNS 广播完成（超时或被拒都不拦下同步）")
+            }
             // 顺手清一次墓碑与孤儿照片：这两件事都要遍历全表或整个目录，
             // 放在用户点下「同步」的那一刻会让他多等，放在这里正好是应用刚打开的空档
             records.purge()
+            Log.i(TAG, "墓碑与孤儿照片已清")
             // 打开应用就同步一轮：用户选的就是「在前台时同步」，而「打开看一眼」正是这台设备的
             // 全部使用节奏。没配过对时这一下直接返回，不发任何网络请求
-            syncNow()
+            Log.i(TAG, "进前台自动同步结果：${syncNow()}")
         }
     }
 
@@ -240,16 +255,7 @@ internal class SyncCoordinator private constructor(context: Context) {
 
         _syncing.value = true
         try {
-            awaitDiscovery()
-            val found = _discovered.value.associateBy { it.deviceId }
-            val outcomes = all.mapNotNull { peer ->
-                // 先试上次连上的地址（省一次组播往返），不行再用这次发现到的
-                val candidates = listOfNotNull(
-                    peer.lastAddress.takeIf { it.isNotEmpty() },
-                    found[peer.deviceId]?.address
-                ).distinct()
-                candidates.firstNotNullOfOrNull { engine.syncWith(peer, it) }
-            }
+            val outcomes = all.mapNotNull { peer -> syncOne(peer) }
             // 连上过才补图：两端同时在线的时刻正是补图最省的时机，而图本身不在交换里。
             // 放到后台做，否则用户点一下同步要等到几百张图都拉完才能看到结果
             if (outcomes.isNotEmpty()) backfillImagesInBackground()
@@ -257,6 +263,31 @@ internal class SyncCoordinator private constructor(context: Context) {
         } finally {
             _syncing.value = false
         }
+    }
+
+    /**
+     * 与一台对端交换一轮。
+     *
+     * 先用记下来的地址试，不成才去做发现——这个顺序很要紧：发现要等 mDNS 出结果（几秒），
+     * 而记住的地址在多数情况下直接就连上了。反过来写（先等发现再连）等于每次同步都白等
+     * 几秒，而等出来的东西未必比手里的地址更有用。
+     *
+     * 两条路都不通就返回 null，由调用方按「这台没连上」处理。
+     */
+    private suspend fun syncOne(peer: SyncPeer): SyncOutcome? {
+        peer.lastAddress.takeIf { it.isNotEmpty() }?.let { address ->
+            Log.i(TAG, "与 ${peer.deviceName} 同步：先试记下的地址 $address")
+            engine.syncWith(peer, address)?.let { return it }
+        }
+
+        awaitDiscovery()
+        val discovered = _discovered.value.firstOrNull { it.deviceId == peer.deviceId }?.address
+        if (discovered != null && discovered != peer.lastAddress) {
+            Log.i(TAG, "与 ${peer.deviceName} 同步：改用发现到的地址 $discovered")
+            engine.syncWith(peer, discovered)?.let { return it }
+        }
+        Log.w(TAG, "与 ${peer.deviceName} 同步失败：记下的地址与发现都没走通")
+        return null
     }
 
     /** 把一条记录的照片从对端取回来。已经有的直接返回 true，不会去打扰对端 */
@@ -318,7 +349,17 @@ internal class SyncCoordinator private constructor(context: Context) {
     }
 
     companion object {
-        private const val DISCOVERY_GRACE = 2_500L
+        private const val TAG = "FreshNowSync"
+
+        /**
+         * 等发现出结果的上限。取到 6 秒是因为 mDNS 本来就慢：设备刚起来时它要先把查询发出去、
+         * 等对方回，两三秒内没结果是常事，而窗口一短，这次同步就直接判失败了——用户看到的
+         * 就是「开了应用也没同步」。同步跑在后台协程里，多等几秒不会卡住任何界面。
+         */
+        private const val DISCOVERY_GRACE = 6_000L
+
+        /** 广播这类非核心步骤的等待上限：它们超时也不该拖住同步 */
+        private const val NETWORK_STEP_TIMEOUT = 3_000L
 
         /** 配对窗口的时长。与文案「码两分钟内有效」是同一个数 */
         private const val PAIRING_WINDOW = 2 * 60 * 1000L

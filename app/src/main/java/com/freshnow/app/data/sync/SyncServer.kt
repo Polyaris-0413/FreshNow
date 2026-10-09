@@ -9,6 +9,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -134,8 +135,7 @@ internal class SyncServer(
                     deviceId = request.deviceId,
                     deviceName = request.deviceName,
                     secret = request.secret,
-                    // 对端的服务端口要等它来连时才看得到，先留空
-                    lastAddress = "",
+                    lastAddress = call.peerServiceAddress(),
                     pairedAt = System.currentTimeMillis()
                 )
             )
@@ -172,6 +172,20 @@ internal class SyncServer(
 
     private suspend fun ApplicationCall.receiveBody(): ByteArray? =
         runCatching { receive<ByteArray>() }.getOrNull()
+
+    /**
+     * 配对请求来源那台设备的服务地址。
+     *
+     * 端口取约定端口，**不能**取这次请求的来源端口：那是对方连接时临时开的端口，
+     * 关掉就没了，拿它存下来等于存了一个永远连不上的死地址。约定端口是本应用固定的，
+     * 对方大概率也在用；万一它那次被占而换了随机端口，这个地址就连不上——那时会退回发现，
+     * 面不是留下一条「看着有地址、实际永远连不上」的记录。
+     *
+     * 不记下这个地址的后果是实打实的：被配对方（显示配对码的那台）手上就什么都没有，
+     * 而它每次同步都得等 mDNS 发现出结果，发现本来就慢，于是自动同步看起來就像从来没发生过。
+     */
+    private fun ApplicationCall.peerServiceAddress(): String =
+        "${request.origin.remoteHost}:$DEFAULT_PORT"
 
     /**
      * 认出请求来自哪台已配对设备。认不出就当场回绝并返回 null，调用方直接 return。

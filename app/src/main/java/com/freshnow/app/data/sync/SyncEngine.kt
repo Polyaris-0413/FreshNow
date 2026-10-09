@@ -54,7 +54,6 @@ internal class SyncEngine(
             sent = mine.records.size
         )
     }
-
     /**
      * 把一条记录的照片取到本地。本地已经有了就直接返回 true，不去打扰对端。
      *

@@ -1,5 +1,6 @@
 package com.freshnow.app.data.sync
 
+import android.util.Log
 import com.freshnow.app.data.local.SyncPeer
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -9,6 +10,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -32,7 +34,7 @@ internal class SyncClient(
         payload: SyncPayload
     ): SyncPayload? {
         val sealed = SyncCrypto.seal(peer.key(), encode(payload))
-        val response = request {
+        val response = request("与 $address 交换") {
             client.post(url(address, PATH_SYNC)) {
                 header(HEADER_DEVICE, myDeviceId)
                 contentType(ContentType.Application.OctetStream)
@@ -49,7 +51,7 @@ internal class SyncClient(
         peer: SyncPeer,
         syncId: String
     ): ByteArray? {
-        val response = request {
+        val response = request("向 $address 取图") {
             client.get(url(address, "$PATH_IMAGE/$syncId")) {
                 header(HEADER_DEVICE, myDeviceId)
             }
@@ -73,7 +75,7 @@ internal class SyncClient(
         val salt = SyncCrypto.newPairingSalt()
         val key = SyncCrypto.derivePairingKey(code, salt)
         val sealed = SyncCrypto.seal(key, encode(request))
-        val response = request {
+        val response = request("与 $address 配对") {
             client.post(url(address, PATH_PAIR)) {
                 contentType(ContentType.Application.OctetStream)
                 setBody(salt + sealed)
@@ -86,20 +88,42 @@ internal class SyncClient(
 
     fun close() = client.close()
 
-    /** 只把 200 的响应交回去，其余（认证失败、对方没有这张图）一律当「这次没拿到」 */
-    private suspend inline fun request(call: () -> io.ktor.client.statement.HttpResponse) =
-        runCatching { call() }.getOrNull()?.takeIf { it.status == HttpStatusCode.OK }
+    /**
+     * 只把 200 的响应交回去，其余（认证失败、对方没有这张图）一律当「这次没拿到」。
+     *
+     * 失败一律记日志：同步是后台跑的，失败了界面上没有任何变化，用户看到的就是「开了应用也没同步」。
+     * 没有日志的话，这句话背后可能是连不上、密钥不对、或者对方根本没在跑，而这三件事的处理方式
+     * 完全不同。
+     */
+    private suspend fun request(
+        label: String,
+        call: suspend () -> HttpResponse
+    ): HttpResponse? {
+        val response = try {
+            call()
+        } catch (e: Exception) {
+            Log.w(TAG, "$label：连不上（${e.message}）")
+            return null
+        }
+        if (response.status != HttpStatusCode.OK) {
+            Log.w(TAG, "$label：对端回了 HTTP ${response.status.value}")
+            return null
+        }
+        return response
+    }
 
     private inline fun <reified T> encode(message: T): ByteArray =
         syncJson.encodeToString(message).toByteArray()
 
     private inline fun <reified T> decode(bytes: ByteArray, peer: SyncPeer): T? =
         runCatching { syncJson.decodeFromString<T>(String(SyncCrypto.open(peer.key(), bytes))) }
+            .onFailure { Log.w(TAG, "解开对端的载荷失败：${it.message}") }
             .getOrNull()
 
     private fun url(address: String, path: String) = "http://$address$path"
 
     private companion object {
+        const val TAG = "FreshNowSync"
         /**
          * 连接超时给得比请求超时短：连不上要尽快让位给下一台设备，而一次真实的交换里大头
          * 是打包和合并，不是网络往返。

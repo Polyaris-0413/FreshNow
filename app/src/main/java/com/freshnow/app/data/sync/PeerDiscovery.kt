@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
+import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -52,17 +53,26 @@ internal class PeerDiscovery(context: Context) {
             setAttribute(ATTR_DEVICE_ID, deviceId)
             setAttribute(ATTR_DEVICE_NAME, deviceName)
         }
-        val listener = object : NsdManager.RegistrationListener {
-            override fun onServiceRegistered(info: NsdServiceInfo) = Unit
-            override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
-            override fun onServiceUnregistered(info: NsdServiceInfo) = Unit
-            override fun onUnregistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
-        }
-        registration = listener
         suspendCancellableCoroutine { continuation ->
-            runCatching {
-                manager.registerService(info, NsdManager.PROTOCOL_DNS_SD, listener)
-            }.onFailure { continuation.resume(Unit) }
+            val wake: () -> Unit = { if (continuation.isActive) continuation.resume(Unit) }
+            val listener = object : NsdManager.RegistrationListener {
+                // 注册是异步的：registerService 当场就返回，结果只会从这几个回调里出来。
+                // 之前只写了失败分支，于是成功时没人叫醒协程，advertise 就永远挂在那里，
+                // 后面的事（包括同步）一件都不会做。
+                override fun onServiceRegistered(info: NsdServiceInfo) = wake()
+                override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
+                    Log.w(TAG, "mDNS 广播注册失败：$errorCode")
+                    wake()
+                }
+                override fun onServiceUnregistered(info: NsdServiceInfo) = Unit
+                override fun onUnregistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
+            }
+            registration = listener
+            runCatching { manager.registerService(info, NsdManager.PROTOCOL_DNS_SD, listener) }
+                .onFailure {
+                    Log.w(TAG, "mDNS 广播起不来：${it.message}")
+                    wake()
+                }
             continuation.invokeOnCancellation { stopAdvertising() }
         }
     }
@@ -188,6 +198,7 @@ internal class PeerDiscovery(context: Context) {
     }
 
     private companion object {
+        const val TAG = "FreshNowSync"
         const val SERVICE_TYPE = "_freshnow._tcp."
         const val ATTR_DEVICE_ID = "deviceId"
         const val ATTR_DEVICE_NAME = "deviceName"
