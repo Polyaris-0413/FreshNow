@@ -428,19 +428,19 @@ internal fun RecordEditForm(
             value = uiState.productionDate,
             onValueChange = onProductionDateChange,
             label = stringResource(R.string.scan_production_date),
-            error = if (uiState.productionDateInvalid) stringResource(R.string.record_edit_error_date) else null
+            error = if (uiState.productionDateInvalid) stringResource(R.string.record_edit_error_unrecognized) else null
         )
         EditField(
             value = uiState.shelfLife,
             onValueChange = onShelfLifeChange,
             label = stringResource(R.string.scan_shelf_life),
-            error = if (uiState.shelfLifeInvalid) stringResource(R.string.record_edit_error_shelf_life) else null
+            error = if (uiState.shelfLifeInvalid) stringResource(R.string.record_edit_error_unrecognized) else null
         )
         EditField(
             value = uiState.expiryDate,
             onValueChange = onExpiryDateChange,
             label = stringResource(R.string.scan_expiry_date),
-            error = if (uiState.expiryDateInvalid) stringResource(R.string.record_edit_error_date) else null,
+            error = if (uiState.expiryDateInvalid) stringResource(R.string.record_edit_error_unrecognized) else null,
             hint = if (uiState.expiryDate.isBlank()) {
                 derivedExpiryHint(uiState.derivedExpiry)
             } else {

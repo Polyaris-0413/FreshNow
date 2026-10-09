@@ -50,10 +50,10 @@
          具体哪个字段写错了由该字段自己的错误文案报（一个错只说一次） -->
     <string name="record_edit_expiry_hint">留空则按生产日期与保质期推算：%1$s</string>
     <string name="record_edit_expiry_hint_pending">留空则按生产日期与保质期推算，当前还推不出</string>
-    <!-- 错误文案：说清哪里不对，都控制在单行内（规范：An error message should appear on a
-         single line, if possible）。日期那条附一个可照抄的例子，保质期那条只说不认得出 -->
-    <string name="record_edit_error_date">认不出这个写法，如 2026-10-06</string>
-    <string name="record_edit_error_shelf_life">认不出这个写法</string>
+    <!-- 写错时的提示只有这一句：生产日期、过期日期、保质期三处共用。
+         三者的写法规则各有一套（见 ScanValueFormat），但说给用户的话是同一句；
+         分成两条只是把同一个说法写两遍，日后改一处漏一处 -->
+    <string name="record_edit_error_unrecognized">认不出这个写法</string>
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
     <string name="record_image_change">更换照片</string>

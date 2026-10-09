@@ -160,11 +160,11 @@ class RecordEditFormTest {
         composeRule.onNodeWithText("生产日期").performTextInput("13月")
 
         // 已经认不出了，但人还没离开这个字段 → 不报
-        composeRule.onNodeWithText(DATE_ERROR, substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText(UNRECOGNIZED, substring = true).assertDoesNotExist()
 
         // 换到下一个字段即失焦 → 这时才报
         composeRule.onNodeWithText("保质期").performClick()
-        composeRule.onNodeWithText(DATE_ERROR, substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(UNRECOGNIZED, substring = true).assertIsDisplayed()
     }
 
     /** 打开页面时就已经写错的旧值例外：它不是用户刚敲的，而且不报的话保存为什么灰着没法解释 */
@@ -172,16 +172,19 @@ class RecordEditFormTest {
     fun prefilledInvalidValueReportsImmediately() {
         setContent(uiState = EMPTY.copy(productionDate = "13月", productionDateInvalid = true))
 
-        composeRule.onNodeWithText(DATE_ERROR, substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(UNRECOGNIZED, substring = true).assertIsDisplayed()
     }
 
-    /** 保质期是另一套写法规则：报的必须是它自己那条文案，不能拿日期那条顶替（那条带日期的例子） */
+    /**
+     * 保质期写错也报同样一句（三个字段共用同一条文案，见 strings.xml）。
+     *
+     * 这里验的是「保质期这个字段自己会报」，而不是文案长什么样：文案只有一份，全应用一处可改。
+     */
     @Test
-    fun unrecognizableShelfLifeHasItsOwnMessage() {
+    fun unrecognizableShelfLifeReportsToo() {
         setContent(uiState = EMPTY.copy(shelfLife = "很久", shelfLifeInvalid = true))
 
-        composeRule.onNodeWithText("认不出这个写法", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText(DATE_ERROR).assertDoesNotExist()
+        composeRule.onNodeWithText(UNRECOGNIZED, substring = true).assertIsDisplayed()
     }
 
     private fun setContent(
@@ -204,7 +207,8 @@ class RecordEditFormTest {
     }
 
     private companion object {
-        const val DATE_ERROR = "认不出这个写法，如 2026-10-06"
+        /** 三个字段写错时共用的那一句，见 strings.xml */
+        const val UNRECOGNIZED = "认不出这个写法"
         val EMPTY = RecordEditUiState(loaded = true, found = true)
     }
 }
