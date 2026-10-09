@@ -8,7 +8,10 @@ Material Symbols 的 SVG 官方坐标系是负 Y 以及 viewBox 从 -960 开始
 若直接把 SVG path 抄进 vector drawable 图形会整体画在视口外 编译不报错但图标不显示  
 
 ### 规范
-图标命名 ic_用途.xml
+图标命名 ic_用途.xml  
+
+图标应统一为 rounded 变体  
+若发现图标为outlined 或 sharp 变体 应停止任务并提醒用户
 
 ### 获取
 用户会从 Material Symbols 中提供项目所需的图标  
