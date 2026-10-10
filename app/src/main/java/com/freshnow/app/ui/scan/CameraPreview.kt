@@ -48,7 +48,7 @@ private const val OPAQUE_ALPHA = 0xFF shl 24
 /**
  * 实时预览 + 取帧回调。取帧前先问 [canAcceptFrame]，避免在请求进行或冷却期内白做一次 JPEG 编码
  *
- * [torchOn] 由调用方持有：相机实例每次重新绑定（换版式、Activity 重建）都会回到关灯状态，
+ * [torchOn] 由调用方持有：相机实例每次重新绑定（Activity 重建就会重新绑定）都会回到关灯状态，
  * 状态留在这里就会与硬件失步——调用方拿着它，重绑后本组件按它再下发一次，两端始终一致。
  */
 @Composable

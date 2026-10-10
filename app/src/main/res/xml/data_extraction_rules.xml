@@ -1,19 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12（API 31）起的备份规则；更早的版本读 backup_rules.xml（两个文件的作用相同，
+  只是格式随 Android 12 变了，改一个要同步改另一个）。
+
+  这里不设 include/exclude，备份范围因此沿用系统默认（要不要备份由 AndroidManifest 的
+  allowBackup 决定）。将来若要单独排除某一项（例如不该跟着云备份走的配置），在这里写。
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
     </cloud-backup>
-    <!--
-    <device-transfer>
-        <include .../>
-        <exclude .../>
-    </device-transfer>
-    -->
 </data-extraction-rules>

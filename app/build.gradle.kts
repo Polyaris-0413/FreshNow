@@ -89,7 +89,7 @@ ksp {
 
 dependencies {
     // release 变体的 baseline profile 来源：录制产物由 :baselineprofile 在虚拟机跑出来，
-    // 再经 :app:generateBaselineProfile 归并进 src/main/baselineProfiles。缺了这条，
+    // 再经 :app:generateBaselineProfile 归并进 src/release/generated/baselineProfiles。缺了这条，
     // release 变体不会带上应用自己的 profile。
     baselineProfile(project(":baselineprofile"))
 

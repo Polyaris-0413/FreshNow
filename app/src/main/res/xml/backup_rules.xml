@@ -1,13 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 及以下的备份规则；Android 12 起改读 data_extraction_rules.xml（两个文件的作用相同，
+  只是格式随 Android 12 变了，改一个要同步改另一个）。
+
+  这里不设 include/exclude，备份范围因此沿用系统默认（要不要备份由 AndroidManifest 的
+  allowBackup 决定）。
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
 </full-backup-content>

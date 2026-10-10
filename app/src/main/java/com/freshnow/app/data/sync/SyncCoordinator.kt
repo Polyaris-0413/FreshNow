@@ -185,8 +185,8 @@ internal class SyncCoordinator private constructor(context: Context) {
      * 单独起一个协程而不是把循环并进 [session]：会话那个协程的最后一步是同步，它跑完就该结束，
      * 上面判「是否已在会话中」用 [sessionStarted] 而不是 job 活着没有，正是因为这个。
      *
-     * 失败不报错也不提示：两分钟一次的事，连不上就等下一轮（多半是对方没打开应用），
-     * 每两分钟弹一句「没连上」只会让用户来关这个功能。要立刻知道结果，用户会去下拉。
+     * 失败不报错也不提示：它只是兜底，连不上就等下一轮（多半是对方没打开应用），
+     * 每轮都弹一句「没连上」只会让用户来关这个功能。要立刻知道结果，用户会去下拉。
      */
     private fun startSyncTicker() {
         if (syncTicker?.isActive == true) return
