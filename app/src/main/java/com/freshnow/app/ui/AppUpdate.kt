@@ -31,10 +31,13 @@ import kotlinx.coroutines.launch
  * 挂在整个导航之外（见 MainActivity）：对话框是覆盖在所有页面之上的，与当前停在哪一页无关。
  */
 @Composable
-fun AutoUpdateCheck(checker: UpdateChecker = remember { UpdateChecker() }) {
+fun AutoUpdateCheck() {
     val context = LocalContext.current
     val settings = remember { UpdateSettingsRepository(context.applicationContext) }
     val dismissedToast = stringResource(R.string.update_dismissed)
+    // 仓库地址取自资源，与关于页的「访问仓库」是同一份；检查更新不再自己存一个仓库常量
+    val repositoryUrl = stringResource(R.string.project_repository_url)
+    val checker = remember(repositoryUrl) { UpdateChecker(repositoryUrl) }
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf<LatestRelease?>(null) }
 

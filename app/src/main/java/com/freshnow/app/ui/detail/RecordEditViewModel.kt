@@ -11,6 +11,7 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ImageChange
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.ScanValueFormat
+import com.freshnow.app.data.anyFieldFilled
 import com.freshnow.app.data.decodePickedImage
 import com.freshnow.app.data.decodeScanImage
 import com.freshnow.app.data.local.ScanRecord
@@ -68,10 +69,33 @@ val RecordEditUiState.canSave: Boolean
     get() = !saving && !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid &&
         (!isNew || hasAnyValue)
 
-/** 四个字段里有没有哪一个填了东西。扫描侧的同名判据在 ScanResult.hasAnyValue */
+/**
+ * 四个字段里有没有哪一个填了东西。判据只有一处实现（见 data/ScanResult.kt 的 anyFieldFilled），
+ * 与扫描侧「一个字段都没读到就不存」是同一条规矩。
+ */
 val RecordEditUiState.hasAnyValue: Boolean
-    get() = productName.isNotBlank() || productionDate.isNotBlank() ||
-        expiryDate.isNotBlank() || shelfLife.isNotBlank()
+    get() = anyFieldFilled(productName, productionDate, expiryDate, shelfLife)
+
+/**
+ * 草稿里四个字段按落库写法规整后的样子（见 [RecordEditViewModel.save]）。
+ *
+ * 提着它是因为插入与覆盖两条路要的是同一套规整（[ScanValueFormat]）：各写一遍的话，
+ * 「值不管谁写的、落库只有一种写法」这条规矩会从一个分支漏掉，而那就是同一个日期在库里
+ * 存成两种写法的来处。
+ */
+private data class StoredFields(
+    val productName: String,
+    val productionDate: String,
+    val expiryDate: String,
+    val shelfLife: String
+)
+
+private fun RecordEditUiState.storedFields() = StoredFields(
+    productName = productName.trim(),
+    productionDate = ScanValueFormat.date(productionDate.trim()),
+    expiryDate = ScanValueFormat.date(expiryDate.trim()),
+    shelfLife = ScanValueFormat.shelfLife(shelfLife.trim())
+)
 
 /**
  * 改一条记录的文字字段与照片，或者手填一条还没有的新记录（手动录入，见 [RecordEditViewModel.startNew]）。
@@ -252,16 +276,17 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         val current = _uiState.value
         val record = loaded
         viewModelScope.launch {
+            val fields = current.storedFields()
             val imageSaved = try {
                 when {
                     // 手填的新记录：库里还没有它，这一次是首次写入，保存时间就在这一刻定下。
                     // 没有记录可编辑时用的也是这一支，于是手动录入与「扫描后存下」在库里长得一样
                     current.isNew -> repository.insert(
                         ScanRecord(
-                            productName = current.productName.trim(),
-                            productionDate = ScanValueFormat.date(current.productionDate.trim()),
-                            expiryDate = ScanValueFormat.date(current.expiryDate.trim()),
-                            shelfLife = ScanValueFormat.shelfLife(current.shelfLife.trim()),
+                            productName = fields.productName,
+                            productionDate = fields.productionDate,
+                            expiryDate = fields.expiryDate,
+                            shelfLife = fields.shelfLife,
                             imageName = "",
                             savedAt = System.currentTimeMillis()
                         ),
@@ -273,10 +298,10 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
 
                     else -> repository.update(
                         record.copy(
-                            productName = current.productName.trim(),
-                            productionDate = ScanValueFormat.date(current.productionDate.trim()),
-                            expiryDate = ScanValueFormat.date(current.expiryDate.trim()),
-                            shelfLife = ScanValueFormat.shelfLife(current.shelfLife.trim())
+                            productName = fields.productName,
+                            productionDate = fields.productionDate,
+                            expiryDate = fields.expiryDate,
+                            shelfLife = fields.shelfLife
                         ),
                         current.imageChange
                     )

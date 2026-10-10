@@ -56,7 +56,9 @@ fun AboutScreen(
     val failedToast = stringResource(R.string.update_check_failed)
 
     val scope = rememberCoroutineScope()
-    val updateChecker = remember { UpdateChecker() }
+    // 仓库地址取自资源：手动检查与冷启动自动检查用的是同一份（见 UpdateChecker）
+    val repositoryUrl = stringResource(R.string.project_repository_url)
+    val updateChecker = remember(repositoryUrl) { UpdateChecker(repositoryUrl) }
     var update by remember { mutableStateOf<LatestRelease?>(null) }
 
     /**

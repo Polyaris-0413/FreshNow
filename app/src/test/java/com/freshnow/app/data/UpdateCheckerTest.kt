@@ -3,6 +3,7 @@ package com.freshnow.app.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * 版本比较。这是「该不该弹更新提示」的判据（JSON 解析那半在 androidTest 里，见 LatestReleaseParseTest）
@@ -81,6 +82,56 @@ class UpdateCheckerTest {
         assertTrue(shouldPromptUpdate(release("V1.0.1"), currentVersion = "1.0.0", ignoredVersion = null))
     }
 
+    /**
+     * 仓库地址只有 strings.xml 的 project_repository_url 一处来源：接口与发布页都从它推出来。
+     *
+     * 这里读的是真正的资源：写成别的主机名、或路径少一段时本测试先失败，
+     * 而不是等到检查更新静默地查不到东西。
+     */
+    @Test
+    fun repositoryResource_drivesApiAndReleasesPage() {
+        val url = repositoryUrlFromStringsXml()
+        val slug = repositorySlug(url)
+
+        assertEquals("资源里的仓库地址应是 https://github.com/<owner>/<name>：$url", 2, slug.split('/').size)
+        assertEquals("https://api.github.com/repos/$slug/releases/latest", latestReleaseApiUrl(url))
+        assertEquals("${url.trimEnd('/')}/releases/latest", releasesPageUrl(url))
+    }
+
+    /** 地址末尾多一个斜杠、或写成 clone 的 .git 形式，推出来的要是同一对 URL */
+    @Test
+    fun repositoryUrl_toleratesTrailingSlashAndGitSuffix() {
+        val expected = "Polyaris-0413/FreshNow"
+
+        assertEquals(expected, repositorySlug("https://github.com/Polyaris-0413/FreshNow/"))
+        assertEquals(expected, repositorySlug("https://github.com/Polyaris-0413/FreshNow.git"))
+        assertEquals(
+            "https://api.github.com/repos/$expected/releases/latest",
+            latestReleaseApiUrl("https://github.com/Polyaris-0413/FreshNow.git")
+        )
+    }
+
+    /**
+     * 取资源里的仓库地址。
+     *
+     * 与 ThemeWindowBackgroundTest 同一个办法：那类「两处必须一致」的取值只有读真文件才验得到，
+     * 而这里是同一类约束——仓库地址从资源推到接口地址。
+     */
+    private fun repositoryUrlFromStringsXml(): String {
+        val relativePath = "src/main/res/values/strings.xml"
+        val file = listOf(File(relativePath), File("app/$relativePath"))
+            .firstOrNull { it.isFile }
+            ?: error("找不到 $relativePath（当前工作目录 ${File("").absolutePath}）")
+
+        return REPOSITORY_URL.find(file.readText())?.groupValues?.get(1)
+            ?: error("$relativePath 里没有 project_repository_url")
+    }
+
     private fun release(version: String) =
         LatestRelease(version = version, htmlUrl = "https://example.invalid/releases/latest")
+
+    private companion object {
+        val REPOSITORY_URL =
+            Regex("""<string name="project_repository_url"[^>]*>([^<]+)</string>""")
+    }
 }

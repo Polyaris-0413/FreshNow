@@ -24,7 +24,20 @@ fun ScanResult.mergeObservation(observation: ScanResult) = ScanResult(
     shelfLife = observation.shelfLife.ifBlank { shelfLife }
 )
 
+/**
+ * 四个字段里有没有哪一个填了东西。
+ *
+ * 「扫描累加到了内容没有」与「手填的草稿值不值得存」是同一个判据，所以只留这一处实现：
+ * 分开写两份的话，日后改判定（比如加一个字段）会只改到一边。
+ */
+internal fun anyFieldFilled(
+    productName: String,
+    productionDate: String,
+    expiryDate: String,
+    shelfLife: String
+): Boolean = productName.isNotBlank() || productionDate.isNotBlank() ||
+    expiryDate.isNotBlank() || shelfLife.isNotBlank()
+
 /** 是否已经累计到任何内容，用于决定要不要给出「清空」入口 */
 val ScanResult.hasAnyValue: Boolean
-    get() = productName.isNotBlank() || productionDate.isNotBlank() ||
-        expiryDate.isNotBlank() || shelfLife.isNotBlank()
+    get() = anyFieldFilled(productName, productionDate, expiryDate, shelfLife)

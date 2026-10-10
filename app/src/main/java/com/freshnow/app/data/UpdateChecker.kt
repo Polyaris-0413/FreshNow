@@ -8,15 +8,33 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * 仓库地址。与 strings.xml 里的 project_repository_url 是同一处仓库，改仓库时两处要一起改：
- * 一个是给界面上的「访问仓库」用，一个是给这里的检查更新用。
+ * 接口地址前缀。仓库标识拼在它后面
  */
-private const val REPOSITORY = "Polyaris-0413/FreshNow"
+private const val API_PREFIX = "https://api.github.com/repos/"
 
-private const val API_LATEST_RELEASE = "https://api.github.com/repos/$REPOSITORY/releases/latest"
+/**
+ * 从仓库页地址（strings.xml 的 project_repository_url）取出仓库标识 owner/name。
+ *
+ * 不把仓库标识另存一份：那样「访问仓库」与「检查更新」就有两个来源，改仓库时漏一处，
+ * 而漏掉的表现是「界面上的仓库是对的、检查更新却查不到东西」。不是 GitHub 地址时原样返回，
+ * 接口会 404，由调用方按「这次没查成」处理。
+ */
+internal fun repositorySlug(repositoryUrl: String): String =
+    trimmedRepositoryUrl(repositoryUrl).substringAfter("github.com/")
+
+/**
+ * 「最新 release」接口地址，由仓库页地址推出来
+ */
+internal fun latestReleaseApiUrl(repositoryUrl: String): String =
+    "$API_PREFIX${repositorySlug(repositoryUrl)}/releases/latest"
 
 /** 发布页。接口没给 html_url 时退回这里，两条路都是同一页 */
-private const val RELEASES_PAGE = "https://github.com/$REPOSITORY/releases/latest"
+internal fun releasesPageUrl(repositoryUrl: String): String =
+    "${trimmedRepositoryUrl(repositoryUrl)}/releases/latest"
+
+/** 去掉首尾空白、末尾斜杠与 .git 后缀，网页地址与 clone 地址因此推出同一结果 */
+private fun trimmedRepositoryUrl(repositoryUrl: String): String =
+    repositoryUrl.trim().trimEnd('/').removeSuffix(".git")
 
 private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 10_000
@@ -42,13 +60,18 @@ sealed interface UpdateCheckResult {
 /**
  * 查 GitHub 的最新 release（公开接口，不需要认证）。
  *
+ * [repositoryUrl] 是仓库页地址，由调用方从 strings.xml 的 project_repository_url 传进来——
+ * 仓库地址因此只有那一条资源可用，接口与发布页都从它推出来（见 [latestReleaseApiUrl]）。
+ *
  * 用 HttpURLConnection 而不是 OkHttp：本应用只有这一处 GET，为它引一个 HTTP 客户端不划算
  * （识别请求走的也是同一个原生接口，见 AiVisionClient）。
  *
  * 与用 OkHttp 的一个差别要记住：**GitHub 的接口要求带 User-Agent**，缺了直接 403；
  * OkHttp 自带一个，HttpURLConnection 不自带，所以下面显式设置。
  */
-class UpdateChecker(private val latestReleaseUrl: String = API_LATEST_RELEASE) {
+class UpdateChecker(private val repositoryUrl: String) {
+
+    private val latestReleaseUrl: String get() = latestReleaseApiUrl(repositoryUrl)
 
     suspend fun checkLatest(): UpdateCheckResult = withContext(Dispatchers.IO) {
         val connection = runCatching {
@@ -67,7 +90,7 @@ class UpdateChecker(private val latestReleaseUrl: String = API_LATEST_RELEASE) {
                 HttpURLConnection.HTTP_NOT_FOUND -> UpdateCheckResult.NoRelease
                 in 200..299 -> {
                     val body = connection.inputStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                    parseLatestRelease(body)
+                    parseLatestRelease(body, releasesPageUrl(repositoryUrl))
                         ?.let { UpdateCheckResult.Latest(it) }
                         ?: UpdateCheckResult.Failed
                 }
@@ -96,15 +119,18 @@ class UpdateChecker(private val latestReleaseUrl: String = API_LATEST_RELEASE) {
  * 从 release 接口的返回里取出版本与发布页。取不出必需字段（tag 为空、JSON 不合法）返回 null，
  * 由调用方按失败处理。
  *
+ * [fallbackUrl] 是接口没给 html_url 时的退路（仓库的发布页，见 [releasesPageUrl]）——
+ * 少了它，「下载」按钮会因为少一个字段变成按下去没反应的按钮。
+ *
  * 提为 internal 是为了能直接拿一段 JSON 单测：网络那一层在真机上打桩不值当，而这段解析才是
  * 「拿到的版本号对不对」的判据。
  */
-internal fun parseLatestRelease(body: String): LatestRelease? {
+internal fun parseLatestRelease(body: String, fallbackUrl: String): LatestRelease? {
     val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
     val version = json.optString("tag_name").takeIf { it.isNotBlank() } ?: return null
     return LatestRelease(
         version = version,
-        htmlUrl = json.optString("html_url").ifBlank { RELEASES_PAGE }
+        htmlUrl = json.optString("html_url").ifBlank { fallbackUrl }
     )
 }
 

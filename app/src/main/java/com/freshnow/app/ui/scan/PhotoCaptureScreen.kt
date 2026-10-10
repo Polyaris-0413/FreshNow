@@ -1,17 +1,12 @@
 package com.freshnow.app.ui.scan
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,13 +17,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowSubPage
-import com.freshnow.app.ui.openAppSettings
+import com.freshnow.app.ui.component.SquareViewport
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -51,12 +44,10 @@ fun PhotoCaptureScreen(
     onCaptured: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val permission = rememberCameraPermissionState()
     // 手电筒是相机的状态而不是页面数据，不进 ViewModel；但旋转会重建 Activity，灯要跟着
     // 用户的意图重新亮起，所以用 rememberSaveable
     var torchOn by rememberSaveable { mutableStateOf(false) }
-    var torchAvailable by remember { mutableStateOf(false) }
     // 分析线程读它、主线程写它，故用原子量跨线程传（与 ScanViewModel 表示"请求进行中"同一个理由）
     val shutter = remember { AtomicBoolean(false) }
 
@@ -77,59 +68,26 @@ fun PhotoCaptureScreen(
             verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 快门之外的空间，取景框在其中取正方形。不写「横屏时改并排」那一套：
-            // 这里只有一块方框和一个按钮，按可用高度与宽度里较小的一边取方，两种版式都装得下
-            BoxWithConstraints(
+            // 快门之外的空间，取景框在其中取正方形：按可用宽度与高度里较小的一边定边，
+            // 它因此既保持是方的，又不会顶到快门那一行
+            SquareViewport(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
             ) {
-                val side = minOf(maxWidth, maxHeight)
-                Box(
-                    modifier = Modifier
-                        .size(side)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                ) {
-                    if (permission.granted) {
-                        CameraPreview(
-                            torchOn = torchOn,
-                            onTorchAvailabilityChange = { torchAvailable = it },
-                            // 只有按了快门的那一帧才编码：没按下去时帧照常流过，白做编码没意义
-                            canAcceptFrame = { shutter.get() },
-                            onFrame = { jpeg ->
-                                shutter.set(false)
-                                onCaptured(jpeg)
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        // 权限未授予时相机根本不存在，也就谈不上开灯，按钮同样不给
-                        if (torchAvailable) {
-                            CameraTorchButton(
-                                torchOn = torchOn,
-                                onTorchChange = { torchOn = it },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(FreshNowSpacing.xs)
-                            )
-                        }
-                    } else {
-                        CameraPermissionHint(
-                            permissionBlocked = permission.blocked,
-                            requiredMessage = stringResource(R.string.photo_capture_permission_required),
-                            // 被永久拒绝时再调请求不会有任何反应，改跳系统设置页
-                            onGrantPermission = {
-                                if (permission.blocked) {
-                                    openAppSettings(context)
-                                } else {
-                                    permission.request()
-                                }
-                            },
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-                }
+                CameraViewport(
+                    permission = permission,
+                    torchOn = torchOn,
+                    onTorchChange = { torchOn = it },
+                    // 只有按了快门的那一帧才编码：没按下去时帧照常流过，白做编码没意义
+                    canAcceptFrame = { shutter.get() },
+                    onFrame = { jpeg ->
+                        shutter.set(false)
+                        onCaptured(jpeg)
+                    },
+                    requiredMessage = stringResource(R.string.photo_capture_permission_required),
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // 快门放在取景框外面而不是叠在画面上：它按一下就要离开本页，是页面级的动作，

@@ -48,7 +48,6 @@ import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ScrollEdgeFade
-import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
@@ -102,9 +101,9 @@ fun ScanScreen(
             )
         }
 
-        // 操作区跟着内容走而不是放进 Scaffold 的 bottomBar：横屏时它只占结果栏底部，
-        // 通栏的话会把按高度定尺寸的取景框一并压矮。若交出一半给 bottomBar，
-        // 就会出现两个「当前是不是横屏」的判据（版式看可用空间、bottomBar 看窗口尺寸），可能互相矛盾。
+        // 操作区放内容区底部而不是 Scaffold 的 bottomBar：它与上方内容共用外层 Column 的那一层
+        // 留白（FreshNowSpacing.sm），交给 Scaffold 就得在 bottomBar 里再写一遍同一档留白，
+        // 两处日后会各漂各的。
         val actionBar: @Composable () -> Unit = {
             ScanActionBar(
                 enabled = hasResult,
@@ -302,7 +301,7 @@ internal fun ScanActionBar(
 /**
  * 识别结果一列：结果字段，外加可选的思维链面板。
  *
- * 只负责排布，不决定滚动方式——竖屏时它跟着相机一起滚，横屏时占右半屏单独滚，由调用方给。
+ * 只负责排布，不决定滚动方式——目前它与取景框同处一个滚动列，滚动交给调用方。
  * 块间距用 spacedBy 统一给出。
  */
 @Composable
@@ -362,14 +361,10 @@ private fun ReasoningPanel(reasoning: String) {
 }
 
 /**
- * 取景框。
+ * 扫描页的取景框：按宽度定出正方形的外壳，内容交给 [CameraViewport]。
  *
- * 分工：调用方给「多大」（竖屏 fillMaxWidth、横屏 fillMaxHeight），本组件保证「是方的」。
  * 方形不是审美偏好而是功能约束——CameraPreview 会把送给 AI 的整帧裁成居中正方形，
  * 所以取景框一旦不是方的，「看到什么就裁什么」就会静默失效：用户看到整幅画面，模型只收到中间一块。
- *
- * 手电筒叠在取景框内角：它是相机的配件，贴在画面上才读得出属于相机。放在这里也是两种版式
- * 唯一共用的节点——横屏时取景框在左栏，按钮跟着相机走，不会跑到右侧的结果栏去。
  */
 @Composable
 private fun CameraBox(
@@ -380,43 +375,20 @@ private fun CameraBox(
     onFrame: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    // 无闪光灯的设备没有可开的灯。这是设备属性，不是编译期常量，所以问一次相机再决定出不出现
-    var torchAvailable by remember { mutableStateOf(false) }
     Box(
         modifier = modifier
             .aspectRatio(CAMERA_ASPECT_RATIO)
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
-        if (permission.granted) {
-            CameraPreview(
-                torchOn = torchOn,
-                onTorchAvailabilityChange = { torchAvailable = it },
-                canAcceptFrame = canAcceptFrame,
-                onFrame = onFrame,
-                modifier = Modifier.fillMaxSize()
-            )
-            // 权限未授予时相机根本不存在，也就谈不上开灯，按钮同样不给
-            if (torchAvailable) {
-                CameraTorchButton(
-                    torchOn = torchOn,
-                    onTorchChange = onTorchChange,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(FreshNowSpacing.xs)
-                )
-            }
-        } else {
-            CameraPermissionHint(
-                permissionBlocked = permission.blocked,
-                // 被永久拒绝时再调请求不会有任何反应，改跳系统设置页
-                onGrantPermission = {
-                    if (permission.blocked) openAppSettings(context) else permission.request()
-                },
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
+        CameraViewport(
+            permission = permission,
+            torchOn = torchOn,
+            onTorchChange = onTorchChange,
+            canAcceptFrame = canAcceptFrame,
+            onFrame = onFrame,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
