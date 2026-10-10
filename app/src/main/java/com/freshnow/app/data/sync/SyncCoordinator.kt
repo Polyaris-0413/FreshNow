@@ -361,15 +361,37 @@ internal class SyncCoordinator private constructor(context: Context) {
      * 通知失败不影响解除本身——对方下次来同步时会从 401 的那个标记里自己发现
      * （见 [SyncExchange.PeerUnknown]），而「解除了但对方还没发现」这个中间状态，
      * 比「解除了却告诉用户已解除」诚实。
+     *
+     * 跑在 [scope] 上而不是调用方的作用域里：界面那一侧是 viewModelScope，用户点完解除配对
+     * 很可能马上离开同步页，那个作用域当场就取消了，通知会在半路被掉——而它恰恰是「让对方也
+     * 把这条清掉」的主动手段（剩下那条 401 自愈要求对方恰好在它自己下一轮发起时连得上本机）。
      */
-    suspend fun forget(deviceId: String) {
-        val peer = peers.find(deviceId)
-        if (peer != null) {
-            addressOf(peer)?.let { address ->
-                runCatching { client.unpair(address, identity.deviceId(), peer) }
+    fun forget(deviceId: String) = scope.launch {
+        val peer = peers.find(deviceId) ?: return@launch
+        notifyUnpair(peer)
+        peers.forget(deviceId)
+    }
+
+    /**
+     * 告诉对方本机不再与它同步。
+     *
+     * 两个地址都试（发现到的、以及记下的），与 [syncOne] 同一个道理：发现到的那个可能是过期
+     * 条目（NsdManager 会缓存解析结果），只试它就等于把通知押在一次可能落空的投递上。而不同于
+     * 同步，这里的失败是没有回音的——用户那边看起来「已经解除了」，对方却还挂着这台设备。
+     */
+    private suspend fun notifyUnpair(peer: SyncPeer) {
+        val addresses = listOfNotNull(
+            _discovered.value.firstOrNull { it.deviceId == peer.deviceId }?.address,
+            peer.lastAddress.takeIf { it.isNotEmpty() }
+        ).distinct()
+
+        for (address in addresses) {
+            if (client.unpair(address, identity.deviceId(), peer)) {
+                Log.i(TAG, "已告知 ${peer.deviceName} 解除配对（$address）")
+                return
             }
         }
-        peers.forget(deviceId)
+        Log.w(TAG, "没能告知 ${peer.deviceName} 已解除配对，等它下次来同步时自己发现")
     }
 
     // ---- 发现 ----

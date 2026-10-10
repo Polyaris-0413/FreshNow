@@ -57,9 +57,7 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
     fun stopDiscovery() = coordinator.stopDiscovery()
 
-    fun forget(deviceId: String) {
-        viewModelScope.launch { coordinator.forget(deviceId) }
-    }
+    fun forget(deviceId: String) = coordinator.forget(deviceId)
 
     fun syncNow() {
         viewModelScope.launch {
