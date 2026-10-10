@@ -500,21 +500,6 @@ private fun Context.hasLocalNetworkPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, LOCAL_NETWORK_PERMISSION) ==
         PackageManager.PERMISSION_GRANTED
 
-@Composable
-private fun SyncMessage.text(): String = when (this) {
-    // 配完那次同步没拿到数据时不说「同步 0 条」：那是句没信息量的话，
-    // 而用户刚做完配对，想知道的只是「配上了没有」
-    is SyncMessage.Paired -> if (applied > 0) {
-        stringResource(R.string.sync_pair_succeeded_with_data, deviceName, applied)
-    } else {
-        stringResource(R.string.sync_pair_succeeded, deviceName)
-    }
-    SyncMessage.PairFailed -> stringResource(R.string.sync_pair_failed)
-    is SyncMessage.Synced -> stringResource(R.string.sync_result_done, peerName, applied)
-    SyncMessage.Unreachable -> stringResource(R.string.sync_result_unreachable)
-    SyncMessage.NoPeers -> stringResource(R.string.sync_result_no_peers)
-}
-
 private const val PAIRING_CODE_LENGTH = 6
 
 /** 见 [Context.hasLocalNetworkPermission] 的说明 */

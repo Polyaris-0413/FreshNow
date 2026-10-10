@@ -32,6 +32,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,6 +55,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -71,6 +75,9 @@ import com.freshnow.app.ui.component.ScanThumbnail
 import com.freshnow.app.ui.component.SortOrderMenuItems
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.scanValueText
+import com.freshnow.app.ui.showToast
+import com.freshnow.app.ui.sync.SyncMessage
+import com.freshnow.app.ui.sync.text
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
@@ -98,6 +105,8 @@ fun HomeRoute(
     val justEmptied by viewModel.justEmptied.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val behavior by viewModel.behavior.collectAsStateWithLifecycle()
+    val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+    val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
 
     // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
     // 清在这里而不是合成里，是因为此刻那些条目已经不存在了，清早了也漏不掉谁
@@ -120,6 +129,10 @@ fun HomeRoute(
         onRecordToggle = viewModel::toggleSelection,
         onExitSelection = viewModel::clearSelection,
         onDeleteSelected = viewModel::deleteSelected,
+        syncing = syncing,
+        syncMessage = syncMessage,
+        onSync = viewModel::syncNow,
+        onSyncMessageShown = viewModel::consumeSyncMessage,
         onNavigateToScan = onNavigateToScan,
         onNavigateToManualEntry = onNavigateToManualEntry,
         onNavigateToAbout = onNavigateToAbout,
@@ -146,6 +159,12 @@ fun HomeScreen(
     onRecordToggle: (Long) -> Unit,
     onExitSelection: () -> Unit,
     onDeleteSelected: () -> Unit,
+    /** 同步进行中，下拉刷新的指示器读它 */
+    syncing: Boolean,
+    /** 上一次手动同步的结果，报过一句就调 [onSyncMessageShown] 销掉 */
+    syncMessage: SyncMessage?,
+    onSync: () -> Unit,
+    onSyncMessageShown: () -> Unit,
     onNavigateToScan: () -> Unit,
     onNavigateToManualEntry: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -253,18 +272,40 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
-        RecordsList(
-            records = records,
-            newRecordIds = newRecordIds,
-            justEmptied = justEmptied,
-            selectedIds = selectedIds,
-            inSelectionMode = inSelectionMode,
-            onRecordClick = onRecordClick,
-            onRecordToggle = onRecordToggle,
+        // 下拉刷新。主页这一页上「刷新」就是同步：记录只在已配对的设备之间变，别处没得可刷，
+        // 所以下拉直接同步一轮，不另做一次重查库——库本来是 Flow，同步合进来的东西自己就到列表了。
+        //
+        // 用的是 Modifier.pullToRefresh 而不是 PullToRefreshBox：只有前者带 enabled，
+        // 而选择模式下不能刷（那一刻用户在挑要删的，这期间同步把某条删掉或改掉，
+        // 会让「已选 N 项」与眼前的列表对不上）。指示器照 PullToRefreshBox 内部那套摆。
+        val pullState = rememberPullToRefreshState()
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-        )
+                .pullToRefresh(
+                    isRefreshing = syncing,
+                    state = pullState,
+                    enabled = !inSelectionMode,
+                    onRefresh = onSync
+                )
+        ) {
+            RecordsList(
+                records = records,
+                newRecordIds = newRecordIds,
+                justEmptied = justEmptied,
+                selectedIds = selectedIds,
+                inSelectionMode = inSelectionMode,
+                onRecordClick = onRecordClick,
+                onRecordToggle = onRecordToggle,
+                modifier = Modifier.fillMaxSize()
+            )
+            PullToRefreshDefaults.Indicator(
+                state = pullState,
+                isRefreshing = syncing,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
     }
 
     openSheet?.let { sheet ->
@@ -321,6 +362,18 @@ fun HomeScreen(
                 }
             }
         )
+    }
+
+    // 同步的结果用 Toast 报，与同步页同一套词汇、同一个约定（见 ui/Toast.kt）。
+    // 报完就销：留在状态里的话，用户切走再回来会再弹一次，而那次什么操作都没发生。
+    val context = LocalContext.current
+    // 文案先在合成上下文里算好：text() 是 @Composable，而 LaunchedEffect 里跑的是普通协程
+    val syncMessageText = syncMessage?.text()
+    syncMessage?.let {
+        LaunchedEffect(it) {
+            showToast(context, syncMessageText.orEmpty())
+            onSyncMessageShown()
+        }
     }
 }
 
@@ -630,6 +683,10 @@ private fun HomeScreenPreview() {
             onRecordToggle = {},
             onExitSelection = {},
             onDeleteSelected = {},
+            syncing = false,
+            syncMessage = null,
+            onSync = {},
+            onSyncMessageShown = {},
             onNavigateToScan = {},
             onNavigateToManualEntry = {},
             onNavigateToAbout = {},
@@ -654,6 +711,10 @@ private fun HomeScreenSelectionPreview() {
             onRecordToggle = {},
             onExitSelection = {},
             onDeleteSelected = {},
+            syncing = false,
+            syncMessage = null,
+            onSync = {},
+            onSyncMessageShown = {},
             onNavigateToScan = {},
             onNavigateToManualEntry = {},
             onNavigateToAbout = {},

@@ -22,8 +22,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -32,6 +34,7 @@ import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
+import com.freshnow.app.ui.sync.SyncMessage
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
@@ -692,6 +695,10 @@ class HomeScreenTest {
                     onRecordToggle = {},
                     onExitSelection = {},
                     onDeleteSelected = {},
+                    syncing = false,
+                    syncMessage = null,
+                    onSync = {},
+                    onSyncMessageShown = {},
                     onNavigateToScan = { targets += SCAN },
                     onNavigateToManualEntry = { targets += MANUAL_ENTRY },
                     onNavigateToAbout = {},
@@ -749,6 +756,10 @@ class HomeScreenTest {
                     onRecordToggle = {},
                     onExitSelection = {},
                     onDeleteSelected = {},
+                    syncing = false,
+                    syncMessage = null,
+                    onSync = {},
+                    onSyncMessageShown = {},
                     onNavigateToScan = {},
                     onNavigateToManualEntry = {},
                     onNavigateToAbout = {},
@@ -792,6 +803,47 @@ class HomeScreenTest {
         item(id = 3, productName = "酸奶", printedExpiry = "2026-12-31")
     )
 
+    /**
+     * 下拉刷新要真的叫到同步。
+     *
+     * 手势从顶栏之下开始（顶栏那一带不吃这个手势），终点停在列表里：屏幕底部那一带是「添加」
+     * 浮钮的地盘。两端都按根节点的边界算，不写死屏幕尺寸。
+     */
+    @Test
+    fun pullDown_asksForSync() {
+        var syncs = 0
+        setContent(items = records(), onSync = { syncs++ })
+
+        pullDown()
+
+        assertEquals("下拉应当叫到一次同步", 1, syncs)
+    }
+
+    /**
+     * 选择模式下不响应下拉。
+     *
+     * 那一刻用户在挑要删的，而这期间同步把某条删掉或改掉，会让「已选 N 项」与眼前的列表对不上。
+     */
+    @Test
+    fun pullDown_isIgnoredInSelectionMode() {
+        var syncs = 0
+        setContent(items = records(), selectedIds = setOf(1L), onSync = { syncs++ })
+
+        pullDown()
+
+        assertEquals("选择模式下不该叫同步", 0, syncs)
+    }
+
+    private fun pullDown() {
+        composeRule.onRoot().performTouchInput {
+            swipeDown(
+                startY = top + PULL_START_OFFSET.toPx(),
+                endY = bottom - PULL_END_INSET.toPx()
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
     private fun setContent(
         items: List<HomeRecordItem>?,
         newRecordIds: Set<Long> = emptySet(),
@@ -803,6 +855,10 @@ class HomeScreenTest {
         onRecordToggle: (Long) -> Unit = {},
         onExitSelection: () -> Unit = {},
         onDeleteSelected: () -> Unit = {},
+        syncing: Boolean = false,
+        syncMessage: SyncMessage? = null,
+        onSync: () -> Unit = {},
+        onSyncMessageShown: () -> Unit = {},
         onNavigateToScan: () -> Unit = {},
         onNavigateToManualEntry: () -> Unit = {},
         onSortOrderChange: (SortOrder) -> Unit = {}
@@ -823,6 +879,10 @@ class HomeScreenTest {
                     onRecordToggle = onRecordToggle,
                     onExitSelection = onExitSelection,
                     onDeleteSelected = onDeleteSelected,
+                    syncing = syncing,
+                    syncMessage = syncMessage,
+                    onSync = onSync,
+                    onSyncMessageShown = onSyncMessageShown,
                     onNavigateToScan = onNavigateToScan,
                     onNavigateToManualEntry = onNavigateToManualEntry,
                     onNavigateToAbout = {},
@@ -881,5 +941,11 @@ class HomeScreenTest {
 
         /** 新记录慢一帧进列表，取样前要越过这一帧；两帧是因为写完状态还要等下一帧重新合成 */
         const val DEFER_FRAME_MS = 32L
+
+        /** 下拉手势的起点：越过顶栏（二级页与主页的顶栏都是 64dp 上下） */
+        val PULL_START_OFFSET = 160.dp
+
+        /** 终点离屏幕底边的距离：把「添加」浮钮那一带让出来 */
+        val PULL_END_INSET = 120.dp
     }
 }

@@ -12,6 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +25,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.util.concurrent.atomic.AtomicInteger
 
 /** 一轮同步的结果，够界面报一句话 */
 internal sealed interface SyncReport {
@@ -67,9 +71,21 @@ internal class SyncCoordinator private constructor(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var session: Job? = null
     private var discoveryJob: Job? = null
+    private var syncTicker: Job? = null
     private var sessionStarted = false
     private var backfilling = false
     private var pairingWindow: Job? = null
+
+    /** 同一时刻只让一轮交换在跑，见 [syncNow] */
+    private val syncLock = Mutex()
+
+    /**
+     * 正在同步的调用数，[syncing] 由它折算。
+     *
+     * 用计数而不是布尔：第二个调用在 [syncLock] 外等的时候，第一个可能刚好放锁，
+     * 布尔会让指示器在那一瞬闪一下。
+     */
+    private val activeSyncs = AtomicInteger(0)
 
     /** 已配对的对端，设置页的设备列表用 */
     val pairedPeers: Flow<List<SyncPeer>> = peers.peers
@@ -89,7 +105,11 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     private val _syncing = MutableStateFlow(false)
 
-    /** 是否正在同步，用来把按钮置灰 */
+    /**
+     * 是否正在同步。同步页拿它把按钮置灰，主页拿它当下拉刷新的指示器。
+     *
+     * 定时那一轮与进前台那一轮也在内：它们确实在刷新列表，指示器转一下正是它该有的样子。
+     */
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
 
     // ---- 会话：应用进前台时起，离开时停 ----
@@ -123,12 +143,37 @@ internal class SyncCoordinator private constructor(context: Context) {
             // 全部使用节奏。没配过对时这一下直接返回，不发任何网络请求
             Log.i(TAG, "进前台自动同步结果：${syncNow()}")
         }
+        startSyncTicker()
+    }
+
+    /**
+     * 前台期间每 [FOREGROUND_SYNC_INTERVAL] 同步一轮。
+     *
+     * 只跟着会话来去：应用在前台才需要「对面动了本机也跟着动」，离开前台就该彻底停手。
+     * 与界面停在哪一页无关——用户可能正停在列表上看，那正是最需要它新的时候。
+     *
+     * 单独起一个协程而不是把循环并进 [session]：会话那个协程的最后一步是同步，它跑完就该结束，
+     * 上面判「是否已在会话中」用 [sessionStarted] 而不是 job 活着没有，正是因为这个。
+     *
+     * 失败不报错也不提示：两分钟一次的事，连不上就等下一轮（多半是对方没打开应用），
+     * 每两分钟弹一句「没连上」只会让用户来关这个功能。要立刻知道结果，用户会去下拉。
+     */
+    private fun startSyncTicker() {
+        if (syncTicker?.isActive == true) return
+        syncTicker = scope.launch {
+            while (isActive) {
+                delay(FOREGROUND_SYNC_INTERVAL)
+                Log.i(TAG, "前台定时同步结果：${syncNow()}")
+            }
+        }
     }
 
     fun stopSession() {
         sessionStarted = false
         session?.cancel()
         session = null
+        syncTicker?.cancel()
+        syncTicker = null
         discovery.stopAdvertising()
         server.stop()
         stopDiscovery()
@@ -322,21 +367,31 @@ internal class SyncCoordinator private constructor(context: Context) {
      *
      * 逐台来而不是并发：一次交换就是把整份状态发给对方，几台设备同时来会让手机在几秒里
      * 同时打包好几份、写好几轮库，收益只是省下一点点等待，代价是发热与更长的卡顿。
+     *
+     * 进来先排队（[syncLock]）：进前台、定时、下拉刷新、同步页按钮四条路都通到这里，两轮叠在
+     * 一起会同时打包整份状态、同时合并写库，还会各自认定「该补图」而重复拉一遍。第二个调用等
+     * 第一个跑完再跑自己那一轮，而不是复用第一轮的结果——发起方是一次刚做的手势，它要的回报
+     * 是这一轮自己的结果。
      */
     suspend fun syncNow(): SyncReport {
+        activeSyncs.incrementAndGet()
+        _syncing.value = true
+        try {
+            return syncLock.withLock { exchangeAll() }
+        } finally {
+            if (activeSyncs.decrementAndGet() == 0) _syncing.value = false
+        }
+    }
+
+    private suspend fun exchangeAll(): SyncReport {
         val all = peers.all()
         if (all.isEmpty()) return SyncReport.NoPeers
 
-        _syncing.value = true
-        try {
-            val outcomes = all.mapNotNull { peer -> syncOne(peer) }
-            // 连上过才补图：两端同时在线的时刻正是补图最省的时机，而图本身不在交换里。
-            // 放到后台做，否则用户点一下同步要等到几百张图都拉完才能看到结果
-            if (outcomes.isNotEmpty()) backfillImagesInBackground()
-            return if (outcomes.isEmpty()) SyncReport.Unreachable else SyncReport.Done(outcomes)
-        } finally {
-            _syncing.value = false
-        }
+        val outcomes = all.mapNotNull { peer -> syncOne(peer) }
+        // 连上过才补图：两端同时在线的时刻正是补图最省的时机，而图本身不在交换里。
+        // 放到后台做，否则用户点一下同步要等到几百张图都拉完才能看到结果
+        if (outcomes.isNotEmpty()) backfillImagesInBackground()
+        return if (outcomes.isEmpty()) SyncReport.Unreachable else SyncReport.Done(outcomes)
     }
 
     /**
@@ -437,6 +492,20 @@ internal class SyncCoordinator private constructor(context: Context) {
 
         /** 广播这类非核心步骤的等待上限：它们超时也不该拖住同步 */
         private const val NETWORK_STEP_TIMEOUT = 3_000L
+
+        /**
+         * 前台定时同步的间隔。
+         *
+         * 取两分钟，落在同类实现的区间中段：局域网配对类的 KDE Connect 把掉线检测的 keepalive
+         * 从 10 秒调到 60 秒，另有一处把空闲后的 5 秒改成默认 9 分钟；云端同步类的 Bitwarden 是
+         * 30 分钟，Syncthing 的全量重扫是 1 小时。往上限看，Android 官方把「每 15 秒一次网络
+         * 请求」列为耗电的反面例子（见《减少定期更新的影响》）。
+         *
+         * 往哪边偏取决于数据变化得多快：这里变的是用户手动加改的记录，本身不快，但「两台一起用」
+         * 要的正是「对方刚扫的这条我这边也看得见」，所以宁可取短。每分钟也站得住，只是轮数翻倍；
+         * 秒级则既踩官方那条线，又没有意义——真要立刻看到，用户会下拉。
+         */
+        private const val FOREGROUND_SYNC_INTERVAL = 2 * 60 * 1000L
 
         /** 配对窗口的时长。与文案「码两分钟内有效」是同一个数 */
         private const val PAIRING_WINDOW = 2 * 60 * 1000L

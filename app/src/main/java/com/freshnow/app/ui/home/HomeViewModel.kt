@@ -11,6 +11,9 @@ import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.ScanValueFormat
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
+import com.freshnow.app.data.sync.SyncCoordinator
+import com.freshnow.app.ui.sync.SyncMessage
+import com.freshnow.app.ui.sync.toMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -65,6 +68,38 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ScanRecordRepository(application)
 
     private val behaviorRepository = BehaviorSettingsRepository(application)
+
+    private val sync = SyncCoordinator.getInstance(application)
+
+    /**
+     * 同步进行中，下拉刷新的指示器读它。
+     *
+     * 不只是下拉那一轮：进前台那一轮、每两分钟那一轮也在内。它们确实在重查列表，指示器转一下
+     * 正是它该有的样子——否则记录自己冒出来，用户会以为是列表错了。
+     */
+    val syncing: StateFlow<Boolean> = sync.syncing
+
+    private val _syncMessage = MutableStateFlow<SyncMessage?>(null)
+
+    /** 上一次手动同步的结果，界面报一句话之后由 [consumeSyncMessage] 清掉 */
+    val syncMessage: StateFlow<SyncMessage?> = _syncMessage
+
+    fun consumeSyncMessage() {
+        _syncMessage.value = null
+    }
+
+    /**
+     * 手动同步一轮，下拉刷新走这里。
+     *
+     * 必须报一句：用户做的就是「我要现在同步」，不给回音的话，他没有办法区分「同步完了没变化」
+     * 与「这个手势根本没生效」。
+     *
+     * 若此刻定时那一轮正在跑，这一下会排在它后面（见 SyncCoordinator.syncNow），所以报出来的是
+     * 自己这一轮的结果，而不是途搭上别人那轮。
+     */
+    fun syncNow() {
+        viewModelScope.launch { _syncMessage.value = sync.syncNow().toMessage() }
+    }
 
     /**
      * 行为设置。主页只用到其中两项：列表按哪个方式排，「添加」去哪一页。

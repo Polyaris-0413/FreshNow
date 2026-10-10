@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.local.SyncPeer
 import com.freshnow.app.data.sync.DiscoveredPeer
 import com.freshnow.app.data.sync.SyncCoordinator
-import com.freshnow.app.data.sync.SyncReport
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -64,14 +63,7 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
     fun syncNow() {
         viewModelScope.launch {
-            when (val report = coordinator.syncNow()) {
-                SyncReport.NoPeers -> _message.value = SyncMessage.NoPeers
-                SyncReport.Unreachable -> _message.value = SyncMessage.Unreachable
-                is SyncReport.Done -> _message.value = SyncMessage.Synced(
-                    peerName = report.outcomes.first().peerName,
-                    applied = report.outcomes.sumOf { it.applied }
-                )
-            }
+            _message.value = coordinator.syncNow().toMessage()
         }
     }
 
@@ -97,14 +89,4 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
     private companion object {
         const val STOP_TIMEOUT = 5_000L
     }
-}
-
-/** 一次操作的结果。带着参数而不是拼好的字符串，文案由界面那一侧按当前语言取 */
-internal sealed interface SyncMessage {
-    /** [applied] 是配完那次同步从对方拿回来几条，0 表示这次没连上 */
-    data class Paired(val deviceName: String, val applied: Int) : SyncMessage
-    data object PairFailed : SyncMessage
-    data class Synced(val peerName: String, val applied: Int) : SyncMessage
-    data object Unreachable : SyncMessage
-    data object NoPeers : SyncMessage
 }
