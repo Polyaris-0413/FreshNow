@@ -19,8 +19,8 @@ android {
         applicationId = "com.freshnow.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.1.0"
+        versionCode = 5
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
