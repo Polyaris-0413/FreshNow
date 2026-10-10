@@ -282,6 +282,24 @@ class SyncEngineTest {
     }
 
     /** 没配对就去同步，对端必须回绝 */
+    /**
+     * 服务端替对端合完一次交换后要报一声。
+     *
+     * 接收侧靠这一声当场去补照片（见 SyncCoordinator）：对方此刻一定在线（它正等我们回话），
+     * 而照片不在这份载荷里。少了这一下，接收侧只能等自己下一次发起同步时才去取，那时对方
+     * 可能已经退出应用了——真机上看到的就是「记录同步了，照片一直不来」。
+     */
+    @Test
+    fun incomingSync_notifiesTheReceiver() = runBlocking {
+        deviceA.addRecord("纯牛奶")
+        pair()
+
+        syncInitiator(deviceB, with = deviceA)
+
+        assertEquals("被连的那台要收到一次通知", 1, deviceA.incomingSyncs)
+        assertEquals("发起方自己那台不算：它走的是另一条触发（自己那一轮跑完）", 0, deviceB.incomingSyncs)
+    }
+
     @Test
     fun syncingWithoutPairing_isRefused() = runBlocking {
         deviceA.addRecord("纯牛奶")
@@ -360,7 +378,17 @@ private class TestDevice(label: String) {
     val client = SyncClient()
     val engine = SyncEngine(records, peers, identity, client)
 
-    private val server = SyncServer(records, peers, identity, pairing)
+    private val server = SyncServer(
+        records,
+        peers,
+        identity,
+        pairing,
+        onIncomingSync = { incomingSyncs++ }
+    )
+
+    /** 服务端替对端合完一次交换报了几次，见 SyncServer 的 onIncomingSync */
+    var incomingSyncs = 0
+        private set
     private var port = 0
 
     val address: String get() = "127.0.0.1:$port"

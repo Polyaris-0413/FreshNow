@@ -105,7 +105,7 @@ fun HomeRoute(
     val justEmptied by viewModel.justEmptied.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val behavior by viewModel.behavior.collectAsStateWithLifecycle()
-    val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
 
     // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
@@ -129,7 +129,7 @@ fun HomeRoute(
         onRecordToggle = viewModel::toggleSelection,
         onExitSelection = viewModel::clearSelection,
         onDeleteSelected = viewModel::deleteSelected,
-        syncing = syncing,
+        refreshing = refreshing,
         syncMessage = syncMessage,
         onSync = viewModel::syncNow,
         onSyncMessageShown = viewModel::consumeSyncMessage,
@@ -159,8 +159,8 @@ fun HomeScreen(
     onRecordToggle: (Long) -> Unit,
     onExitSelection: () -> Unit,
     onDeleteSelected: () -> Unit,
-    /** 同步进行中，下拉刷新的指示器读它 */
-    syncing: Boolean,
+    /** 本页的下拉刷新在跑（只算本页发起的那一轮，见 HomeViewModel.refreshing） */
+    refreshing: Boolean,
     /** 上一次手动同步的结果，报过一句就调 [onSyncMessageShown] 销掉 */
     syncMessage: SyncMessage?,
     onSync: () -> Unit,
@@ -284,7 +284,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .pullToRefresh(
-                    isRefreshing = syncing,
+                    isRefreshing = refreshing,
                     state = pullState,
                     enabled = !inSelectionMode,
                     onRefresh = onSync
@@ -302,7 +302,7 @@ fun HomeScreen(
             )
             PullToRefreshDefaults.Indicator(
                 state = pullState,
-                isRefreshing = syncing,
+                isRefreshing = refreshing,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
         }
@@ -683,7 +683,7 @@ private fun HomeScreenPreview() {
             onRecordToggle = {},
             onExitSelection = {},
             onDeleteSelected = {},
-            syncing = false,
+            refreshing = false,
             syncMessage = null,
             onSync = {},
             onSyncMessageShown = {},
@@ -711,7 +711,7 @@ private fun HomeScreenSelectionPreview() {
             onRecordToggle = {},
             onExitSelection = {},
             onDeleteSelected = {},
-            syncing = false,
+            refreshing = false,
             syncMessage = null,
             onSync = {},
             onSyncMessageShown = {},

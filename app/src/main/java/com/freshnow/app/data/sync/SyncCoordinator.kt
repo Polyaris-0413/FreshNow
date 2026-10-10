@@ -68,7 +68,7 @@ internal class SyncCoordinator private constructor(context: Context) {
     private val discovery = PeerDiscovery(appContext)
     private val client = SyncClient()
     private val engine = SyncEngine(records, peers, identity, client)
-    private val server = SyncServer(records, peers, identity, pairing)
+    private val server = SyncServer(records, peers, identity, pairing, ::backfillImagesInBackground)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var session: Job? = null
@@ -109,9 +109,11 @@ internal class SyncCoordinator private constructor(context: Context) {
     private val _syncing = MutableStateFlow(false)
 
     /**
-     * 是否正在同步。同步页拿它把按钮置灰，主页拿它当下拉刷新的指示器。
+     * 是否正在同步。给同步页那个按钮置灰用。
      *
-     * 定时那一轮与进前台那一轮也在内：它们确实在刷新列表，指示器转一下正是它该有的样子。
+     * 主页的下拉指示器刻意不读它：这里包含进前台自动同步、定时兜底、改动推送——都没有手势，
+     * 而 M3 的下拉指示器是手势的可见反馈（会滑入并转圈，看着像有人替你下拉了一下）。主页那边
+     * 自带一份只算自己那一轮的"refreshing"（见 HomeViewModel）。
      */
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
 
@@ -458,6 +460,10 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     /**
      * 把本地缺的照片逐张补回来。
+     *
+     * 两个地方会叫它：自己发起的那一轮跑完之后（见 [exchangeAll]），以及收到对方推来的一轮之后
+     * （见 [SyncServer] 的 onIncomingSync）。后者不可省：对方推过来的记录里只带图片名，图本身不在
+     * 交换里，而对方此刻一定在线——等自己下一次发起同步再去取，对方可能已经退出应用了。
      *
      * 逐张而不是并发：一次取图就是一次完整的 HTTP 往返加一次落盘，同时发几十张只会让手机
      * 在几秒里同时干几十件事，而用户此刻多半正在看列表，卡顿比多等一会儿更明显。

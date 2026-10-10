@@ -72,12 +72,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val sync = SyncCoordinator.getInstance(application)
 
     /**
-     * 同步进行中，下拉刷新的指示器读它。
+     * 下拉刷新进行中，主页的指示器读它。
      *
-     * 不只是下拉那一轮：进前台那一轮、每两分钟那一轮也在内。它们确实在重查列表，指示器转一下
-     * 正是它该有的样子——否则记录自己冒出来，用户会以为是列表错了。
+     * 刻意不用协调器的 syncing：那个包含进前台自动同步、五分钟兜底轮询、改动推送——它们都没
+     * 有手势，而 M3 的下拉指示器是手势的可见反馈（它会滑入到阈值处再转圈，看着就像有人替你下拉
+     * 了一下）；对端不在线时那一轮还要等连不上＋发现宽限，八九秒后才收回去，于是变成「一进前台
+     * 就有个圈转着不走」。这里只跟本页自己发起的那一轮。
      */
-    val syncing: StateFlow<Boolean> = sync.syncing
+    private val _refreshing = MutableStateFlow(false)
+
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    /** 排着几轮下拉（连点会各排一轮），全跑完指示器才收 */
+    private var refreshesInFlight = 0
 
     private val _syncMessage = MutableStateFlow<SyncMessage?>(null)
 
@@ -98,7 +105,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * 自己这一轮的结果，而不是途搭上别人那轮。
      */
     fun syncNow() {
-        viewModelScope.launch { _syncMessage.value = sync.syncNow().toMessage() }
+        refreshesInFlight++
+        _refreshing.value = true
+        viewModelScope.launch {
+            try {
+                _syncMessage.value = sync.syncNow().toMessage()
+            } finally {
+                if (--refreshesInFlight == 0) _refreshing.value = false
+            }
+        }
     }
 
     /**

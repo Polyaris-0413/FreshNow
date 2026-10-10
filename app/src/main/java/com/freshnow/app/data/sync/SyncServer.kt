@@ -62,7 +62,13 @@ internal class SyncServer(
     private val records: ScanRecordRepository,
     private val peers: SyncPeerRepository,
     private val identity: DeviceIdentity,
-    private val pairing: PairingSession
+    private val pairing: PairingSession,
+    /**
+     * 替对端合完一次交换之后叫一次。用来在对方还在线的那一刻去补图（见 SyncCoordinator）。
+     *
+     * 必须不阻塞：调用方是一条正在进行中的 HTTP 请求，对端正等我们的回应。
+     */
+    private val onIncomingSync: () -> Unit = {}
 ) {
 
     private var server: EmbeddedServer<*, *>? = null
@@ -115,6 +121,10 @@ internal class SyncServer(
 
             // 先合对端的，再把自己这一整份发回去：一次往返两边各合一次，就都收敛到同一个结果
             records.mergeAll(incoming.records.map { it.toRecord() })
+            // 合完就报一声：对方此刻一定在线（它正等我们回话），而照片不在这份载荷里，
+            // 要另外去取。不报的话，接收侧只能等它自己下一次发起同步时才去取，那时对方
+            // 可能已经退出应用了——用户看到的就是「记录同步了，照片一直没有」
+            onIncomingSync()
 
             val mine = SyncPayload(
                 deviceId = identity.deviceId(),
