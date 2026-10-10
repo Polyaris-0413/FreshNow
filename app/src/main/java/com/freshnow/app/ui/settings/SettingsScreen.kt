@@ -302,7 +302,6 @@ internal fun SettingsList(
     }
 }
 
-
 /**
  * 「基础配置」的编辑面板，承载在 ModalBottomSheet 内
  */
@@ -438,7 +437,8 @@ private fun ExtraRequestEditor(
 
 /**
  * 必填文本项，仅在未填时给出错误文案
- */@Composable
+ */
+@Composable
 private fun RequiredTextField(
     value: String,
     onValueChange: (String) -> Unit,

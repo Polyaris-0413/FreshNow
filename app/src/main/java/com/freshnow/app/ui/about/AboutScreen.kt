@@ -138,9 +138,9 @@ internal fun AboutList(
 
     Column(modifier = modifier) {
         SectionHeading(
-        text = stringResource(R.string.app_settings_section_title),
-        // 与页面顶端的距离
-        modifier = Modifier.padding(top = FreshNowSpacing.sm)
+            text = stringResource(R.string.app_settings_section_title),
+            // 与页面顶端的距离
+            modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
         // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下

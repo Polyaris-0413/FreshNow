@@ -173,40 +173,40 @@ fun RecordEditScreen(
 
     EditStepTransition(step = step, modifier = modifier) { current ->
         when (current) {
-                is EditStep.Crop -> {
-                    // 系统返回键在整屏状态里要先关它；不拦的话会一路退回详情页，
-                    // 摆好的裁剪框和刚拍的那一张就此丢掉
-                    BackHandler { viewModel.cancelCrop() }
-                    ImageCropScreen(
-                        image = current.source,
-                        onCancel = viewModel::cancelCrop,
-                        onConfirm = viewModel::applyCrop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                EditStep.Capture -> {
-                    BackHandler { showCamera = false }
-                    PhotoCaptureScreen(
-                        onCancel = { showCamera = false },
-                        onCaptured = { jpeg ->
-                            // 这个回调来自相机的分析线程（见 PhotoCaptureScreen），页面状态要回主线程改
-                            scope.launch { showCamera = false }
-                            viewModel.onPhotoCaptured(jpeg)
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                EditStep.Edit -> EditForm(
-                    uiState = uiState,
-                    onBack = onBack,
-                    onSave = viewModel::save,
-                    onChangePhoto = { showImageSources = true },
-                    viewModel = viewModel
+            is EditStep.Crop -> {
+                // 系统返回键在整屏状态里要先关它；不拦的话会一路退回详情页，
+                // 摆好的裁剪框和刚拍的那一张就此丢掉
+                BackHandler { viewModel.cancelCrop() }
+                ImageCropScreen(
+                    image = current.source,
+                    onCancel = viewModel::cancelCrop,
+                    onConfirm = viewModel::applyCrop,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
+
+            EditStep.Capture -> {
+                BackHandler { showCamera = false }
+                PhotoCaptureScreen(
+                    onCancel = { showCamera = false },
+                    onCaptured = { jpeg ->
+                        // 这个回调来自相机的分析线程（见 PhotoCaptureScreen），页面状态要回主线程改
+                        scope.launch { showCamera = false }
+                        viewModel.onPhotoCaptured(jpeg)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            EditStep.Edit -> EditForm(
+                uiState = uiState,
+                onBack = onBack,
+                onSave = viewModel::save,
+                onChangePhoto = { showImageSources = true },
+                viewModel = viewModel
+            )
         }
+    }
 
     if (showImageSources) {
         ChangePhotoSheet(

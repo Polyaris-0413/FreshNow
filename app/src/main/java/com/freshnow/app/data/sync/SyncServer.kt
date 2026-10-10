@@ -134,7 +134,8 @@ internal class SyncServer(
             call.respondSealed(peer, mine)
         }
 
-        post(PATH_PAIR) {            val code = pairing.currentCode ?: return@post call.respond(HttpStatusCode.NotFound)
+        post(PATH_PAIR) {
+            val code = pairing.currentCode ?: return@post call.respond(HttpStatusCode.NotFound)
             // 配对请求发生在配对之前，没有长期密钥可用，只能用配对码派生的那把。
             // 盐由发起方放在密文前面一并送来，两段都要有才算一个完整的请求
             val body = call.receiveBody() ?: return@post call.respond(HttpStatusCode.BadRequest)
@@ -209,7 +210,7 @@ internal class SyncServer(
      * 端口取约定端口，**不能**取这次请求的来源端口：那是对方连接时临时开的端口，
      * 关掉就没了，拿它存下来等于存了一个永远连不上的死地址。约定端口是本应用固定的，
      * 对方大概率也在用；万一它那次被占而换了随机端口，这个地址就连不上——那时会退回发现，
-     * 面不是留下一条「看着有地址、实际永远连不上」的记录。
+     * 而不是留下一条「看着有地址、实际永远连不上」的记录。
      *
      * 不记下这个地址的后果是实打实的：被配对方（显示配对码的那台）手上就什么都没有，
      * 而它每次同步都得等 mDNS 发现出结果，发现本来就慢，于是自动同步看起來就像从来没发生过。
