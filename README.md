@@ -38,7 +38,7 @@
 <p align="center">
   <img width="32%" src="https://github.com/user-attachments/assets/5e381430-0b3d-4e4a-869a-99a13ef70e75" alt="截图 1" />
   <img width="32%" src="https://github.com/user-attachments/assets/dabd4c62-d5c7-4b58-a76d-79175964bb55" alt="截图 2" />
-  <img width="32%" src="https://github.com/user-attachments/assets/de00a8c2-3ad9-44cb-9d22-c95e61f126d2" alt="截图 3" />
+  <img width="32%" src="https://github.com/user-attachments/assets/c5c947c5-46d7-4907-b685-f2cb01d474b3" alt="截图 3" />
 </p>
 
 ## 贡献
