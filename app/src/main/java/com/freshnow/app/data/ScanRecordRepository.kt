@@ -6,7 +6,11 @@ import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.local.ScanRecordDao
 import com.freshnow.app.data.sync.DeviceIdentity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -66,7 +70,7 @@ class ScanRecordRepository(
      */
     suspend fun update(record: ScanRecord, image: ImageChange): Boolean {
         val stamped = stamp(record)
-        return when (image) {
+        val photoReplaced = when (image) {
             // 先把行改掉再谈照片：反过来的话，改行失败就留下一个「行指着已被换掉的文件」
             ImageChange.Keep -> {
                 dao.update(stamped)
@@ -87,6 +91,8 @@ class ScanRecordRepository(
                 replaced
             }
         }
+        _localEdits.tryEmit(Unit)
+        return photoReplaced
     }
 
     /**
@@ -100,7 +106,7 @@ class ScanRecordRepository(
             // 身份只在这里发一次，之后编辑都带着它走
             if (it.syncId.isEmpty()) it.copy(syncId = UUID.randomUUID().toString()) else it
         }
-        return when (image) {
+        val photoReplaced = when (image) {
             // 新记录本来就没有照片，Keep 与 Remove 在这里是同一件事
             ImageChange.Keep, ImageChange.Remove -> {
                 dao.insert(fresh.copy(imageName = ""))
@@ -116,6 +122,8 @@ class ScanRecordRepository(
                 replaced
             }
         }
+        _localEdits.tryEmit(Unit)
+        return photoReplaced
     }
 
     /**
@@ -136,6 +144,7 @@ class ScanRecordRepository(
                 updatedBy = identity.deviceId()
             )
         )
+        _localEdits.tryEmit(Unit)
     }
 
     /** 记录对应的照片文件，没有图片或文件已不在时返回 null */
@@ -166,6 +175,7 @@ class ScanRecordRepository(
         if (ids.isEmpty()) return
         val now = System.currentTimeMillis()
         dao.markDeleted(ids.toList(), now, identity.deviceId())
+        _localEdits.tryEmit(Unit)
     }
 
     // ---- 下面几个只给局域网同步用（见 data/sync/） ----
@@ -265,11 +275,31 @@ class ScanRecordRepository(
         true
     }
 
-    private companion object {
+    companion object {
         /** 墓碑保留期。短于两台设备可能间隔的最久同步周期，删除就会在对端「复活」 */
-        const val TOMBSTONE_RETENTION = 30L * 24 * 60 * 60 * 1000
+        private const val TOMBSTONE_RETENTION = 30L * 24 * 60 * 60 * 1000
 
         /** 见 [reconcileImages]。挂在伴生对象上才是进程级的 */
-        val imageLock = Mutex()
+        private val imageLock = Mutex()
+
+        /**
+         * 「用户动了本地记录」。同步那边听它，一有改动就主动推一轮（见 SyncCoordinator）。
+         *
+         * 挂在伴生对象上而不是实例上，理由与 [imageLock] 同：每个 ViewModel 各建一个 Repository，
+         * 而听的只有一个（同步协调器），实例级的流它听不到别人的写入。
+         *
+         * 只有用户来源的四个写入发（[update]、[insert]、[save]、[delete]），同步自己的回写
+         * （[mergeAll]、[attachImage]）与收尾清理（[purge]、[reconcileImages]）都不发：
+         * 回写要是也发，对端合完再推回来，两台设备会互相推个没完。
+         */
+        private val _localEdits = MutableSharedFlow<Unit>(
+            // 缓冲一个、满了丢最旧的：要报的是「有改动」这件事，攒着同一条没有意义。
+            // 没人听的时候（应用不在前台）丢掉正好，那时也没有会话可推
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
+
+        /** 见 [_localEdits] */
+        val localEdits: SharedFlow<Unit> = _localEdits.asSharedFlow()
     }
 }

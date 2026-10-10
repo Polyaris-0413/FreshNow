@@ -9,18 +9,20 @@ import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.local.SyncPeer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.net.Inet4Address
@@ -72,6 +74,7 @@ internal class SyncCoordinator private constructor(context: Context) {
     private var session: Job? = null
     private var discoveryJob: Job? = null
     private var syncTicker: Job? = null
+    private var editWatcher: Job? = null
     private var sessionStarted = false
     private var backfilling = false
     private var pairingWindow: Job? = null
@@ -144,6 +147,31 @@ internal class SyncCoordinator private constructor(context: Context) {
             Log.i(TAG, "进前台自动同步结果：${syncNow()}")
         }
         startSyncTicker()
+        startEditWatcher()
+    }
+
+    /**
+     * 本地一有改动就推一轮，不等定时器那一轮。
+     *
+     * 分工是「事件为主、轮询兜底」：这一条管「两台都开着、一台刚改完」——用户唯一会盯着屏幕等
+     * 结果的那个场景；[syncNow] 一次交换又是双向的，所以推过去的同时也把对方的改动带回来了。
+     * 剩下两种推不到的情形交给 [FOREGROUND_SYNC_INTERVAL] 那一轮：改动发生时对方不在前台
+     * （它连服务端都没起，必然推不到），或者这次推送没送出去。
+     *
+     * 去抖 [LOCAL_EDIT_DEBOUNCE]：一次操作可能连着写两次库，而每一轮都是一次完整的整份状态
+     * 交换，攒一下再发；[syncNow] 本身会遍历所有已配对设备，一轮就够全覆盖。
+     *
+     * 只在会话里听：写库不依赖前台，但「推」依赖（本机要有服务端、要知道往哪儿推），而会话正是
+     * 前台那段时间。不在会话时事件照样发出，没人听就丢了——那时也不该推。
+     */
+    @OptIn(FlowPreview::class)
+    private fun startEditWatcher() {
+        if (editWatcher?.isActive == true) return
+        editWatcher = scope.launch {
+            ScanRecordRepository.localEdits
+                .debounce(LOCAL_EDIT_DEBOUNCE)
+                .collect { Log.i(TAG, "本地改动后同步结果：${syncNow()}") }
+        }
     }
 
     /**
@@ -174,6 +202,8 @@ internal class SyncCoordinator private constructor(context: Context) {
         session = null
         syncTicker?.cancel()
         syncTicker = null
+        editWatcher?.cancel()
+        editWatcher = null
         discovery.stopAdvertising()
         server.stop()
         stopDiscovery()
@@ -496,16 +526,25 @@ internal class SyncCoordinator private constructor(context: Context) {
         /**
          * 前台定时同步的间隔。
          *
-         * 取两分钟，落在同类实现的区间中段：局域网配对类的 KDE Connect 把掉线检测的 keepalive
-         * 从 10 秒调到 60 秒，另有一处把空闲后的 5 秒改成默认 9 分钟；云端同步类的 Bitwarden 是
-         * 30 分钟，Syncthing 的全量重扫是 1 小时。往上限看，Android 官方把「每 15 秒一次网络
-         * 请求」列为耗电的反面例子（见《减少定期更新的影响》）。
+         * 它现在是**兜底**，不是主力：本地一改动就有一轮主动推送（见 [startEditWatcher]），
+         * 而这一轮管的是「推送送不到」的两种情况——改动发生时对方不在前台（它服务端没起，
+         * 必然连不上），或者那次推送失败。于是一轮远一点反而合适：跟着改动走的那条已经是即时的，
+         * 这里再跟到两分钟只会让同一件事跑两遍。
          *
-         * 往哪边偏取决于数据变化得多快：这里变的是用户手动加改的记录，本身不快，但「两台一起用」
-         * 要的正是「对方刚扫的这条我这边也看得见」，所以宁可取短。每分钟也站得住，只是轮数翻倍；
-         * 秒级则既踩官方那条线，又没有意义——真要立刻看到，用户会下拉。
+         * 五分钟这个量级也落在同类实现的区间里：局域网配对类的 KDE Connect 把掉线检测的 keepalive
+         * 从 10 秒调到 60 秒，另有一处把空闲后的 5 秒改成默认 9 分钟；云端同步类的 Bitwarden 是
+         * 30 分钟，Syncthing 的全量重扫是 1 小时。再往上限看，Android 官方把「每 15 秒一次网络
+         * 请求」列为耗电的反面例子（见《减少定期更新的影响》），所以也没有理由更快。
          */
-        private const val FOREGROUND_SYNC_INTERVAL = 2 * 60 * 1000L
+        private const val FOREGROUND_SYNC_INTERVAL = 5 * 60 * 1000L
+
+        /**
+         * 本地改动去抖的时长。
+         *
+         * 一次操作可能连着写两次库（比如扫描那条路：行与照片分两步），而每一轮都是一次完整的
+         * 整份状态交换；一秒半够把同一个操作里的几次写入合成一轮，又短到用户看不出来。
+         */
+        private const val LOCAL_EDIT_DEBOUNCE = 1_500L
 
         /** 配对窗口的时长。与文案「码两分钟内有效」是同一个数 */
         private const val PAIRING_WINDOW = 2 * 60 * 1000L
