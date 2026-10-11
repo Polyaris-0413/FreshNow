@@ -46,7 +46,7 @@ class WelcomeScreenTest {
 
         composeRule.onAllNodes(progressBar).assertCountEquals(0)
 
-        composeRule.onNodeWithText("下一步").performClick()
+        clickSettled("下一步")
         awaitText("标签上的字交给模型读")
 
         composeRule.onAllNodes(progressBar).assertCountEquals(1)
@@ -56,7 +56,7 @@ class WelcomeScreenTest {
     fun nextMovesToFlowStep() {
         setContent()
 
-        composeRule.onNodeWithText("下一步").performClick()
+        clickSettled("下一步")
 
         awaitText("标签上的字交给模型读")
     }
@@ -64,10 +64,10 @@ class WelcomeScreenTest {
     @Test
     fun previousReturnsToIntroStep() {
         setContent()
-        composeRule.onNodeWithText("下一步").performClick()
+        clickSettled("下一步")
         awaitText("标签上的字交给模型读")
 
-        composeRule.onNodeWithText("上一步").performClick()
+        clickSettled("上一步")
 
         awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
     }
@@ -80,7 +80,7 @@ class WelcomeScreenTest {
         var skips = 0
         setContent(onSkip = { skips += 1 })
 
-        composeRule.onNodeWithText("跳过").performClick()
+        clickSettled("跳过")
 
         awaitText("标签上的字交给模型读")
         assertEquals(0, skips)
@@ -117,7 +117,7 @@ class WelcomeScreenTest {
         setContent(onSaveConfig = { saves += 1 })
         goToConfigStep()
 
-        composeRule.onNodeWithText("保存并继续").performClick()
+        clickSettled("下一步")
 
         assertEquals(1, saves)
     }
@@ -135,7 +135,7 @@ class WelcomeScreenTest {
         )
         goToConfigStep()
 
-        composeRule.onNodeWithText("保存并继续").performClick()
+        clickSettled("下一步")
 
         awaitText("扫描时要用到相机")
         composeRule.onNodeWithText("允许使用相机").assertExists()
@@ -143,7 +143,7 @@ class WelcomeScreenTest {
 
     /**
      * 点「允许使用相机」只发起请求，不自己往下走：结果没回来之前必须留在这一页，
-     * 否则用户在系统弹窗里点拒绝时，人已经站在收尾页/主页上了。
+     * 否则用户在系统弹窗里点拒绝时，人已经站在收尾页上了。
      */
     @Test
     fun cameraRequestDoesNotAdvanceUntilGranted() {
@@ -151,8 +151,7 @@ class WelcomeScreenTest {
         setContent(onRequestCamera = { requests += 1 })
         goToCameraStep()
 
-        composeRule.onNodeWithText("允许使用相机").performClick()
-        composeRule.waitForIdle()
+        clickSettled("允许使用相机")
 
         assertEquals(1, requests)
         composeRule.onNodeWithText("扫描时要用到相机").assertIsDisplayed()
@@ -170,10 +169,22 @@ class WelcomeScreenTest {
         )
         goToCameraStep()
 
-        composeRule.onNodeWithText("允许使用相机").performClick()
+        clickSettled("允许使用相机")
 
         awaitText("都设置好了")
         composeRule.onNodeWithText("开始使用").assertExists()
+    }
+
+    /**
+     * 信号早于「走到相机那一步」发生时不生效：进引导时权限本来就在（例如重装后系统仍记着），
+     * 不该把人从第 1 步直接丢到收尾页。
+     */
+    @Test
+    fun grantedPermissionBeforeCameraStepDoesNotSkipAhead() {
+        setContent(cameraGrantedCount = { 1 })
+
+        composeRule.onNodeWithText("把包装拍下来，之后不用再惦记它什么时候过期。").assertIsDisplayed()
+        assertNotVisible("都设置好了")
     }
 
     /** 权限被系统锁死时，主按钮换成去系统设置，并说明原因 */
@@ -187,7 +198,7 @@ class WelcomeScreenTest {
         goToCameraStep()
 
         composeRule.onNodeWithText("相机权限已被拒绝，请到系统设置里开启").assertExists()
-        composeRule.onNodeWithText("去设置").performClick()
+        clickSettled("去设置")
 
         assertEquals(1, openedSettings)
     }
@@ -199,11 +210,11 @@ class WelcomeScreenTest {
         setContent(onSkip = { skips += 1 })
         goToCameraStep()
 
-        composeRule.onNodeWithText("跳过").performClick()
+        clickSettled("跳过")
         awaitText("都设置好了")
         assertEquals(0, skips)
 
-        composeRule.onNodeWithText("开始使用").performClick()
+        clickSettled("开始使用")
         assertEquals(1, skips)
     }
 
@@ -216,7 +227,7 @@ class WelcomeScreenTest {
             onRequestCamera = { grantedCount.value += 1 }
         )
         goToCameraStep()
-        composeRule.onNodeWithText("允许使用相机").performClick()
+        clickSettled("允许使用相机")
         awaitText("都设置好了")
 
         assertNotVisible("跳过")
@@ -255,18 +266,27 @@ class WelcomeScreenTest {
         }
     }
 
+    /**
+     * 点一颗按钮。先等界面落定再点：翻页动画还没演完时相邻页也在组合中，同一段文案会同时挂在
+     * 两页上（「跳过」「下一步」每页都有），直接按文案找会撞上「匹配到多个节点」。
+     */
+    private fun clickSettled(text: String) {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(text).performClick()
+    }
+
     /** 从第 1 步一路「跳过」到配置那一步（跳过不落盘，所以不依赖 configSavedCount） */
     private fun goToConfigStep() {
-        composeRule.onNodeWithText("跳过").performClick()
+        clickSettled("跳过")
         awaitText("标签上的字交给模型读")
-        composeRule.onNodeWithText("跳过").performClick()
+        clickSettled("跳过")
         awaitText("填上你的模型服务")
     }
 
     /** 再从配置那一步「跳过」到相机权限那一步 */
     private fun goToCameraStep() {
         goToConfigStep()
-        composeRule.onNodeWithText("跳过").performClick()
+        clickSettled("跳过")
         awaitText("扫描时要用到相机")
     }
 

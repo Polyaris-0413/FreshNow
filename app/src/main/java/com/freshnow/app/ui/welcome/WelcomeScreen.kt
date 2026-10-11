@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -89,8 +88,13 @@ fun WelcomeScreen(
     val cameraPermission = rememberCameraPermissionState()
     val context = LocalContext.current
     // 授权成功才往下走：结果回来之前留在权限那一页。没这一步的话，用户在系统弹窗里点拒绝时，
-    // 人已经站在主页上了
+    // 人已经站在收尾页上了
     var cameraGrantedCount by remember { mutableIntStateOf(0) }
+
+    // 用户去系统设置里开完权限再回来时，不会有 requestWithResult 的回调，所以 granted 变真也算一次
+    LaunchedEffect(cameraPermission.granted) {
+        if (cameraPermission.granted) cameraGrantedCount += 1
+    }
 
     LaunchedEffect(finished) {
         if (finished) onFinish()
@@ -152,9 +156,12 @@ internal fun WelcomeSteps(
         if (configSavedCount > 0) goTo(WelcomeStep.CAMERA)
     }
 
-    // 权限授予之后才推进：等的是结果，不是「点过按钮」
+    // 权限授予之后才推进，而且用户得已经走到相机那一步：进引导时权限本来就在（例如重装后系统仍
+    // 记着），这个信号不该把人从第 1 步直接丢到收尾页
     LaunchedEffect(cameraGrantedCount) {
-        if (cameraGrantedCount > 0) goTo(WelcomeStep.DONE)
+        if (cameraGrantedCount > 0 && pagerState.currentPage >= WelcomeStep.CAMERA.ordinal) {
+            goTo(WelcomeStep.DONE)
+        }
     }
 
     // 系统返回键与「上一步」同一件事；已经在第 1 步时退回结束引导
@@ -253,8 +260,11 @@ internal fun WelcomeSteps(
                         Text(
                             text = stringResource(
                                 when (currentStep) {
-                                    WelcomeStep.INTRO, WelcomeStep.FLOW -> R.string.welcome_action_next
-                                    WelcomeStep.AI_CONFIG -> R.string.welcome_action_save_continue
+                                    // 「下一步」也是配置那一步的按钮文案：它会顺手把三项存下来，但校验没过会
+                                    // 当场标错并停在本页，所以不必在按钮上预告「会保存」
+                                    WelcomeStep.INTRO, WelcomeStep.FLOW,
+                                    WelcomeStep.AI_CONFIG -> R.string.welcome_action_next
+
                                     WelcomeStep.CAMERA ->
                                         if (cameraPermissionBlocked) {
                                             R.string.action_open_settings
@@ -266,19 +276,6 @@ internal fun WelcomeSteps(
                                 }
                             )
                         )
-                        // 箭头只跟着「往前走」的动作：收尾那一步的「开始使用」也是往前走
-                        if (currentStep == WelcomeStep.INTRO ||
-                            currentStep == WelcomeStep.FLOW ||
-                            currentStep == WelcomeStep.DONE
-                        ) {
-                            Spacer(modifier = Modifier.width(FreshNowSpacing.xs))
-                            Icon(
-                                painter = painterResource(R.drawable.ic_arrow_forward),
-                                // 箭头就是「下一步」这三个字的形状，读屏再念一遍是重复
-                                contentDescription = null,
-                                modifier = Modifier.size(FreshNowSize.buttonIcon)
-                            )
-                        }
                     }
                 }
             }
@@ -415,8 +412,7 @@ private fun WelcomeStepContent(
                 }
 
                 WelcomeStep.DONE -> {
-                    // 回到第 1 步那枚曲奇：它是这个应用的主视觉，也是「该去用应用本身了」的暗示
-                    WelcomeHero(R.drawable.ic_cookie)
+                    WelcomeHero(R.drawable.ic_done_all)
                     StepSpacer()
                     WelcomeTitle(stringResource(R.string.welcome_done_title))
                     StepSpacer()

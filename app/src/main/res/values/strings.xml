@@ -152,7 +152,6 @@
     <string name="welcome_done_body">从主页的「添加」开始，拍下第一件东西。</string>
     <string name="welcome_action_next">下一步</string>
     <string name="welcome_action_previous">上一步</string>
-    <string name="welcome_action_save_continue">保存并继续</string>
     <string name="welcome_action_grant_camera">允许使用相机</string>
     <string name="welcome_action_start">开始使用</string>
     <string name="welcome_action_skip">跳过</string>
