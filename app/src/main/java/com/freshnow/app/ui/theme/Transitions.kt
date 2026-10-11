@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.theme
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -98,6 +99,22 @@ object FreshNowTransitions {
     /** 页内淡入淡出换装：新旧内容各淡各的，不位移 */
     fun fadeSwap(): ContentTransform =
         fadeIn(stateChange()) togetherWith fadeOut(stateChange())
+
+    /**
+     * 换装时连宽高一起动。
+     *
+     * 给「内容换掉之后自己的尺寸也会变」的地方用（例如按钮的文案从「下一步」换成「允许使用相机」，
+     * 差三个字）：[fadeSwap] 走的是默认的 SizeTransform（spring），跟项目其余动画不是一套时长，
+     * 这里给同一档 tween。
+     */
+    fun fadeSwapAnimatedSize(): ContentTransform =
+        // 不能写 `fadeIn(...) togetherWith fadeOut(...)` 再补尺寸：togetherWith 只有不带
+        // SizeTransform 的那个重载，尺寸得在构造 ContentTransform 时给
+        ContentTransform(
+            targetContentEnter = fadeIn(stateChange()),
+            initialContentExit = fadeOut(stateChange()),
+            sizeTransform = SizeTransform { _, _ -> stateChange() }
+        )
 }
 
 /**

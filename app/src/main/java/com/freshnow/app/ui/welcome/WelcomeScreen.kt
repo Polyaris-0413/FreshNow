@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.welcome
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -207,6 +208,18 @@ internal fun WelcomeSteps(
         if (pagerState.currentPage == 0) onSkip() else goBack()
     }
 
+    // 主按钮这一屏该说什么。抽出来是为了让按钮自己盯着它做过渡（见下面 Button 里的 AnimatedContent）：
+    // 各步的文案不一样长，换的时候得连文字带宽度一起动
+    val primaryLabel = when (currentStep) {
+        WelcomeStep.INTRO, WelcomeStep.FLOW,
+        WelcomeStep.AI_CONFIG -> R.string.welcome_action_next
+
+        WelcomeStep.CAMERA ->
+            if (cameraPermissionBlocked) R.string.action_open_settings else R.string.welcome_action_grant_camera
+
+        WelcomeStep.DONE -> R.string.welcome_action_start
+    }
+
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier = Modifier
@@ -252,7 +265,20 @@ internal fun WelcomeSteps(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 「跳过」只摆在有可跳过动作的那两步（见 WelcomeStep.hasSkippableAction）
+                    // 「上一步」锚在行的最左。位置必须钉住：主按钮的文案各步不一样长（「下一步」三个字、
+                    // 「允许使用相机」六个字），把它摆在主按钮左边的话，主按钮一变宽就把它顶走，
+                    // 拇指攒下来的位置记忆全废
+                    AnimatedVisibility(
+                        visible = pagerState.currentPage > 0,
+                        enter = fadeIn(FreshNowTransitions.stateChange()),
+                        exit = fadeOut(FreshNowTransitions.stateChange())
+                    ) {
+                        TextButton(onClick = { goBack() }) {
+                            Text(text = stringResource(R.string.welcome_action_previous))
+                        }
+                    }
+
+                    // 「跳过」排在它右边：出现与收起只改变中间那段空隙，左右两组都不动
                     AnimatedVisibility(
                         visible = currentStep.hasSkippableAction,
                         enter = fadeIn(FreshNowTransitions.stateChange()),
@@ -263,18 +289,6 @@ internal fun WelcomeSteps(
                         }
                     }
                     Spacer(modifier = Modifier.weight(1f))
-
-                    // 「上一步」从第 2 步起才在。整个淡入淡出，不做位移：主按钮锚在行的右端，
-                    // 位置由行的右边缘决定，它左边多出或少掉什么都不影响主按钮
-                    AnimatedVisibility(
-                        visible = pagerState.currentPage > 0,
-                        enter = fadeIn(FreshNowTransitions.stateChange()),
-                        exit = fadeOut(FreshNowTransitions.stateChange())
-                    ) {
-                        TextButton(onClick = { goBack() }) {
-                            Text(text = stringResource(R.string.welcome_action_previous))
-                        }
-                    }
 
                     Button(
                         onClick = {
@@ -293,27 +307,18 @@ internal fun WelcomeSteps(
 
                                 WelcomeStep.DONE -> onSkip()
                             }
-                        }
+                        },
                     ) {
-                        Text(
-                            text = stringResource(
-                                when (currentStep) {
-                                    // 「下一步」也是配置那一步的按钮文案：它会顺手把三项存下来，但校验没过会
-                                    // 当场标错并停在本页，所以不必在按钮上预告「会保存」
-                                    WelcomeStep.INTRO, WelcomeStep.FLOW,
-                                    WelcomeStep.AI_CONFIG -> R.string.welcome_action_next
-
-                                    WelcomeStep.CAMERA ->
-                                        if (cameraPermissionBlocked) {
-                                            R.string.action_open_settings
-                                        } else {
-                                            R.string.welcome_action_grant_camera
-                                        }
-
-                                    WelcomeStep.DONE -> R.string.welcome_action_start
-                                }
-                            )
-                        )
+                        AnimatedContent(
+                            targetState = primaryLabel,
+                            // 文字交叉淡化，宽度跟着一起动：「下一步」与「允许使用相机」差三个字，
+                            // 不演的话按钮会「啪」地跳宽，中间那段空隙也跟着瞬移
+                            transitionSpec = { FreshNowTransitions.fadeSwapAnimatedSize() },
+                            label = "primaryAction"
+                        ) { label ->
+                            // 交叉淡化期间新旧两段文字同时在，不锁成一行的话会被挤成两行
+                            Text(text = stringResource(label), maxLines = 1)
+                        }
                     }
                 }
             }

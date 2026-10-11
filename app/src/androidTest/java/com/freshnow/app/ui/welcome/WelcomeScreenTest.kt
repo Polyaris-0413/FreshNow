@@ -5,15 +5,16 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -304,7 +305,11 @@ class WelcomeScreenTest {
      * 两页上（「下一步」每页都有），直接按文案找会撞上「匹配到多个节点」。
      */
     private fun clickSettled(text: String) {
-        composeRule.waitForIdle()
+        // 等到这一屏上只剩一份该文案：翻页动画没演完时相邻页也在组合里，同一段文案会同时挂在
+        // 两页上，按文案找会撞上「匹配到多个节点」
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(text).fetchSemanticsNodes().size == 1
+        }
         composeRule.onNodeWithText(text).performClick()
     }
 
@@ -341,9 +346,12 @@ class WelcomeScreenTest {
      * 当「存在」算。若这段文字压根没被组合，这断言同样成立。
      */
     private fun assertNotVisible(text: String) {
-        val nodes = composeRule.onAllNodesWithText(text).fetchSemanticsNodes()
-        if (nodes.isEmpty()) return
-        composeRule.onNodeWithText(text).assertIsNotDisplayed()
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+        val onScreen = composeRule.onAllNodesWithText(text).fetchSemanticsNodes().any { node ->
+            val bounds = node.boundsInRoot
+            bounds.width > 0f && bounds.left >= root.left && bounds.right <= root.right
+        }
+        assertTrue("这段文字不该出现在当前这一屏上：$text", !onScreen)
     }
 
     private companion object {
