@@ -8,6 +8,7 @@ import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.SortOrder
+import com.freshnow.app.ui.component.AiBasicConfigDraft
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,13 +25,8 @@ data class SettingsUiState(
     val loaded: Boolean = false,
     val saved: AiSettings = AiSettings(),
     val behavior: BehaviorSettings = BehaviorSettings(),
-    val baseUrl: String = "",
-    val modelName: String = "",
-    val apiKey: String = "",
+    val basicConfig: AiBasicConfigDraft = AiBasicConfigDraft(),
     val extraJson: String = "",
-    val baseUrlError: Boolean = false,
-    val modelNameError: Boolean = false,
-    val apiKeyError: Boolean = false,
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -54,27 +50,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun startEditing() {
         _uiState.update {
-            it.copy(
-                baseUrl = it.saved.baseUrl,
-                modelName = it.saved.modelName,
-                apiKey = it.saved.apiKey,
-                baseUrlError = false,
-                modelNameError = false,
-                apiKeyError = false
-            )
+            it.copy(basicConfig = AiBasicConfigDraft.of(it.saved))
         }
     }
 
     fun onBaseUrlChange(value: String) {
-        _uiState.update { it.copy(baseUrl = value, baseUrlError = false) }
+        _uiState.update { it.copy(basicConfig = it.basicConfig.copy(baseUrl = value, baseUrlError = false)) }
     }
 
     fun onModelNameChange(value: String) {
-        _uiState.update { it.copy(modelName = value, modelNameError = false) }
+        _uiState.update { it.copy(basicConfig = it.basicConfig.copy(modelName = value, modelNameError = false)) }
     }
 
     fun onApiKeyChange(value: String) {
-        _uiState.update { it.copy(apiKey = value, apiKeyError = false) }
+        _uiState.update { it.copy(basicConfig = it.basicConfig.copy(apiKey = value, apiKeyError = false)) }
     }
 
     /**
@@ -127,39 +116,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * 校验三项必填，未通过时在对应字段上标错并返回 false；通过则落盘并返回 true
+     * 校验三项必填（规则与欢迎页同一份，见 [AiBasicConfigDraft]），未通过时在对应字段上标错
+     * 并返回 false；通过则落盘并返回 true
      */
     fun save(): Boolean {
-        val current = _uiState.value
-        val baseUrlMissing = current.baseUrl.isBlank()
-        val modelNameMissing = current.modelName.isBlank()
-        val apiKeyMissing = current.apiKey.isBlank()
+        val validated = _uiState.value.basicConfig.validated()
+        _uiState.update { it.copy(basicConfig = validated) }
+        if (!validated.isValid) return false
 
-        if (baseUrlMissing || modelNameMissing || apiKeyMissing) {
-            _uiState.update {
-                it.copy(
-                    baseUrlError = baseUrlMissing,
-                    modelNameError = modelNameMissing,
-                    apiKeyError = apiKeyMissing
-                )
-            }
-            return false
-        }
-
-        val settings = AiSettings(
-            baseUrl = current.baseUrl.trim(),
-            modelName = current.modelName.trim(),
-            apiKey = current.apiKey.trim(),
-            showReasoning = current.saved.showReasoning,
-            extraRequestJson = current.saved.extraRequestJson
-        )
+        val settings = validated.toSettings(_uiState.value.saved)
         viewModelScope.launch { repository.save(settings) }
         _uiState.update {
             it.copy(
                 saved = settings,
-                baseUrl = settings.baseUrl,
-                modelName = settings.modelName,
-                apiKey = settings.apiKey
+                // 草稿对齐到落盘值：三项都取过 trim，留着原样的话下次开面板会看到未 trim 的旧值
+                basicConfig = AiBasicConfigDraft.of(settings)
             )
         }
         return true

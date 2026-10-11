@@ -33,4 +33,17 @@ object FreshNowSize {
      * 的唯一提示，1dp 摆在列表里更像一条分隔线，读不出「选中」的意思。
      */
     val selectionOutlineWidth = 2.dp
+
+    /**
+     * 欢迎页每一步的主视觉边长。
+     *
+     * M3 没有这一档：它是整页唯一的主视觉，取空态图标（48dp）的两倍，避免与列表里的缩略图同档
+     */
+    val welcomeHero = 96.dp
+
+    /**
+     * 按钮内文字旁的图标边长。M3 规范给的是 18dp：图标占满 24dp 会把按钮撑高，
+     * 也压过旁边文字的份量
+     */
+    val buttonIcon = 18.dp
 }

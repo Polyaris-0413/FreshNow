@@ -35,15 +35,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.SortOrder
+import com.freshnow.app.ui.component.AiBasicConfigDraft
+import com.freshnow.app.ui.component.AiBasicConfigForm
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
@@ -139,7 +138,7 @@ fun SettingsScreen(
         ) {
             when (editor) {
                 SettingsEditor.BasicConfig -> AiBasicConfigEditor(
-                    uiState = uiState,
+                    draft = uiState.basicConfig,
                     onBaseUrlChange = viewModel::onBaseUrlChange,
                     onModelNameChange = viewModel::onModelNameChange,
                     onApiKeyChange = viewModel::onApiKeyChange,
@@ -307,7 +306,7 @@ internal fun SettingsList(
  */
 @Composable
 private fun AiBasicConfigEditor(
-    uiState: SettingsUiState,
+    draft: AiBasicConfigDraft,
     onBaseUrlChange: (String) -> Unit,
     onModelNameChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
@@ -328,29 +327,12 @@ private fun AiBasicConfigEditor(
             style = MaterialTheme.typography.titleMedium
         )
 
-        RequiredTextField(
-            value = uiState.baseUrl,
-            onValueChange = onBaseUrlChange,
-            label = stringResource(R.string.ai_settings_base_url_label),
-            isError = uiState.baseUrlError,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next)
-        )
-
-        RequiredTextField(
-            value = uiState.modelName,
-            onValueChange = onModelNameChange,
-            label = stringResource(R.string.ai_settings_model_name_label),
-            isError = uiState.modelNameError,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next)
-        )
-
-        RequiredTextField(
-            value = uiState.apiKey,
-            onValueChange = onApiKeyChange,
-            label = stringResource(R.string.ai_settings_api_key_label),
-            isError = uiState.apiKeyError,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
+        // 三个输入项与欢迎页的配置步骤是同一份（见 AiBasicConfigForm）：字段与必填规则不分叉
+        AiBasicConfigForm(
+            draft = draft,
+            onBaseUrlChange = onBaseUrlChange,
+            onModelNameChange = onModelNameChange,
+            onApiKeyChange = onApiKeyChange
         )
 
         Row(
@@ -435,42 +417,12 @@ private fun ExtraRequestEditor(
     }
 }
 
-/**
- * 必填文本项，仅在未填时给出错误文案
- */
-@Composable
-private fun RequiredTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    isError: Boolean,
-    keyboardOptions: KeyboardOptions,
-    modifier: Modifier = Modifier,
-    visualTransformation: VisualTransformation = VisualTransformation.None
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        label = { Text(text = label) },
-        supportingText = if (isError) {
-            { Text(text = stringResource(R.string.error_required_field)) }
-        } else {
-            null
-        },
-        isError = isError,
-        singleLine = true,
-        visualTransformation = visualTransformation,
-        keyboardOptions = keyboardOptions
-    )
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun AiBasicConfigEditorPreview() {
     FreshNowTheme {
         AiBasicConfigEditor(
-            uiState = SettingsUiState(),
+            draft = AiBasicConfigDraft(),
             onBaseUrlChange = {},
             onModelNameChange = {},
             onApiKeyChange = {},
