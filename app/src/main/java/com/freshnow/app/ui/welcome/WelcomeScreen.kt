@@ -265,20 +265,10 @@ internal fun WelcomeSteps(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 「上一步」锚在行的最左。位置必须钉住：主按钮的文案各步不一样长（「下一步」三个字、
-                    // 「允许使用相机」六个字），把它摆在主按钮左边的话，主按钮一变宽就把它顶走，
-                    // 拇指攒下来的位置记忆全废
-                    AnimatedVisibility(
-                        visible = pagerState.currentPage > 0,
-                        enter = fadeIn(FreshNowTransitions.stateChange()),
-                        exit = fadeOut(FreshNowTransitions.stateChange())
-                    ) {
-                        TextButton(onClick = { goBack() }) {
-                            Text(text = stringResource(R.string.welcome_action_previous))
-                        }
-                    }
-
-                    // 「跳过」排在它右边：出现与收起只改变中间那段空隙，左右两组都不动
+                    // 「跳过」摆在行首、「上一步」紧挨主按钮——原来的摆法。代价是主按钮的文案变长时
+                    // （「下一步」→「允许使用相机」）会把「上一步」往左顶：上面那颗按钮的过渡动画只能
+                    // 让这件事演得平滑，位置本身还是会变。要治根得让两颗都靠左（上一步在行首），
+                    // 那就换了一种观感，取舍留在这里
                     AnimatedVisibility(
                         visible = currentStep.hasSkippableAction,
                         enter = fadeIn(FreshNowTransitions.stateChange()),
@@ -289,6 +279,17 @@ internal fun WelcomeSteps(
                         }
                     }
                     Spacer(modifier = Modifier.weight(1f))
+
+                    // 「上一步」从第 2 步起才在
+                    AnimatedVisibility(
+                        visible = pagerState.currentPage > 0,
+                        enter = fadeIn(FreshNowTransitions.stateChange()),
+                        exit = fadeOut(FreshNowTransitions.stateChange())
+                    ) {
+                        TextButton(onClick = { goBack() }) {
+                            Text(text = stringResource(R.string.welcome_action_previous))
+                        }
+                    }
 
                     Button(
                         onClick = {
