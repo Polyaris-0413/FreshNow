@@ -2,10 +2,8 @@ package com.freshnow.app.ui.welcome
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,7 +60,22 @@ import kotlinx.coroutines.launch
  * permissions when they are needed」）——本应用唯一会用到相机的地方是扫描，把它放在配置之后、
  * 进入主页之前，用户此时刚看完「扫描要拍标签」，说明与动作之间没有别的东西插队。
  */
-internal enum class WelcomeStep { INTRO, FLOW, AI_CONFIG, CAMERA, DONE }
+internal enum class WelcomeStep {
+    INTRO,
+    FLOW,
+    AI_CONFIG,
+    CAMERA,
+    DONE;
+
+    /**
+     * 这一步有没有「可以不做的事」，也就是摆不摆「跳过」。
+     *
+     * 信息页没有：那里「跳过」与「下一步」做的是同一件事，两颗同义的按钮摆在一起只会让人犹豫。
+     * 配置与权限那两步才有——不填配置、不授权，都是确实可以省掉的动作。
+     */
+    val hasSkippableAction: Boolean
+        get() = this == AI_CONFIG || this == CAMERA
+}
 
 /**
  * 首次启动的欢迎页，只在「这次安装还没走过引导」时由 [com.freshnow.app.ui.FreshNowApp] 渲染
@@ -72,9 +85,10 @@ internal enum class WelcomeStep { INTRO, FLOW, AI_CONFIG, CAMERA, DONE }
  * （第 2 步：识别要自备模型服务），然后是动作（第 3 步配置、第 4 步相机权限），最后收个尾
  * （第 5 步）。收尾那一步是有意留的：设置刚做完就直接落进主页，用户不知道自己走完了没有。
  *
- * 「跳过」跳过的是当前这一步要干的事，不是整个引导：一律往前走一项。收尾那一步上不摆「跳过」
- * （它和「开始使用」是同一件事）；结束引导的出口就是那颗「开始使用」，以及停在第一步时的返回键。
- * 「上一步」与系统返回键都能往回走。
+ * 「跳过」跳过的是当前这一步要干的事，不是整个引导：一律往前走一项，而且只摆在「确实有可以不做
+ * 的事」那两步（配置与权限）。信息页上它与「下一步」完全同义，两颗同义的按钮只会让人犹豫；
+ * 收尾那一步也不摆（它和「开始使用」是同一件事）。结束引导的出口就是那颗「开始使用」，
+ * 以及停在第一步时的返回键。「上一步」与系统返回键都能往回走。
  *
  * 状态与界面分开：[WelcomeSteps] 是不带状态的版式，测试直接摆它，不会碰到设备上真实的 DataStore。
  */
@@ -172,8 +186,8 @@ internal fun WelcomeSteps(
     }
 
     /**
-     * 「跳过」跳过的是这一步要做的事，不是整个引导：一律往前走一项。收尾那一步不摆这颗按钮
-     * （它与「开始使用」同义），这里的兜底只是别让越界找上门。
+     * 「跳过」跳过的是这一步要做的事，不是整个引导：一律往前走一项。它只出现在有可跳过动作的
+     * 那两步（见 [WelcomeStep.hasSkippableAction]），这里的兜底只是别让越界找上门。
      */
     fun skipCurrentStep() {
         val next = steps.getOrNull(currentStep.ordinal + 1)
@@ -225,10 +239,9 @@ internal fun WelcomeSteps(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 收尾那一步不摆「跳过」：它与「开始使用」是同一件事，两颗同义的按钮只会让人犹豫。
-                    // 它消失时只淡出，不留位移——右侧那两颗按钮在行尾锚着，不受它让出的宽度影响
+                    // 「跳过」只摆在有可跳过动作的那两步（见 WelcomeStep.hasSkippableAction）
                     AnimatedVisibility(
-                        visible = currentStep != WelcomeStep.DONE,
+                        visible = currentStep.hasSkippableAction,
                         enter = fadeIn(FreshNowTransitions.stateChange()),
                         exit = fadeOut(FreshNowTransitions.stateChange())
                     ) {
@@ -238,20 +251,12 @@ internal fun WelcomeSteps(
                     }
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // 「上一步」从第 2 步起才在。淡入之外还要把宽度撑开：它插在主按钮左侧，
-                    // 直接冒出来会把主按钮挤着挪一下；从靠主按钮那一侧展开，看着像是它把位置让出来的
+                    // 「上一步」从第 2 步起才在。整个淡入淡出，不做位移：主按钮锚在行的右端，
+                    // 位置由行的右边缘决定，它左边多出或少掉什么都不影响主按钮
                     AnimatedVisibility(
                         visible = pagerState.currentPage > 0,
-                        enter = fadeIn(FreshNowTransitions.stateChange()) +
-                            expandHorizontally(
-                                FreshNowTransitions.stateChange(),
-                                expandFrom = Alignment.End
-                            ),
-                        exit = fadeOut(FreshNowTransitions.stateChange()) +
-                            shrinkHorizontally(
-                                FreshNowTransitions.stateChange(),
-                                shrinkTowards = Alignment.End
-                            )
+                        enter = fadeIn(FreshNowTransitions.stateChange()),
+                        exit = fadeOut(FreshNowTransitions.stateChange())
                     ) {
                         TextButton(onClick = { goTo(steps[pagerState.currentPage - 1]) }) {
                             Text(text = stringResource(R.string.welcome_action_previous))
