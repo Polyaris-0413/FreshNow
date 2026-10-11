@@ -168,6 +168,28 @@ internal fun WelcomeSteps(
         scope.launch { pagerState.animateScrollToPage(step.ordinal) }
     }
 
+    /**
+     * 往前走一项。「跳过」与主按钮的「下一步」都走这里——两者都是「这一步到此为止，去下一步」，
+     * 区别只在那一步有没有留下东西。
+     *
+     * 用 getOrNull 而不是按当前页下标加一直接取：连点时当前页可能已经走到收尾页，越界就崩了。
+     */
+    fun goForward() {
+        val next = steps.getOrNull(pagerState.currentPage + 1)
+        if (next == null) onSkip() else goTo(next)
+    }
+
+    /**
+     * 往回走一项；已经在第 1 步就什么也不做。
+     *
+     * 这一步不是多余的谨慎：翻页过半时当前页已经是 0，而「上一步」这时正在淡出、仍接得到点击，
+     * 照当前页下标减一直接取就是 steps[-1]——连点两次上一步曾因此闪退
+     * （IndexOutOfBoundsException: index: -1）。
+     */
+    fun goBack() {
+        steps.getOrNull(pagerState.currentPage - 1)?.let(::goTo)
+    }
+
     LaunchedEffect(configSavedCount) {
         if (configSavedCount > 0) goTo(WelcomeStep.CAMERA)
     }
@@ -182,16 +204,7 @@ internal fun WelcomeSteps(
 
     // 系统返回键与「上一步」同一件事；已经在第 1 步时退回结束引导
     BackHandler {
-        if (pagerState.currentPage > 0) goTo(steps[pagerState.currentPage - 1]) else onSkip()
-    }
-
-    /**
-     * 「跳过」跳过的是这一步要做的事，不是整个引导：一律往前走一项。它只出现在有可跳过动作的
-     * 那两步（见 [WelcomeStep.hasSkippableAction]），这里的兜底只是别让越界找上门。
-     */
-    fun skipCurrentStep() {
-        val next = steps.getOrNull(currentStep.ordinal + 1)
-        if (next == null) onSkip() else goTo(next)
+        if (pagerState.currentPage == 0) onSkip() else goBack()
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -245,7 +258,7 @@ internal fun WelcomeSteps(
                         enter = fadeIn(FreshNowTransitions.stateChange()),
                         exit = fadeOut(FreshNowTransitions.stateChange())
                     ) {
-                        TextButton(onClick = { skipCurrentStep() }) {
+                        TextButton(onClick = { goForward() }) {
                             Text(text = stringResource(R.string.welcome_action_skip))
                         }
                     }
@@ -258,7 +271,7 @@ internal fun WelcomeSteps(
                         enter = fadeIn(FreshNowTransitions.stateChange()),
                         exit = fadeOut(FreshNowTransitions.stateChange())
                     ) {
-                        TextButton(onClick = { goTo(steps[pagerState.currentPage - 1]) }) {
+                        TextButton(onClick = { goBack() }) {
                             Text(text = stringResource(R.string.welcome_action_previous))
                         }
                     }
@@ -266,8 +279,7 @@ internal fun WelcomeSteps(
                     Button(
                         onClick = {
                             when (currentStep) {
-                                WelcomeStep.INTRO, WelcomeStep.FLOW ->
-                                    goTo(steps[currentStep.ordinal + 1])
+                                WelcomeStep.INTRO, WelcomeStep.FLOW -> goForward()
 
                                 WelcomeStep.AI_CONFIG -> onSaveConfig()
 

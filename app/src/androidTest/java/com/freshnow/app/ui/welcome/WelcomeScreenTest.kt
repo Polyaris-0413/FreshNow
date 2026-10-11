@@ -83,6 +83,29 @@ class WelcomeScreenTest {
         awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
     }
 
+    /**
+     * 连点「上一步」不能崩。
+     *
+     * 翻页过半时当前页已经变成 0，而按钮这时正在淡出、仍接得到点击；照当前页下标减一直接取
+     * 就会取到 steps[-1]——真机上连点两次曾因此闪退。
+     */
+    @Test
+    fun tappingPreviousTwiceQuicklyDoesNotCrash() {
+        setContent()
+        clickSettled("下一步")
+        awaitText("标签上的字交给模型读")
+
+        // 两次点击之间不留落定的时间：第一次刚把当前页推到 0，第二次就落在它身上
+        composeRule.mainClock.autoAdvance = false
+        composeRule.onNodeWithText("上一步").performClick()
+        composeRule.mainClock.advanceTimeBy(HALF_STATE_CHANGE_MS)
+        val stillThere = composeRule.onAllNodesWithText("上一步").fetchSemanticsNodes().isNotEmpty()
+        if (stillThere) composeRule.onNodeWithText("上一步").performClick()
+        composeRule.mainClock.autoAdvance = true
+
+        awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
+    }
+
     /** 「跳过」跳过的是当前这一步，不是整段引导：配置那一步不填就是直接往前走，不该收场 */
     @Test
     fun skipMovesToNextStepInsteadOfEndingTheGuide() {
@@ -325,6 +348,9 @@ class WelcomeScreenTest {
 
     private companion object {
         /** 进度指示器在语义树里就是「带范围信息的节点」，M3 的 LinearProgressIndicator 自带 */
+        /** 页内状态切换时长的一半（见 FreshNowTransitions.stateChange 的 200ms） */
+        const val HALF_STATE_CHANGE_MS = 100L
+
         val progressBar = SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
     }
 }
