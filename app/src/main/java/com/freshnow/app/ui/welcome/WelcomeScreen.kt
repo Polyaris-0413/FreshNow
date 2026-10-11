@@ -2,8 +2,10 @@ package com.freshnow.app.ui.welcome
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -223,15 +225,34 @@ internal fun WelcomeSteps(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 收尾那一步不摆「跳过」：它与「开始使用」是同一件事，两颗同义的按钮只会让人犹豫
-                    if (currentStep != WelcomeStep.DONE) {
+                    // 收尾那一步不摆「跳过」：它与「开始使用」是同一件事，两颗同义的按钮只会让人犹豫。
+                    // 它消失时只淡出，不留位移——右侧那两颗按钮在行尾锚着，不受它让出的宽度影响
+                    AnimatedVisibility(
+                        visible = currentStep != WelcomeStep.DONE,
+                        enter = fadeIn(FreshNowTransitions.stateChange()),
+                        exit = fadeOut(FreshNowTransitions.stateChange())
+                    ) {
                         TextButton(onClick = { skipCurrentStep() }) {
                             Text(text = stringResource(R.string.welcome_action_skip))
                         }
                     }
                     Spacer(modifier = Modifier.weight(1f))
 
-                    if (pagerState.currentPage > 0) {
+                    // 「上一步」从第 2 步起才在。淡入之外还要把宽度撑开：它插在主按钮左侧，
+                    // 直接冒出来会把主按钮挤着挪一下；从靠主按钮那一侧展开，看着像是它把位置让出来的
+                    AnimatedVisibility(
+                        visible = pagerState.currentPage > 0,
+                        enter = fadeIn(FreshNowTransitions.stateChange()) +
+                            expandHorizontally(
+                                FreshNowTransitions.stateChange(),
+                                expandFrom = Alignment.End
+                            ),
+                        exit = fadeOut(FreshNowTransitions.stateChange()) +
+                            shrinkHorizontally(
+                                FreshNowTransitions.stateChange(),
+                                shrinkTowards = Alignment.End
+                            )
+                    ) {
                         TextButton(onClick = { goTo(steps[pagerState.currentPage - 1]) }) {
                             Text(text = stringResource(R.string.welcome_action_previous))
                         }

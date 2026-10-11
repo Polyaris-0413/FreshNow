@@ -430,16 +430,17 @@ class HomeScreenTest {
     }
 
     /**
-     * 从别的页面回到主页（以及冷启动）时，空态不该再淡一遍。
+     * 从别的页面回到主页时，空态不该再淡一遍。
      *
      * 那不是变化：空态早就显示过，那次它跟着整页一起出现就够了。回到本页是一次新的合成，
      * 若照合成演一遍，用户每次回来都会看到它重新淡入一次——正是这条要拦住的。
+     * （冷启动那一次不归这条管，它由 firstEmptyLoad 单独驱动，见 emptyHint_fadesInOnFirstLoad。）
      * 判据取「自始至终都是满的」：不演淡入时它从第一帧起就是终态，没有任何半透明的时刻。
      */
     @Test
     fun emptyHint_doesNotFadeOnReentry() {
         composeRule.mainClock.autoAdvance = false
-        // 本页首次合成、并不是"刚被删空"，与 HomeViewModel 一致
+        // 本页重新合成、并不是"刚被删空"、也不是"第一次查库就是空"，与 HomeViewModel 一致
         setContent(items = emptyList<HomeRecordItem>())
 
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
@@ -453,6 +454,33 @@ class HomeScreenTest {
             "空态不该因重新合成而淡入（应当一出现就是终态）：atStart=$atStart late=$late",
             atStart > 0 && atStart == late
         )
+    }
+
+    /**
+     * 第一次进主页（刚走完引导那一次）时，空态要淡入。
+     *
+     * 冷启动时整棵列表都是新合成的，空态若照「一出现就是终态」走，那枚曲奇看着就是硬冒出来的。
+     * 与删空那一档的区别是**不等一拍**：删空时前面有条目淡出与对话框退场要等，冷启动前面没有别的事。
+     */
+    @Test
+    fun emptyHint_fadesInOnFirstLoad() {
+        composeRule.mainClock.autoAdvance = false
+        // 与 HomeViewModel.firstEmptyLoad 同步：这个 ViewModel 第一次查库就是空的
+        setContent(items = emptyList<HomeRecordItem>(), firstEmptyLoad = true)
+
+        val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
+        assertEquals("第一帧还看不见：${maxContrast(region)}", 0, maxContrast(region))
+
+        // 半程：已经在淡入的路上（没有延迟，所以这时候看得见一点）
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
+        val middle = maxContrast(region)
+
+        // 越过整段时长，它该到终态
+        composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
+        val end = maxContrast(region)
+        composeRule.mainClock.autoAdvance = true
+
+        assertTrue("半程应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
     }
 
     /**
@@ -687,6 +715,7 @@ class HomeScreenTest {
                     records = null,
                     newRecordIds = emptySet(),
                     justEmptied = false,
+                    firstEmptyLoad = false,
                     selectedIds = emptySet(),
                     manualEntry = manualEntry.value,
                     sortOrder = SortOrder.CREATED_AT,
@@ -740,7 +769,8 @@ class HomeScreenTest {
         records: MutableState<List<HomeRecordItem>>,
         selectedIds: MutableState<Set<Long>>,
         newRecordIds: MutableState<Set<Long>> = mutableStateOf(emptySet()),
-        justEmptied: MutableState<Boolean> = mutableStateOf(false)
+        justEmptied: MutableState<Boolean> = mutableStateOf(false),
+        firstEmptyLoad: MutableState<Boolean> = mutableStateOf(false)
     ) {
         composeRule.setContent {
             FreshNowTheme(dynamicColor = false) {
@@ -748,6 +778,7 @@ class HomeScreenTest {
                     records = records.value,
                     newRecordIds = newRecordIds.value,
                     justEmptied = justEmptied.value,
+                    firstEmptyLoad = firstEmptyLoad.value,
                     selectedIds = selectedIds.value,
                     manualEntry = false,
                     sortOrder = SortOrder.CREATED_AT,
@@ -848,6 +879,7 @@ class HomeScreenTest {
         items: List<HomeRecordItem>?,
         newRecordIds: Set<Long> = emptySet(),
         justEmptied: Boolean = false,
+        firstEmptyLoad: Boolean = false,
         selectedIds: Set<Long> = emptySet(),
         manualEntry: Boolean = false,
         sortOrder: SortOrder = SortOrder.CREATED_AT,
@@ -871,6 +903,7 @@ class HomeScreenTest {
                     records = items,
                     newRecordIds = newRecordIds,
                     justEmptied = justEmptied,
+                    firstEmptyLoad = firstEmptyLoad,
                     selectedIds = selectedIds,
                     manualEntry = manualEntry,
                     sortOrder = sortOrder,

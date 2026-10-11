@@ -150,6 +150,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             // 和空态的淡出淡入都变成了「取决于这一刻是不是刚好在合成」
             _newRecordIds.value = ids - knownIds
             _justEmptied.value = ids.isEmpty() && knownIds.isNotEmpty()
+            // 首次查库就是空，是另一回事：它没有「刚被删空」这个前情，但同样是用户眼前第一次出现的东西
+            _firstEmptyLoad.value = ids.isEmpty() && !loadedOnce
+            loadedOnce = true
             knownIds = ids
             records.map(::toItem)
         }
@@ -170,6 +173,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** 上一次查库见到的 id，用来挑出刚存进来的那几条、以及判断是不是刚被删空 */
     private var knownIds: Set<Long> = emptySet()
 
+    /** 这个 ViewModel 查过库没有。只用来认第一次 */
+    private var loadedOnce = false
+
     private val _newRecordIds = MutableStateFlow<Set<Long>>(emptySet())
 
     /** 见 [onRecordsShown]。与 [records] 分开一条流：合成的时机不受它影响，只影响条目要不要演淡入 */
@@ -185,6 +191,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      */
     val justEmptied: StateFlow<Boolean> = _justEmptied.asStateFlow()
 
+    private val _firstEmptyLoad = MutableStateFlow(false)
+
+    /**
+     * 这个 ViewModel 的第一次查库结果就是空列表（见 [onRecordsShown]）。
+     *
+     * 与 [justEmptied] 分开：两者都该让空态淡入，但这一种前面没有要等的事——删光时紧跟在条目淡出
+     * 与对话框退场之后，所以得多等一拍；冷启动（首次启动刚走完欢迎页那一次）没有前一件事要等，
+     * 跟着整页的淡入一起收尾就行。
+     */
+    val firstEmptyLoad: StateFlow<Boolean> = _firstEmptyLoad.asStateFlow()
+
     /**
      * 界面已经把这一批变化演过了，清掉。
      *
@@ -194,6 +211,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun onRecordsShown() {
         _newRecordIds.value = emptySet()
         _justEmptied.value = false
+        _firstEmptyLoad.value = false
     }
 
     private fun toItem(record: ScanRecord) = HomeRecordItem(

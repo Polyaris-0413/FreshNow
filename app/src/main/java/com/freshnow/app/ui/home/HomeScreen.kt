@@ -103,6 +103,7 @@ fun HomeRoute(
     val records by viewModel.sortedRecords.collectAsStateWithLifecycle()
     val newRecordIds by viewModel.newRecordIds.collectAsStateWithLifecycle()
     val justEmptied by viewModel.justEmptied.collectAsStateWithLifecycle()
+    val firstEmptyLoad by viewModel.firstEmptyLoad.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val behavior by viewModel.behavior.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
@@ -121,6 +122,7 @@ fun HomeRoute(
         records = records,
         newRecordIds = newRecordIds,
         justEmptied = justEmptied,
+        firstEmptyLoad = firstEmptyLoad,
         selectedIds = selectedIds,
         manualEntry = behavior.manualEntry,
         sortOrder = behavior.sortOrder,
@@ -149,6 +151,8 @@ fun HomeScreen(
     newRecordIds: Set<Long>,
     /** 上一次查库把列表查空了且此前有记录，见 HomeViewModel.justEmptied */
     justEmptied: Boolean,
+    /** 这个 ViewModel 第一次查库就是空的（冷启动那一次），见 HomeViewModel.firstEmptyLoad */
+    firstEmptyLoad: Boolean,
     selectedIds: Set<Long>,
     /** 行为里的「手动输入」：开着时「添加」直接进录入页，见 [onNavigateToManualEntry] */
     manualEntry: Boolean,
@@ -294,6 +298,7 @@ fun HomeScreen(
                 records = records,
                 newRecordIds = newRecordIds,
                 justEmptied = justEmptied,
+                firstEmptyLoad = firstEmptyLoad,
                 selectedIds = selectedIds,
                 inSelectionMode = inSelectionMode,
                 onRecordClick = onRecordClick,
@@ -409,6 +414,7 @@ private fun RecordsList(
     records: List<HomeRecordItem>?,
     newRecordIds: Set<Long>,
     justEmptied: Boolean,
+    firstEmptyLoad: Boolean,
     selectedIds: Set<Long>,
     inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
@@ -446,12 +452,20 @@ private fun RecordsList(
                 Box(
                     modifier = Modifier
                         .fillParentMaxSize()
-                        // 空态只在"刚被删空"时淡入（见 HomeViewModel.justEmptied）：那是用户眼前
-                        // 发生的变化。从别的页面回到主页也重新合成一次空态，但那不是变化——那次它
-                        // 跟着整页一起出现就够了，再淡一遍是重复。
-                        // 时长用 delayed 那一档：删光时空态紧跟在条目淡出之后，而确认删除的对话框
-                        // 也正好在这段时间退场，不等一拍的话前半段整段被对话框盖着
-                        .appearFadeIn(animate = justEmptied, spec = FreshNowTransitions.stateChangeDelayed())
+                        // 空态在两个时刻淡入：刚被删空（那是用户眼前发生的变化），以及第一次进主页
+                        // （刚走完引导那一次，曲奇是这一屏唯一的内容，硬出现也像闪一下）。
+                        // 从别的页面回到主页不算变化——空态早就显示过，那次它跟着整页一起出现就够了。
+                        // 时长分两档：删光时它紧跟在条目淡出之后，而确认删除的对话框也正好在这段时间
+                        // 退场，不等一拍的话前半段整段被对话框盖着；首次进主页前面没有要等的事，
+                        // 跟着整页的淡入一起收尾
+                        .appearFadeIn(
+                            animate = justEmptied || firstEmptyLoad,
+                            spec = if (justEmptied) {
+                                FreshNowTransitions.stateChangeDelayed()
+                            } else {
+                                FreshNowTransitions.stateChange()
+                            }
+                        )
                         .animateItem(
                             // 出现的淡入自己演（见 appearFadeIn），animateItem 那条通道只在
                             // 「列表已在场、条目后加入」时认得出来，覆盖不到首次合成
@@ -675,6 +689,7 @@ private fun HomeScreenPreview() {
             records = previewRecords(),
             newRecordIds = emptySet(),
             justEmptied = false,
+            firstEmptyLoad = false,
             selectedIds = emptySet(),
             manualEntry = false,
             sortOrder = SortOrder.CREATED_AT,
@@ -703,6 +718,7 @@ private fun HomeScreenSelectionPreview() {
             records = previewRecords(),
             newRecordIds = emptySet(),
             justEmptied = false,
+            firstEmptyLoad = false,
             selectedIds = setOf(1L),
             manualEntry = false,
             sortOrder = SortOrder.CREATED_AT,
