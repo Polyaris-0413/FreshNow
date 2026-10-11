@@ -66,8 +66,10 @@ internal enum class WelcomeStep { INTRO, FLOW, AI_CONFIG, CAMERA }
  *
  * 引导的整体形状取 Material 的「Top User Benefits」模型：先给价值（第 1 步），再说清用它的代价
  * （第 2 步：识别要自备模型服务），然后是动作（第 3 步配置、第 4 步相机权限）。
- * 规范要求跳过始终可见可用，因此「跳过」不随步骤消失；「上一步」与系统返回键都能往回走，
- * 第 1 步的返回键与「跳过」等价。
+ * 「跳过」跳过的是当前这一步要干的事，不是整个引导：信息页上是往前走一项，配置页是不填，
+ * 权限页是不授权；最后一步无处可去，点它才是结束引导。
+ * 「上一步」与系统返回键都能往回走；屏上没有「结束引导」这颗按钮，那个出口由返回键承担
+ * （停在第一步时按返回即结束）。
  *
  * 状态与界面分开：[WelcomeSteps] 是不带状态的版式，测试直接摆它，不会碰到设备上真实的 DataStore。
  */
@@ -142,9 +144,17 @@ internal fun WelcomeSteps(
         if (configSavedCount > 0) goTo(WelcomeStep.CAMERA)
     }
 
-    // 系统返回键与「上一步」同一件事；已经在第 1 步时退回「跳过」，与点那颗按钮等价
+    // 系统返回键与「上一步」同一件事；已经在第 1 步时退回结束引导
     BackHandler {
         if (pagerState.currentPage > 0) goTo(steps[pagerState.currentPage - 1]) else onSkip()
+    }
+
+    /**
+     * 「跳过」跳过的是这一步要做的事，不是整个引导：一律往前走一项。最后一步走不动了，
+     * 那才是结束引导。
+     */
+    fun skipCurrentStep() {
+        if (currentStep == WelcomeStep.CAMERA) onSkip() else goTo(steps[currentStep.ordinal + 1])
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -192,7 +202,7 @@ internal fun WelcomeSteps(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onSkip) {
+                    TextButton(onClick = { skipCurrentStep() }) {
                         Text(text = stringResource(R.string.welcome_action_skip))
                     }
                     Spacer(modifier = Modifier.weight(1f))

@@ -142,13 +142,37 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("去设置").assertExists()
     }
 
+    /**
+     * 「跳过」跳过的是当前这一步，不是整段引导：信息页上它与「下一步」同路，但不应该直接收场
+     */
     @Test
-    fun skipNotifiesCaller() {
+    fun skipMovesToNextStepInsteadOfEndingTheGuide() {
         var skips = 0
         setContent(onSkip = { skips += 1 })
 
         composeRule.onNodeWithText("跳过").performClick()
 
+        awaitText("标签上的字交给模型读")
+        assertEquals(0, skips)
+    }
+
+    /** 配置那一步的「跳过」只是不填配置；到权限那一步（最后一步）才真收场 */
+    @Test
+    fun skipOnLastStepEndsTheGuide() {
+        val savedCount = mutableStateOf(0)
+        var skips = 0
+        setContent(
+            configSavedCount = { savedCount.value },
+            onSaveConfig = { savedCount.value += 1 },
+            onSkip = { skips += 1 }
+        )
+        goToConfigStep()
+
+        composeRule.onNodeWithText("跳过").performClick()
+        awaitText("扫描时要用到相机")
+        assertEquals(0, skips)
+
+        composeRule.onNodeWithText("跳过").performClick()
         assertEquals(1, skips)
     }
 
