@@ -34,6 +34,10 @@ app/debug/
 *.apk
 *.aab
 mapping.txt
+# 同一批产物里还带一份 AS 写的元数据：<module>/<变体>/output-metadata.json。
+# apk 由上面的 *.apk 兜住，元数据则要按文件名兜——否则将来新建变体（如 debugAlt、
+# nonMinifiedRelease）的向导产物会以「未跟踪」漏出来。
+output-metadata.json
 
 # 发布签名材料：私钥与口令一旦入库即不可撤销
 *.jks
