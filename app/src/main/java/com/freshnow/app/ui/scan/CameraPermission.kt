@@ -31,8 +31,15 @@ class CameraPermissionState internal constructor(
     val granted: Boolean,
     /** 请求已发过、且系统不会再弹窗。文案与动作都要据此换一套 */
     val blocked: Boolean,
-    /** 请求一次（或再请求一次） */
-    val request: () -> Unit
+    /** 请求一次（或再请求一次），不管结果。扫描与拍照那几处用这个：结果由 [granted] 自己变过来 */
+    val request: () -> Unit,
+    /**
+     * 请求一次并拿到结果（true 表示已授予）。
+     *
+     * 与 [request] 分开是为了欢迎页：它必须在用户真的作出选择之后才敢往下走——先翻页再弹窗的话，
+     * 用户在弹窗里点拒绝时，人已经站在下一页上了。
+     */
+    val requestWithResult: ((Boolean) -> Unit) -> Unit
 )
 
 @Composable
@@ -48,11 +55,16 @@ fun rememberCameraPermissionState(): CameraPermissionState {
     // 请求已发出、结果还没到。首次进入会弹一次，这段时间里系统弹窗正盖在界面上，
     // 不能把「未授予且系统不再弹窗」判成永久拒绝
     var awaitingAnswer by remember { mutableStateOf(!granted) }
+    // 只给 requestWithResult 用：结果回来时通知一次，随后清掉。放在 state 里是为了让 launcher 的回调
+    // 拿到最新那个监听者（launcher 只会记住第一次组合时看到的那份闭包）
+    var resultListener by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { result ->
         granted = result
         awaitingAnswer = false
+        resultListener?.invoke(result)
+        resultListener = null
     }
 
     // 权限也能在系统设置里改，回来时以真实权限为准（从设置页开完权限回来要立刻恢复取景）
@@ -66,6 +78,12 @@ fun rememberCameraPermissionState(): CameraPermissionState {
         blocked = !granted && !awaitingAnswer &&
             activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) == false,
         request = {
+            resultListener = null
+            awaitingAnswer = true
+            launcher.launch(Manifest.permission.CAMERA)
+        },
+        requestWithResult = { onResult ->
+            resultListener = onResult
             awaitingAnswer = true
             launcher.launch(Manifest.permission.CAMERA)
         }

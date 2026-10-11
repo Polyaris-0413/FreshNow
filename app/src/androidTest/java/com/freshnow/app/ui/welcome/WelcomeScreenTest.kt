@@ -4,6 +4,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -70,6 +72,20 @@ class WelcomeScreenTest {
         awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
     }
 
+    /**
+     * 「跳过」跳过的是当前这一步，不是整段引导：信息页上它与「下一步」同路，但不应该直接收场
+     */
+    @Test
+    fun skipMovesToNextStepInsteadOfEndingTheGuide() {
+        var skips = 0
+        setContent(onSkip = { skips += 1 })
+
+        composeRule.onNodeWithText("跳过").performClick()
+
+        awaitText("标签上的字交给模型读")
+        assertEquals(0, skips)
+    }
+
     @Test
     fun configStepOffersTheThreeRequiredFields() {
         setContent()
@@ -125,66 +141,99 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("允许使用相机").assertExists()
     }
 
-    /** 权限已被系统锁死时，主按钮换成去系统设置，并说明原因 */
-    @Test
-    fun blockedCameraOffersSystemSettings() {
-        val savedCount = mutableStateOf(0)
-        setContent(
-            configSavedCount = { savedCount.value },
-            cameraPermissionBlocked = true,
-            onSaveConfig = { savedCount.value += 1 }
-        )
-        goToConfigStep()
-        composeRule.onNodeWithText("保存并继续").performClick()
-        awaitText("扫描时要用到相机")
-
-        composeRule.onNodeWithText("相机权限已被拒绝，请到系统设置里开启").assertExists()
-        composeRule.onNodeWithText("去设置").assertExists()
-    }
-
     /**
-     * 「跳过」跳过的是当前这一步，不是整段引导：信息页上它与「下一步」同路，但不应该直接收场
+     * 点「允许使用相机」只发起请求，不自己往下走：结果没回来之前必须留在这一页，
+     * 否则用户在系统弹窗里点拒绝时，人已经站在收尾页/主页上了。
      */
     @Test
-    fun skipMovesToNextStepInsteadOfEndingTheGuide() {
-        var skips = 0
-        setContent(onSkip = { skips += 1 })
+    fun cameraRequestDoesNotAdvanceUntilGranted() {
+        var requests = 0
+        setContent(onRequestCamera = { requests += 1 })
+        goToCameraStep()
 
-        composeRule.onNodeWithText("跳过").performClick()
+        composeRule.onNodeWithText("允许使用相机").performClick()
+        composeRule.waitForIdle()
 
-        awaitText("标签上的字交给模型读")
-        assertEquals(0, skips)
+        assertEquals(1, requests)
+        composeRule.onNodeWithText("扫描时要用到相机").assertIsDisplayed()
+        assertNotVisible("都设置好了")
     }
 
-    /** 配置那一步的「跳过」只是不填配置；到权限那一步（最后一步）才真收场 */
+    /** 权限真的授予之后才推进到收尾那一步 */
     @Test
-    fun skipOnLastStepEndsTheGuide() {
-        val savedCount = mutableStateOf(0)
-        var skips = 0
+    fun grantedCameraAdvancesToDoneStep() {
+        val grantedCount = mutableStateOf(0)
         setContent(
-            configSavedCount = { savedCount.value },
-            onSaveConfig = { savedCount.value += 1 },
-            onSkip = { skips += 1 }
+            cameraGrantedCount = { grantedCount.value },
+            // 模拟用户在系统弹窗里点了「允许」
+            onRequestCamera = { grantedCount.value += 1 }
         )
-        goToConfigStep()
+        goToCameraStep()
+
+        composeRule.onNodeWithText("允许使用相机").performClick()
+
+        awaitText("都设置好了")
+        composeRule.onNodeWithText("开始使用").assertExists()
+    }
+
+    /** 权限被系统锁死时，主按钮换成去系统设置，并说明原因 */
+    @Test
+    fun blockedCameraOffersSystemSettings() {
+        var openedSettings = 0
+        setContent(
+            cameraPermissionBlocked = true,
+            onOpenCameraSettings = { openedSettings += 1 }
+        )
+        goToCameraStep()
+
+        composeRule.onNodeWithText("相机权限已被拒绝，请到系统设置里开启").assertExists()
+        composeRule.onNodeWithText("去设置").performClick()
+
+        assertEquals(1, openedSettings)
+    }
+
+    /** 跳过相机授权也要走到收尾那一步，收尾页上才有真正的「结束引导」 */
+    @Test
+    fun skippingCameraGoesToDoneAndStartEndsTheGuide() {
+        var skips = 0
+        setContent(onSkip = { skips += 1 })
+        goToCameraStep()
 
         composeRule.onNodeWithText("跳过").performClick()
-        awaitText("扫描时要用到相机")
+        awaitText("都设置好了")
         assertEquals(0, skips)
 
-        composeRule.onNodeWithText("跳过").performClick()
+        composeRule.onNodeWithText("开始使用").performClick()
         assertEquals(1, skips)
+    }
+
+    /** 收尾页不摆「跳过」：它与「开始使用」是同一件事 */
+    @Test
+    fun doneStepHasNoSkipButton() {
+        val grantedCount = mutableStateOf(0)
+        setContent(
+            cameraGrantedCount = { grantedCount.value },
+            onRequestCamera = { grantedCount.value += 1 }
+        )
+        goToCameraStep()
+        composeRule.onNodeWithText("允许使用相机").performClick()
+        awaitText("都设置好了")
+
+        assertNotVisible("跳过")
     }
 
     /**
      * @param configSavedCount 「配置已落盘」由外部给：版式自己不认识 DataStore
+     * @param cameraGrantedCount 同理，「权限已授予」也是外部的事实
      */
     private fun setContent(
         basicConfig: AiBasicConfigDraft = AiBasicConfigDraft(),
         configSavedCount: () -> Int = { 0 },
+        cameraGrantedCount: () -> Int = { 0 },
         cameraPermissionBlocked: Boolean = false,
         onSaveConfig: () -> Unit = {},
-        onCameraAction: () -> Unit = {},
+        onRequestCamera: () -> Unit = {},
+        onOpenCameraSettings: () -> Unit = {},
         onSkip: () -> Unit = {}
     ) {
         composeRule.setContent {
@@ -192,24 +241,33 @@ class WelcomeScreenTest {
                 WelcomeSteps(
                     basicConfig = basicConfig,
                     configSavedCount = configSavedCount(),
+                    cameraGrantedCount = cameraGrantedCount(),
                     cameraPermissionBlocked = cameraPermissionBlocked,
                     onBaseUrlChange = {},
                     onModelNameChange = {},
                     onApiKeyChange = {},
                     onSaveConfig = onSaveConfig,
-                    onCameraAction = onCameraAction,
+                    onRequestCamera = onRequestCamera,
+                    onOpenCameraSettings = onOpenCameraSettings,
                     onSkip = onSkip
                 )
             }
         }
     }
 
-    /** 从第 1 步走到配置那一步 */
+    /** 从第 1 步一路「跳过」到配置那一步（跳过不落盘，所以不依赖 configSavedCount） */
     private fun goToConfigStep() {
-        composeRule.onNodeWithText("下一步").performClick()
+        composeRule.onNodeWithText("跳过").performClick()
         awaitText("标签上的字交给模型读")
-        composeRule.onNodeWithText("下一步").performClick()
+        composeRule.onNodeWithText("跳过").performClick()
         awaitText("填上你的模型服务")
+    }
+
+    /** 再从配置那一步「跳过」到相机权限那一步 */
+    private fun goToCameraStep() {
+        goToConfigStep()
+        composeRule.onNodeWithText("跳过").performClick()
+        awaitText("扫描时要用到相机")
     }
 
     /** 翻页是动画，等到目标文案出现为止；等的是结果不是时长 */
@@ -217,6 +275,18 @@ class WelcomeScreenTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    /**
+     * 这一屏上看不到这段文字。
+     *
+     * 判的是「显没显示」而不是「存不存在」：pager 会把相邻页也组合进来，它们躺在视口外面，
+     * 当「存在」算。若这段文字压根没被组合，这断言同样成立。
+     */
+    private fun assertNotVisible(text: String) {
+        val nodes = composeRule.onAllNodesWithText(text).fetchSemanticsNodes()
+        if (nodes.isEmpty()) return
+        composeRule.onNodeWithText(text).assertIsNotDisplayed()
     }
 
     private companion object {

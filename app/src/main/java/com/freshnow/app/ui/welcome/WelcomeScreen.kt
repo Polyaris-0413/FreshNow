@@ -31,7 +31,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -58,18 +61,19 @@ import kotlinx.coroutines.launch
  * permissions when they are needed」）——本应用唯一会用到相机的地方是扫描，把它放在配置之后、
  * 进入主页之前，用户此时刚看完「扫描要拍标签」，说明与动作之间没有别的东西插队。
  */
-internal enum class WelcomeStep { INTRO, FLOW, AI_CONFIG, CAMERA }
+internal enum class WelcomeStep { INTRO, FLOW, AI_CONFIG, CAMERA, DONE }
 
 /**
  * 首次启动的欢迎页，只在「这次安装还没走过引导」时由 [com.freshnow.app.ui.FreshNowApp] 渲染
  * （见 OnboardingRepository）。
  *
  * 引导的整体形状取 Material 的「Top User Benefits」模型：先给价值（第 1 步），再说清用它的代价
- * （第 2 步：识别要自备模型服务），然后是动作（第 3 步配置、第 4 步相机权限）。
- * 「跳过」跳过的是当前这一步要干的事，不是整个引导：信息页上是往前走一项，配置页是不填，
- * 权限页是不授权；最后一步无处可去，点它才是结束引导。
- * 「上一步」与系统返回键都能往回走；屏上没有「结束引导」这颗按钮，那个出口由返回键承担
- * （停在第一步时按返回即结束）。
+ * （第 2 步：识别要自备模型服务），然后是动作（第 3 步配置、第 4 步相机权限），最后收个尾
+ * （第 5 步）。收尾那一步是有意留的：设置刚做完就直接落进主页，用户不知道自己走完了没有。
+ *
+ * 「跳过」跳过的是当前这一步要干的事，不是整个引导：一律往前走一项。收尾那一步上不摆「跳过」
+ * （它和「开始使用」是同一件事）；结束引导的出口就是那颗「开始使用」，以及停在第一步时的返回键。
+ * 「上一步」与系统返回键都能往回走。
  *
  * 状态与界面分开：[WelcomeSteps] 是不带状态的版式，测试直接摆它，不会碰到设备上真实的 DataStore。
  */
@@ -84,6 +88,9 @@ fun WelcomeScreen(
     val finished by viewModel.finished.collectAsStateWithLifecycle()
     val cameraPermission = rememberCameraPermissionState()
     val context = LocalContext.current
+    // 授权成功才往下走：结果回来之前留在权限那一页。没这一步的话，用户在系统弹窗里点拒绝时，
+    // 人已经站在主页上了
+    var cameraGrantedCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(finished) {
         if (finished) onFinish()
@@ -92,21 +99,19 @@ fun WelcomeScreen(
     WelcomeSteps(
         basicConfig = basicConfig,
         configSavedCount = configSavedCount,
+        cameraGrantedCount = cameraGrantedCount,
         cameraPermissionBlocked = cameraPermission.blocked,
         onBaseUrlChange = viewModel::onBaseUrlChange,
         onModelNameChange = viewModel::onModelNameChange,
         onApiKeyChange = viewModel::onApiKeyChange,
         onSaveConfig = viewModel::saveBasicConfig,
-        // 权限被系统锁死时再点也不会有弹窗（见 CameraPermission），只能去设置页；其余情况请求一次
-        // 就收尾，用户拒了也能在扫描页重新走那套提示
-        onCameraAction = {
-            if (cameraPermission.blocked) {
-                openAppSettings(context)
-            } else {
-                if (!cameraPermission.granted) cameraPermission.request()
-                viewModel.finish()
+        onRequestCamera = {
+            cameraPermission.requestWithResult { granted ->
+                if (granted) cameraGrantedCount += 1
             }
         },
+        // 权限被系统锁死时再点也不会有弹窗（见 CameraPermission），只能去设置页
+        onOpenCameraSettings = { openAppSettings(context) },
         onSkip = viewModel::finish,
         modifier = modifier
     )
@@ -115,19 +120,22 @@ fun WelcomeScreen(
 /**
  * 欢迎页的版式本身：几步内容 + 进度 + 跳过、上一步与主按钮。
  *
- * [configSavedCount] 是「配置成功落盘的次数」而不是「校验过了」：推进到权限那一步必须等落盘真的
- * 完成，否则推进过去的那一刻配置还没写进 DataStore。
+ * [configSavedCount] 与 [cameraGrantedCount] 都是「已经发生的事实」，而不是「点过了」：
+ * 前者等配置真的落盘，后者等相机权限真的授予——先走再等的话，推进过去的那一刻配置还没写进
+ * DataStore，或者系统弹窗还盖在屏幕上。
  */
 @Composable
 internal fun WelcomeSteps(
     basicConfig: AiBasicConfigDraft,
     configSavedCount: Int,
+    cameraGrantedCount: Int,
     cameraPermissionBlocked: Boolean,
     onBaseUrlChange: (String) -> Unit,
     onModelNameChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
     onSaveConfig: () -> Unit,
-    onCameraAction: () -> Unit,
+    onRequestCamera: () -> Unit,
+    onOpenCameraSettings: () -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -144,17 +152,23 @@ internal fun WelcomeSteps(
         if (configSavedCount > 0) goTo(WelcomeStep.CAMERA)
     }
 
+    // 权限授予之后才推进：等的是结果，不是「点过按钮」
+    LaunchedEffect(cameraGrantedCount) {
+        if (cameraGrantedCount > 0) goTo(WelcomeStep.DONE)
+    }
+
     // 系统返回键与「上一步」同一件事；已经在第 1 步时退回结束引导
     BackHandler {
         if (pagerState.currentPage > 0) goTo(steps[pagerState.currentPage - 1]) else onSkip()
     }
 
     /**
-     * 「跳过」跳过的是这一步要做的事，不是整个引导：一律往前走一项。最后一步走不动了，
-     * 那才是结束引导。
+     * 「跳过」跳过的是这一步要做的事，不是整个引导：一律往前走一项。收尾那一步不摆这颗按钮
+     * （它与「开始使用」同义），这里的兜底只是别让越界找上门。
      */
     fun skipCurrentStep() {
-        if (currentStep == WelcomeStep.CAMERA) onSkip() else goTo(steps[currentStep.ordinal + 1])
+        val next = steps.getOrNull(currentStep.ordinal + 1)
+        if (next == null) onSkip() else goTo(next)
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -202,8 +216,11 @@ internal fun WelcomeSteps(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { skipCurrentStep() }) {
-                        Text(text = stringResource(R.string.welcome_action_skip))
+                    // 收尾那一步不摆「跳过」：它与「开始使用」是同一件事，两颗同义的按钮只会让人犹豫
+                    if (currentStep != WelcomeStep.DONE) {
+                        TextButton(onClick = { skipCurrentStep() }) {
+                            Text(text = stringResource(R.string.welcome_action_skip))
+                        }
                     }
                     Spacer(modifier = Modifier.weight(1f))
 
@@ -221,7 +238,15 @@ internal fun WelcomeSteps(
 
                                 WelcomeStep.AI_CONFIG -> onSaveConfig()
 
-                                WelcomeStep.CAMERA -> onCameraAction()
+                                // 这里不直接翻页：翻页由 cameraGrantedCount 在权限真的授予之后带过来。
+                                // 权限被系统锁死时那个弹窗不会再出现，只能去设置页
+                                WelcomeStep.CAMERA -> if (cameraPermissionBlocked) {
+                                    onOpenCameraSettings()
+                                } else {
+                                    onRequestCamera()
+                                }
+
+                                WelcomeStep.DONE -> onSkip()
                             }
                         }
                     ) {
@@ -236,10 +261,16 @@ internal fun WelcomeSteps(
                                         } else {
                                             R.string.welcome_action_grant_camera
                                         }
+
+                                    WelcomeStep.DONE -> R.string.welcome_action_start
                                 }
                             )
                         )
-                        if (currentStep == WelcomeStep.INTRO || currentStep == WelcomeStep.FLOW) {
+                        // 箭头只跟着「往前走」的动作：收尾那一步的「开始使用」也是往前走
+                        if (currentStep == WelcomeStep.INTRO ||
+                            currentStep == WelcomeStep.FLOW ||
+                            currentStep == WelcomeStep.DONE
+                        ) {
                             Spacer(modifier = Modifier.width(FreshNowSpacing.xs))
                             Icon(
                                 painter = painterResource(R.drawable.ic_arrow_forward),
@@ -381,6 +412,15 @@ private fun WelcomeStepContent(
                             textAlign = TextAlign.Center
                         )
                     }
+                }
+
+                WelcomeStep.DONE -> {
+                    // 回到第 1 步那枚曲奇：它是这个应用的主视觉，也是「该去用应用本身了」的暗示
+                    WelcomeHero(R.drawable.ic_cookie)
+                    StepSpacer()
+                    WelcomeTitle(stringResource(R.string.welcome_done_title))
+                    StepSpacer()
+                    WelcomeBody(stringResource(R.string.welcome_done_body))
                 }
             }
         }

@@ -146,11 +146,15 @@
     <string name="welcome_ai_title">填上你的模型服务</string>
     <string name="welcome_ai_body">三项都必填。填完就能扫描了；想换别的服务，之后在「设置 → 基础配置」里改。</string>
     <string name="welcome_camera_title">扫描时要用到相机</string>
-    <string name="welcome_camera_body">相机只在你点扫描的时候打开，拍下的照片用于识别。现在不给也不要紧，扫的时候还会再问一次。</string>
+    <!-- 「现在不给也不要紧」不只是安慰：点拒绝时会停在本页，不往下走；扫的时候还会再问一次 -->
+    <string name="welcome_camera_body">相机只在你点扫描的时候打开，拍下的照片用于识别。不给也行，扫的时候还会再问一次。</string>
+    <string name="welcome_done_title">都设置好了</string>
+    <string name="welcome_done_body">从主页的「添加」开始，拍下第一件东西。</string>
     <string name="welcome_action_next">下一步</string>
     <string name="welcome_action_previous">上一步</string>
     <string name="welcome_action_save_continue">保存并继续</string>
     <string name="welcome_action_grant_camera">允许使用相机</string>
+    <string name="welcome_action_start">开始使用</string>
     <string name="welcome_action_skip">跳过</string>
 
     <!-- 局域网同步 -->
