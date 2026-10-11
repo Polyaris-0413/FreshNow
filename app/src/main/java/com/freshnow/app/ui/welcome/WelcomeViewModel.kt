@@ -27,9 +27,14 @@ class WelcomeViewModel(application: Application) : AndroidViewModel(application)
     private val _basicConfig = MutableStateFlow(AiBasicConfigDraft())
     val basicConfig: StateFlow<AiBasicConfigDraft> = _basicConfig.asStateFlow()
 
-    /** 配置已落盘。界面等它变 true 才推进到下一步，否则推进过去的那一时刻配置还没写进 DataStore */
-    private val _configSaved = MutableStateFlow(false)
-    val configSaved: StateFlow<Boolean> = _configSaved.asStateFlow()
+    /**
+     * 配置成功落盘的次数。界面等它大于 0 才推进到下一步，否则推进过去的那一时刻配置还没写进 DataStore。
+     *
+     * 用计数而不是布尔：用户可能从权限那一步退回配置改一次再保存，布尔只在第一次从 false 变 true 时
+     * 触发推进，第二次保存就不动了。
+     */
+    private val _configSavedCount = MutableStateFlow(0)
+    val configSavedCount: StateFlow<Int> = _configSavedCount.asStateFlow()
 
     /** 引导结束（「已看过」也已落盘），界面据此切到主页 */
     private val _finished = MutableStateFlow(false)
@@ -49,7 +54,7 @@ class WelcomeViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * 校验三项必填；没通过就只在界面上标错（用户随时可以跳过整个引导），
-     * 通过则落盘并置 [configSaved]。
+     * 通过则落盘并让 [configSavedCount] 加一。
      *
      * 读一次已落盘的值再合并：思考链与思考参数不在这份表单里，不能因为这里保存就丢掉
      * （用户可能先前在设置页配过——例如上一轮引导被跳过之后又回来填）。
@@ -62,7 +67,7 @@ class WelcomeViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val saved = aiRepository.aiSettings.first()
             aiRepository.save(validated.toSettings(saved))
-            _configSaved.value = true
+            _configSavedCount.update { it + 1 }
         }
     }
 

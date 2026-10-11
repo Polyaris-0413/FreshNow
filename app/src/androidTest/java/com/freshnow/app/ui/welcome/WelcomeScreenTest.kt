@@ -1,6 +1,8 @@
 package com.freshnow.app.ui.welcome
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -32,7 +34,20 @@ class WelcomeScreenTest {
 
         composeRule.onNodeWithText("跳过").assertExists()
         composeRule.onNodeWithText("下一步").assertExists()
-        composeRule.onNodeWithText("拍下包装上的标签，AI 替你记住它什么时候过期。").assertExists()
+        composeRule.onNodeWithText("把包装拍下来，之后不用再惦记它什么时候过期。").assertExists()
+    }
+
+    /** 第 1 步还什么都没走，进度条不该出现；第 2 步起才有 */
+    @Test
+    fun progressBarAppearsFromSecondStep() {
+        setContent()
+
+        composeRule.onAllNodes(progressBar).assertCountEquals(0)
+
+        composeRule.onNodeWithText("下一步").performClick()
+        awaitText("标签上的字交给模型读")
+
+        composeRule.onAllNodes(progressBar).assertCountEquals(1)
     }
 
     @Test
@@ -41,7 +56,18 @@ class WelcomeScreenTest {
 
         composeRule.onNodeWithText("下一步").performClick()
 
-        awaitText("识别由你的模型服务完成")
+        awaitText("标签上的字交给模型读")
+    }
+
+    @Test
+    fun previousReturnsToIntroStep() {
+        setContent()
+        composeRule.onNodeWithText("下一步").performClick()
+        awaitText("标签上的字交给模型读")
+
+        composeRule.onNodeWithText("上一步").performClick()
+
+        awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
     }
 
     @Test
@@ -82,35 +108,35 @@ class WelcomeScreenTest {
 
     /**
      * 配置真的落盘之后才推进到权限那一步：这里用外部状态模拟落盘完成，
-     * 正是 WelcomeViewModel 的 configSaved 的语义（校验通过 ≠ 落盘完成）。
+     * 正是 WelcomeViewModel 的 configSavedCount 的语义（校验通过 ≠ 落盘完成）。
      */
     @Test
     fun savedConfigAdvancesToCameraStep() {
-        val configSaved = mutableStateOf(false)
+        val savedCount = mutableStateOf(0)
         setContent(
-            configSaved = { configSaved.value },
-            onSaveConfig = { configSaved.value = true }
+            configSavedCount = { savedCount.value },
+            onSaveConfig = { savedCount.value += 1 }
         )
         goToConfigStep()
 
         composeRule.onNodeWithText("保存并继续").performClick()
 
-        awaitText("扫描需要相机")
+        awaitText("扫描时要用到相机")
         composeRule.onNodeWithText("允许使用相机").assertExists()
     }
 
     /** 权限已被系统锁死时，主按钮换成去系统设置，并说明原因 */
     @Test
     fun blockedCameraOffersSystemSettings() {
-        val configSaved = mutableStateOf(false)
+        val savedCount = mutableStateOf(0)
         setContent(
-            configSaved = { configSaved.value },
+            configSavedCount = { savedCount.value },
             cameraPermissionBlocked = true,
-            onSaveConfig = { configSaved.value = true }
+            onSaveConfig = { savedCount.value += 1 }
         )
         goToConfigStep()
         composeRule.onNodeWithText("保存并继续").performClick()
-        awaitText("扫描需要相机")
+        awaitText("扫描时要用到相机")
 
         composeRule.onNodeWithText("相机权限已被拒绝，请到系统设置里开启").assertExists()
         composeRule.onNodeWithText("去设置").assertExists()
@@ -127,11 +153,11 @@ class WelcomeScreenTest {
     }
 
     /**
-     * @param configSaved 「配置已落盘」由外部给：版式自己不认识 DataStore
+     * @param configSavedCount 「配置已落盘」由外部给：版式自己不认识 DataStore
      */
     private fun setContent(
         basicConfig: AiBasicConfigDraft = AiBasicConfigDraft(),
-        configSaved: () -> Boolean = { false },
+        configSavedCount: () -> Int = { 0 },
         cameraPermissionBlocked: Boolean = false,
         onSaveConfig: () -> Unit = {},
         onCameraAction: () -> Unit = {},
@@ -141,7 +167,7 @@ class WelcomeScreenTest {
             FreshNowTheme {
                 WelcomeSteps(
                     basicConfig = basicConfig,
-                    configSaved = configSaved(),
+                    configSavedCount = configSavedCount(),
                     cameraPermissionBlocked = cameraPermissionBlocked,
                     onBaseUrlChange = {},
                     onModelNameChange = {},
@@ -157,9 +183,9 @@ class WelcomeScreenTest {
     /** 从第 1 步走到配置那一步 */
     private fun goToConfigStep() {
         composeRule.onNodeWithText("下一步").performClick()
-        awaitText("识别由你的模型服务完成")
+        awaitText("标签上的字交给模型读")
         composeRule.onNodeWithText("下一步").performClick()
-        awaitText("配置模型服务")
+        awaitText("填上你的模型服务")
     }
 
     /** 翻页是动画，等到目标文案出现为止；等的是结果不是时长 */
@@ -167,5 +193,10 @@ class WelcomeScreenTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    private companion object {
+        /** 进度指示器在语义树里就是「带范围信息的节点」，M3 的 LinearProgressIndicator 自带 */
+        val progressBar = SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
     }
 }

@@ -46,4 +46,10 @@ object FreshNowSize {
      * 也压过旁边文字的份量
      */
     val buttonIcon = 18.dp
+
+    /**
+     * M3 线形进度指示器的轨道高度（规范值 4dp）。欢迎页的进度条在第 1 步是隐着的，
+     * 用同高的空位撑住，否则它一出现底部按钮就往下跳一格
+     */
+    val progressTrack = 4.dp
 }

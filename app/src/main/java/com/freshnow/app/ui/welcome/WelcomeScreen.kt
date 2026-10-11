@@ -1,6 +1,9 @@
 package com.freshnow.app.ui.welcome
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +47,7 @@ import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.scan.rememberCameraPermissionState
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.launch
 
 /**
@@ -61,7 +66,8 @@ internal enum class WelcomeStep { INTRO, FLOW, AI_CONFIG, CAMERA }
  *
  * 引导的整体形状取 Material 的「Top User Benefits」模型：先给价值（第 1 步），再说清用它的代价
  * （第 2 步：识别要自备模型服务），然后是动作（第 3 步配置、第 4 步相机权限）。
- * 规范要求跳过始终可见可用，因此「跳过」不随步骤消失，返回键与它等价。
+ * 规范要求跳过始终可见可用，因此「跳过」不随步骤消失；「上一步」与系统返回键都能往回走，
+ * 第 1 步的返回键与「跳过」等价。
  *
  * 状态与界面分开：[WelcomeSteps] 是不带状态的版式，测试直接摆它，不会碰到设备上真实的 DataStore。
  */
@@ -72,7 +78,7 @@ fun WelcomeScreen(
     viewModel: WelcomeViewModel = viewModel()
 ) {
     val basicConfig by viewModel.basicConfig.collectAsStateWithLifecycle()
-    val configSaved by viewModel.configSaved.collectAsStateWithLifecycle()
+    val configSavedCount by viewModel.configSavedCount.collectAsStateWithLifecycle()
     val finished by viewModel.finished.collectAsStateWithLifecycle()
     val cameraPermission = rememberCameraPermissionState()
     val context = LocalContext.current
@@ -81,12 +87,9 @@ fun WelcomeScreen(
         if (finished) onFinish()
     }
 
-    // 返回键等同跳过：引导不是必经之路，但同样要先记下「已看过」，否则下次启动又会被请回来
-    BackHandler(enabled = !finished) { viewModel.finish() }
-
     WelcomeSteps(
         basicConfig = basicConfig,
-        configSaved = configSaved,
+        configSavedCount = configSavedCount,
         cameraPermissionBlocked = cameraPermission.blocked,
         onBaseUrlChange = viewModel::onBaseUrlChange,
         onModelNameChange = viewModel::onModelNameChange,
@@ -108,15 +111,15 @@ fun WelcomeScreen(
 }
 
 /**
- * 欢迎页的版式本身：几步内容 + 进度 + 跳过与主按钮。
+ * 欢迎页的版式本身：几步内容 + 进度 + 跳过、上一步与主按钮。
  *
- * [configSaved] 是「配置已经落盘」而不是「校验过了」：推进到权限那一步必须等落盘真的完成，
- * 否则推进过去的那一刻配置还没写进 DataStore。
+ * [configSavedCount] 是「配置成功落盘的次数」而不是「校验过了」：推进到权限那一步必须等落盘真的
+ * 完成，否则推进过去的那一刻配置还没写进 DataStore。
  */
 @Composable
 internal fun WelcomeSteps(
     basicConfig: AiBasicConfigDraft,
-    configSaved: Boolean,
+    configSavedCount: Int,
     cameraPermissionBlocked: Boolean,
     onBaseUrlChange: (String) -> Unit,
     onModelNameChange: (String) -> Unit,
@@ -131,8 +134,17 @@ internal fun WelcomeSteps(
     val currentStep = steps[pagerState.currentPage]
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(configSaved) {
-        if (configSaved) pagerState.animateScrollToPage(WelcomeStep.CAMERA.ordinal)
+    fun goTo(step: WelcomeStep) {
+        scope.launch { pagerState.animateScrollToPage(step.ordinal) }
+    }
+
+    LaunchedEffect(configSavedCount) {
+        if (configSavedCount > 0) goTo(WelcomeStep.CAMERA)
+    }
+
+    // 系统返回键与「上一步」同一件事；已经在第 1 步时退回「跳过」，与点那颗按钮等价
+    BackHandler {
+        if (pagerState.currentPage > 0) goTo(steps[pagerState.currentPage - 1]) else onSkip()
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -165,24 +177,37 @@ internal fun WelcomeSteps(
                     .padding(bottom = FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
-                // 进度用 M3 的进度指示器而不是自绘圆点：规范点名「steppers 与 progress indicators」，
-                // 并提醒别拿随步骤变化的插图当进度（那会被当成装饰）
-                LinearProgressIndicator(
-                    progress = { (pagerState.currentPage + 1f) / steps.size },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // 第 1 步没有进度可言（还什么都没走），所以整条进度从第 2 步才淡入。
+                // 外面这个固定高度的盒子撑住位置：否则进度条一出现，底部按钮就跟着往下跳一格
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(FreshNowSize.progressTrack)
+                ) {
+                    WelcomeProgress(
+                        visible = pagerState.currentPage > 0,
+                        // 进度跟随滚动而不是等翻页落定：按页跳变的话，一页一格地闪，看不出「在往前走」
+                        progress = pagerProgress(pagerState, steps.size)
+                    )
+                }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onSkip) {
                         Text(text = stringResource(R.string.welcome_action_skip))
                     }
                     Spacer(modifier = Modifier.weight(1f))
+
+                    if (pagerState.currentPage > 0) {
+                        TextButton(onClick = { goTo(steps[pagerState.currentPage - 1]) }) {
+                            Text(text = stringResource(R.string.welcome_action_previous))
+                        }
+                    }
+
                     Button(
                         onClick = {
                             when (currentStep) {
-                                WelcomeStep.INTRO, WelcomeStep.FLOW -> scope.launch {
-                                    pagerState.animateScrollToPage(currentStep.ordinal + 1)
-                                }
+                                WelcomeStep.INTRO, WelcomeStep.FLOW ->
+                                    goTo(steps[currentStep.ordinal + 1])
 
                                 WelcomeStep.AI_CONFIG -> onSaveConfig()
 
@@ -218,6 +243,34 @@ internal fun WelcomeSteps(
             }
         }
     }
+}
+
+/**
+ * 已走完的进度条。淡入淡出单独放在函数里：直接写在底部的 Column 里会被解析成
+ * ColumnScope 版的 AnimatedVisibility，而它在 Box 里调不到（那是另一个接收者）。
+ */
+@Composable
+private fun WelcomeProgress(visible: Boolean, progress: Float) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(FreshNowTransitions.stateChange()),
+        exit = fadeOut(FreshNowTransitions.stateChange())
+    ) {
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * 已经走了多远：按「剩下几段」算，最后一页正好填满。除以页数的话，走到最后一步进度条还差一截，
+ * 看着像没走完。
+ */
+private fun pagerProgress(pagerState: PagerState, pageCount: Int): Float {
+    if (pageCount <= 1) return 1f
+    val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+    return (position / (pageCount - 1)).coerceIn(0f, 1f)
 }
 
 /**
@@ -261,8 +314,10 @@ private fun WelcomeStepContent(
                         Benefit(stringResource(R.string.welcome_intro_benefit_privacy))
                     }
                 }
-    
+
                 WelcomeStep.FLOW -> {
+                    WelcomeHero(R.drawable.ic_reasoning)
+                    StepSpacer()
                     WelcomeTitle(stringResource(R.string.welcome_flow_title))
                     StepSpacer()
                     WelcomeBody(stringResource(R.string.welcome_flow_body))
@@ -285,7 +340,7 @@ private fun WelcomeStepContent(
                         )
                     }
                 }
-    
+
                 WelcomeStep.AI_CONFIG -> {
                     WelcomeHero(R.drawable.ic_base_config)
                     StepSpacer()
@@ -300,7 +355,7 @@ private fun WelcomeStepContent(
                         onApiKeyChange = onApiKeyChange
                     )
                 }
-    
+
                 WelcomeStep.CAMERA -> {
                     WelcomeHero(R.drawable.ic_camera)
                     StepSpacer()

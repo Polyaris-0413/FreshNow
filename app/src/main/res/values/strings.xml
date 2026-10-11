@@ -128,24 +128,27 @@
     <string name="ai_settings_not_configured">未配置</string>
     <string name="error_required_field">此项为必填项</string>
 
-    <!-- 欢迎页：只在首次使用时出现一次。四步依次是价值、代价（要自备模型服务）、配置、相机权限。
-         最后一步是权限的 priming：先说明用途，再由用户点按钮触发系统弹窗 -->
-    <string name="welcome_intro_body">拍下包装上的标签，AI 替你记住它什么时候过期。</string>
-    <string name="welcome_intro_benefit_scan">拍一张标签，名称与日期由模型读出</string>
-    <string name="welcome_intro_benefit_expiry">剩余天数一眼可见，快到期的排在最前</string>
-    <string name="welcome_intro_benefit_privacy">记录只存在本机，无广告、无追踪、无内购</string>
-    <string name="welcome_flow_title">识别由你的模型服务完成</string>
+    <!-- 欢迎页：只在首次使用时出现一次。四步依次是价值、代价（识别要自备模型服务）、配置、相机权限。
+         最后一步是权限的 priming：先说明用途，再由用户点按钮触发系统弹窗。
+         用词取用户视角的日常说法（「包装」「快到期」），不搬 README 里的功能名与口号
+         （「OCR」「实时识别」「无广告无追踪、无内购」这类罗列不是人话） -->
+    <string name="welcome_intro_body">把包装拍下来，之后不用再惦记它什么时候过期。</string>
+    <string name="welcome_intro_benefit_scan">名称、生产日期、保质期，拍一张就填好</string>
+    <string name="welcome_intro_benefit_expiry">过期时间自动算出来，快到期的排在最前面</string>
+    <string name="welcome_intro_benefit_privacy">记录留在本机，不用注册也不用登录</string>
+    <string name="welcome_flow_title">标签上的字交给模型读</string>
     <!-- 不写「照片不会外传」之类的话：照片本来就会随请求发往用户自己配的服务，
          这一句要说的正是这件事 -->
-    <string name="welcome_flow_body">应用不内置 OCR 算法，标签上的信息由你配置的模型服务识别，照片会随请求发往该服务。</string>
-    <string name="welcome_flow_step_scan">1. 对准标签拍照或扫描</string>
-    <string name="welcome_flow_step_read">2. 模型读出名称、生产日期与保质期</string>
-    <string name="welcome_flow_step_expiry">3. 自动推算过期日期，主页按剩余天数排布</string>
-    <string name="welcome_ai_title">配置模型服务</string>
-    <string name="welcome_ai_body">三项都必填，保存后即可使用；日后可在「设置 → 基础配置」中修改。</string>
-    <string name="welcome_camera_title">扫描需要相机</string>
-    <string name="welcome_camera_body">扫描标签时要用相机拍照，应用只在扫描时使用相机。</string>
+    <string name="welcome_flow_body">应用自己不会认字。标签上写了什么，由你配置的模型服务读出来，照片也会随请求发过去，所以得先有一个能用的模型服务。</string>
+    <string name="welcome_flow_step_scan">1. 对准标签拍一张</string>
+    <string name="welcome_flow_step_read">2. 模型读出名称、生产日期和保质期</string>
+    <string name="welcome_flow_step_expiry">3. 自动算出过期日期，按剩余天数排好</string>
+    <string name="welcome_ai_title">填上你的模型服务</string>
+    <string name="welcome_ai_body">三项都必填。填完就能扫描了；想换别的服务，之后在「设置 → 基础配置」里改。</string>
+    <string name="welcome_camera_title">扫描时要用到相机</string>
+    <string name="welcome_camera_body">相机只在你点扫描的时候打开，拍下的照片用于识别。现在不给也不要紧，扫的时候还会再问一次。</string>
     <string name="welcome_action_next">下一步</string>
+    <string name="welcome_action_previous">上一步</string>
     <string name="welcome_action_save_continue">保存并继续</string>
     <string name="welcome_action_grant_camera">允许使用相机</string>
     <string name="welcome_action_skip">跳过</string>
