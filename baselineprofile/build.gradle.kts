@@ -36,7 +36,7 @@ android {
                     // 官方文档说 GMD 录制要用 aosp，理由是生成器需要 root——那条只对 API < 33 成立；
                     // 本项目 API 36 无需 root，实测 google_apis 能正常录制。
                     // 内存/核数 AGP 没有 DSL（RAM 被 sdklib 顶到 2 GiB、核数写死），本机是在 AVD
-                    // 生成后手改 config.ini 抬到 4G / 4 核的，细节见 r8-baseline-profile-notes.md。
+                    // 生成后手改 config.ini 抬到 4G / 4 核的，细节见 docs/r8-baseline-profile-notes.md。
                     systemImageSource = "google_apis"
                     // 不显式声明的话 AGP 10 起默认转 arm64-v8a 并走 NDK 翻译，此处钉住本机架构
                     testedAbi = "x86_64"

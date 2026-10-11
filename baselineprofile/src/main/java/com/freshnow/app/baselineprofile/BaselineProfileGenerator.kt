@@ -81,7 +81,7 @@ class BaselineProfileGenerator {
      * 按到达为准，而不是按固定次数返回（二级页可能叠了两层）。关键是用 [HOME_WAIT_MS] 而不是
      * 1 秒来判「到了没有」：托管虚拟机负载重时，一次无障碍树查询会从百毫秒退化成秒级，
      * 短等待会造成「还没回首页」的假阴性，脚本于是连按返回把应用直接退出到桌面，
-     * 最后 30 秒也等不到那个描述符（见 r8-baseline-profile-notes.md 的 A-2）。
+     * 最后 30 秒也等不到那个描述符（见 docs/r8-baseline-profile-notes.md 的 A-2）。
      */
     private fun MacrobenchmarkScope.backToHome() {
         repeat(MAX_BACK_STEPS) {
