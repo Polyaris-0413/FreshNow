@@ -130,15 +130,17 @@
 
     <!-- 欢迎页：只在首次使用时出现一次。五步依次是定位、代价（识别要用自备的模型）、配置、相机权限。
          最后一步是权限的 priming：先说明用途，再由用户点按钮触发系统弹窗。
-         第 1 步＝一句话定位 + 三条好处。条数取 Material 的 Top User Benefits 模型（最多三条），
-         写的是好处（不用手打、不用注册），不是做法与功能清单（扫描流程、字段名交给第 2 步）。
+         第 1 步＝一句话定位 + 两条卖点（识别水平已与商用 OCR 相当、包装再杂也能认）。
+         条数取 Material 的 Top User Benefits 模型（最多三条）；写的是卖点，不是做法与流程
+         ——扫描怎么做是第 2 步的事，两页说同一件事等于白说一页。
          用词取用户视角的日常说法（「包装」「快到期」），不搬 README 里的功能名与口号
-         （「OCR」「实时识别」「无广告无追踪、无内购」这类罗列不是人话）。
+         （「实时识别」「无广告无追踪、无内购」这类罗列不是人话）。
+         「商用 OCR」是有意留的参照物：卖点就是「识别这事不必担心」，而 OCR 是用户衡量
+         这件事时现成的尺子；除它以外的技术名词不进文案。
          取景识别一律说「扫描」不说「拍照」：扫描页是持续取景、没有快门，用户并没有按下去的那一下 -->
     <string name="welcome_intro_body">借助模型管理食品保质期。</string>
-    <string name="welcome_intro_benefit_scan">扫一下就好，名称和日期不用手打</string>
-    <string name="welcome_intro_benefit_expiry">快到期的自动排在前面</string>
-    <string name="welcome_intro_benefit_privacy">不用注册，记录留在本机</string>
+    <string name="welcome_intro_benefit_ocr">识别准确率与商用 OCR 相当</string>
+    <string name="welcome_intro_benefit_packaging">包装再杂也能认，兼容性不用操心</string>
     <string name="welcome_flow_title">标签上的字交给模型读</string>
     <!-- 不写「照片不会外传」之类的话：照片本来就会随请求发往用户自己配的模型，
          这一句要说的正是这件事 -->
@@ -147,7 +149,9 @@
     <string name="welcome_flow_step_read">2. 模型读出名称、生产日期和保质期</string>
     <string name="welcome_flow_step_expiry">3. 自动算出过期日期，按剩余天数排好</string>
     <string name="welcome_ai_title">填上你的模型</string>
-    <string name="welcome_ai_body">三项都必填。填完就能扫描了；想换别的模型，之后在「设置 → 基础配置」里改。</string>
+    <!-- 不写「填完就能扫描了」：相机权限在下一步，扫描页还得授权，这一句把话说在了后一步的前面；
+         改成「只差相机权限」，既不夸口，也仍然告诉用户还剩多少 -->
+    <string name="welcome_ai_body">三项都必填。填完只差相机权限，就能开始扫描了；想换别的模型，之后在「设置 → 基础配置」里改。</string>
     <string name="welcome_camera_title">扫描时要用到相机</string>
     <string name="welcome_camera_body">相机只在你点扫描的时候打开，扫描到的画面仅用于识别。</string>
     <string name="welcome_done_title">都设置好了</string>

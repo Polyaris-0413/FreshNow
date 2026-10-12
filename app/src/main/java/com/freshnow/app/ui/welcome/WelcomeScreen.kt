@@ -56,17 +56,26 @@ import kotlinx.coroutines.launch
 /**
  * 引导的第几步。枚举顺序就是显示顺序，页数也由它决定（进度条与「还有几步」都以它为唯一来源）。
  *
+ * 每一步的主视觉与标题、正文也挂在这里：这三件在各个步骤上是同一套版式，
+ * [WelcomeStepContent] 因此能一次渲染完，不必在五个分支里各写一遍。
+ *
  * [CAMERA] 是相机权限的 permission priming：先说明用途、再由用户点按钮触发系统弹窗。
  * 取值来自 Android 官方的 Auth & Onboarding 指南（「Explain why your app needs specific
  * permissions when they are needed」）——本应用唯一会用到相机的地方是扫描，把它放在配置之后、
  * 进入主页之前，用户此时刚看完「扫描要拍标签」，说明与动作之间没有别的东西插队。
  */
-internal enum class WelcomeStep {
-    INTRO,
-    FLOW,
-    AI_CONFIG,
-    CAMERA,
-    DONE;
+internal enum class WelcomeStep(
+    /** 主视觉图标 */
+    val iconRes: Int,
+    /** 标题与正文。第 1 步的标题就是应用名 */
+    val titleRes: Int,
+    val bodyRes: Int
+) {
+    INTRO(R.drawable.ic_cookie, R.string.app_name, R.string.welcome_intro_body),
+    FLOW(R.drawable.ic_reasoning, R.string.welcome_flow_title, R.string.welcome_flow_body),
+    AI_CONFIG(R.drawable.ic_base_config, R.string.welcome_ai_title, R.string.welcome_ai_body),
+    CAMERA(R.drawable.ic_camera, R.string.welcome_camera_title, R.string.welcome_camera_body),
+    DONE(R.drawable.ic_done_all, R.string.welcome_done_title, R.string.welcome_done_body);
 
     /**
      * 这一步有没有「可以不做的事」，也就是摆不摆「跳过」。
@@ -367,7 +376,7 @@ private fun pagerProgress(pagerState: PagerState, pageCount: Int): Float {
 /**
  * 单步的内容。整个可区居中摆：内容不足一屏时居中，超出一屏（第 3 步在小屏加键盘）时
  * 从顶部开始滚。用 Box 居中而不是让可滚动的 Column 自己居中——Column 在 verticalScroll 下
- * 拿到的最大高度是无界的，`Arrangement.Center` 在它身上不会生效。
+ * 拿到的最大高度是无界的，`Arrangement.Center` 在它身上不生效。
  */
 @Composable
 private fun WelcomeStepContent(
@@ -387,31 +396,26 @@ private fun WelcomeStepContent(
                 .padding(vertical = FreshNowSpacing.md),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            WelcomeHero(step.iconRes)
+            StepSpacer()
+            WelcomeTitle(stringResource(step.titleRes))
+            StepSpacer()
+            WelcomeBody(stringResource(step.bodyRes))
+
             when (step) {
                 WelcomeStep.INTRO -> {
-                    WelcomeHero(R.drawable.ic_cookie)
-                    StepSpacer()
-                    WelcomeTitle(stringResource(R.string.app_name))
-                    StepSpacer()
-                    WelcomeBody(stringResource(R.string.welcome_intro_body))
                     Spacer(modifier = Modifier.height(FreshNowSpacing.md))
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
                     ) {
-                        Benefit(stringResource(R.string.welcome_intro_benefit_scan))
-                        Benefit(stringResource(R.string.welcome_intro_benefit_expiry))
-                        Benefit(stringResource(R.string.welcome_intro_benefit_privacy))
+                        Benefit(stringResource(R.string.welcome_intro_benefit_ocr))
+                        Benefit(stringResource(R.string.welcome_intro_benefit_packaging))
                     }
                 }
 
                 WelcomeStep.FLOW -> {
-                    WelcomeHero(R.drawable.ic_reasoning)
-                    StepSpacer()
-                    WelcomeTitle(stringResource(R.string.welcome_flow_title))
-                    StepSpacer()
-                    WelcomeBody(stringResource(R.string.welcome_flow_body))
                     Spacer(modifier = Modifier.height(FreshNowSpacing.md))
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -433,11 +437,6 @@ private fun WelcomeStepContent(
                 }
 
                 WelcomeStep.AI_CONFIG -> {
-                    WelcomeHero(R.drawable.ic_base_config)
-                    StepSpacer()
-                    WelcomeTitle(stringResource(R.string.welcome_ai_title))
-                    StepSpacer()
-                    WelcomeBody(stringResource(R.string.welcome_ai_body))
                     Spacer(modifier = Modifier.height(FreshNowSpacing.md))
                     AiBasicConfigForm(
                         draft = basicConfig,
@@ -448,11 +447,6 @@ private fun WelcomeStepContent(
                 }
 
                 WelcomeStep.CAMERA -> {
-                    WelcomeHero(R.drawable.ic_camera)
-                    StepSpacer()
-                    WelcomeTitle(stringResource(R.string.welcome_camera_title))
-                    StepSpacer()
-                    WelcomeBody(stringResource(R.string.welcome_camera_body))
                     if (cameraPermissionBlocked) {
                         Spacer(modifier = Modifier.height(FreshNowSpacing.sm))
                         Text(
@@ -464,13 +458,8 @@ private fun WelcomeStepContent(
                     }
                 }
 
-                WelcomeStep.DONE -> {
-                    WelcomeHero(R.drawable.ic_done_all)
-                    StepSpacer()
-                    WelcomeTitle(stringResource(R.string.welcome_done_title))
-                    StepSpacer()
-                    WelcomeBody(stringResource(R.string.welcome_done_body))
-                }
+                // 收尾那一步只有标题与正文：要做的事就是底部那颗「开始使用」
+                WelcomeStep.DONE -> Unit
             }
         }
     }
