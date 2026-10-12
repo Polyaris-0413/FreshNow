@@ -130,19 +130,19 @@
 
     <!-- 欢迎页：只在首次使用时出现一次。五步依次是定位、代价（识别要用自备的模型）、配置、相机权限。
          最后一步是权限的 priming：先说明用途，再由用户点按钮触发系统弹窗。
-         第 1 步＝一句话定位 + 三条要点：先「扫一眼就知道还能放几天」（用户拿到的东西），
-         再两条支撑卖点（认字水平与商用 OCR 相当、什么包装都能认）。顺序不能倒——先摆准确率
-         与兼容性，首屏就成了一行行参数；最多三条、先给用户结果，都出自 Material 的
-         Top User Benefits 模型（「Show the user benefit first」，别描述功能）。
-         用词取用户视角的日常说法（「包装」「快到期」），不搬 README 里的功能名与口号
-         （「实时识别」「无广告无追踪、无内购」这类罗列不是人话）。
-         「商用 OCR」是有意留的参照物：卖点就是「认得准」，而它是用户衡量这件事时现成的尺子，
-         换成「识别引擎」之类反而没人认识；除此之外的技术名词不进文案。
-         取景识别一律说「扫描」不说「拍照」：扫描页是持续取景、没有快门，用户并没有按下去的那一下 -->
+         第 1 步＝一句话定位 + 一节「相比传统 OCR 的优势」三条。三条按「准不准 / 花多少钱 /
+         要养多少代码」排：第 2 条只写「省掉一份 OCR 服务的开销」，不写笼统的「成本更低」——模型
+         调用本身要花钱，而且钱是用户自己出的，笼统说更便宜会误导；第 3 条里的「养算法」说的是
+         维护：没有版式适配，也就没有那一块维护量。
+         「商用 OCR」是有意留的参照物：它就是「认字准不准」这件事现成的尺子，换成「识别引擎」反而没人认识；
+         除此之外的技术名词不进文案。
+         取景识别一律说「扫描」不说「拍照」：扫描页是持续取景、没有快门，用户并没有按下去的那一下
+         （第 5 步的「拍下第一件东西」还是旧写法，待改）。 -->
     <string name="welcome_intro_body">借助模型管理食品保质期。</string>
-    <string name="welcome_intro_benefit_days_left">扫一眼就知道还能放几天</string>
-    <string name="welcome_intro_benefit_ocr">认得准：和商用 OCR 一个水平</string>
-    <string name="welcome_intro_benefit_packaging">什么包装都能认，换个牌子也不用等适配</string>
+    <string name="welcome_intro_advantage_title">多模态识别相比传统 OCR 的优势</string>
+    <string name="welcome_intro_advantage_accuracy">识别效率与准确度相当</string>
+    <string name="welcome_intro_advantage_cost">省掉一份 OCR 服务的开销</string>
+    <string name="welcome_intro_advantage_maintenance">更聪明，也不用写算法、不用养算法</string>
     <string name="welcome_flow_title">标签上的字交给模型读</string>
     <!-- 不写「照片不会外传」之类的话：照片本来就会随请求发往用户自己配的模型，
          这一句要说的正是这件事 -->

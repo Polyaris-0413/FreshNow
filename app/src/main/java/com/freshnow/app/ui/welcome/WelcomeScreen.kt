@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import com.freshnow.app.ui.component.AiBasicConfigForm
+import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.scan.rememberCameraPermissionState
 import com.freshnow.app.ui.theme.FreshNowSize
@@ -408,16 +409,24 @@ private fun WelcomeStepContent(
             WelcomeBody(stringResource(step.bodyRes))
 
             when (step) {
+                // 第 1 步：定位之后摆一节「相比传统 OCR 的优势」，三条按准不准 / 花多少钱 /
+                // 要养多少代码排（措辞与取舍见 strings.xml 的 welcome_intro_advantage_*）
                 WelcomeStep.INTRO -> {
                     Spacer(modifier = Modifier.height(FreshNowSpacing.md))
+                    SectionHeading(
+                        text = stringResource(R.string.welcome_intro_advantage_title),
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(FreshNowSpacing.xs))
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
                     ) {
-                        Benefit(stringResource(R.string.welcome_intro_benefit_days_left))
-                        Benefit(stringResource(R.string.welcome_intro_benefit_ocr))
-                        Benefit(stringResource(R.string.welcome_intro_benefit_packaging))
+                        Advantage(stringResource(R.string.welcome_intro_advantage_accuracy))
+                        Advantage(stringResource(R.string.welcome_intro_advantage_cost))
+                        Advantage(stringResource(R.string.welcome_intro_advantage_maintenance))
                     }
                 }
 
@@ -507,11 +516,11 @@ private fun WelcomeBody(text: String) {
 }
 
 /**
- * 第 1 步的三条好处。条数的上限来自 Material 的 Top User Benefits 模型（最多三条），
- * 内容也只许写好处——摆一屏功能清单会把「这是什么应用」冲淡
+ * 第 1 步那三条优势各占一行。它们要回答的不是「用户得到什么」，而是「为什么用模型而不是传统
+ * OCR」，所以叫 Advantage 而不是 Benefit
  */
 @Composable
-private fun Benefit(text: String) {
+private fun Advantage(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
