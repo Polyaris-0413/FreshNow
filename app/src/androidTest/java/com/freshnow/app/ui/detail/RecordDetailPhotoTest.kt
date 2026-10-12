@@ -95,17 +95,30 @@ class RecordDetailPhotoTest {
 
         composeRule.mainClock.autoAdvance = false
         composeRule.onNodeWithContentDescription(PHOTO).performClick()
-        // 页内过渡是 200ms（见 FreshNowTransitions.stateChange），取一半
-        composeRule.mainClock.advanceTimeBy(100)
+        // 取过渡开头一帧：M3 的 fast spatial 大约 300ms 收住，头一帧必然还在半路上
+        composeRule.mainClock.advanceTimeBy(MID_SAMPLE_MS)
         val middle = capture()
         saveScreenshot("detail-photo-open-mid.png")
-        composeRule.mainClock.advanceTimeBy(1_000)
+
+        // 一帧一帧推到画面不再变：既是「走到终点」，也顺手量出这段过渡用了多久
+        var elapsed = MID_SAMPLE_MS
+        var end = middle
+        var last = middle
+        while (elapsed < MAX_TRANSITION_MS) {
+            composeRule.mainClock.advanceTimeBy(FRAME_MS)
+            elapsed += FRAME_MS
+            val now = capture()
+            if (diff(last, now) == 0) break
+            last = now
+            end = now
+        }
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
-        val end = capture()
 
         assertTrue("点开后画面应变了", diff(before, middle) > 0)
         assertTrue("过渡中途应与终止画面不同（相同即硬切）", diff(middle, end) > 0)
+        // 上界挡「拖泥带水」：M3 的 fast spatial 约 300ms 收住，放宽到 500ms 留余量
+        assertTrue("过渡不该拖泥带水：约 ${elapsed}ms", elapsed < 500)
         saveScreenshot("detail-photo-open-end.png")
     }
 
@@ -170,6 +183,11 @@ class RecordDetailPhotoTest {
 
     private companion object {
         const val PHOTO = "扫描照片"
+        /** 取样与步进：一帧 16ms，开头取一帧当「半路」的样本 */
+        const val FRAME_MS = 16L
+        const val MID_SAMPLE_MS = 80L
+        /** 允许的最长过渡：只用来挡「拖泥带水」 */
+        const val MAX_TRANSITION_MS = 1_200L
         /** 看图页的标题：详情页里同样的字是照片的内容描述，不是文本，两处不会撞 */
         const val VIEWER_TITLE = "扫描照片"
         const val BACK = "返回"

@@ -6,7 +6,6 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -87,14 +86,18 @@ object FreshNowTransitions {
     /**
      * 接手手势的动画：拖动松手后的回落、退场时照片飞回原处、双击缩放的放大与缩回。
      *
-     * 【为什么不用 [stateChange] 的 tween】
+     * 【为什么用弹簧，而不是 [stateChange] 的 tween】
      * tween 默认曲线（FastOutSlowIn）起手是缓入的：手指刚离开那几帧画面几乎不动，手上读作
-     * 「顿一下」。手势松手后的运动应当接着手指的速度走，所以这一档改用弹簧：起手快、末尾自然收住
-     * （M3 里手势驱动的运动同样推荐弹簧，而不是固定曲线）。
-     * 阻尼比取 1（不过冲）：照片飞回列表时冲过头会显得轻浮。
+     * 「顿一下」；而手势松手后的运动应当接着手指的速度走。M3 对这类运动给的也是弹簧（没有固定
+     * 时长，随输入走）。
+     *
+     * 取值是 M3 Expressive 运动方案里的 **fast spatial**（阻尼比 0.9、刚度 1400）：0.9 允许
+     * 一点点过冲，这是它不显得拖泥带水的原因；刚度取「fast」那一档，长距离飞行也收得住。
+     * 本项目的 Compose BOM（material3 1.5.0-alpha29）里还没有 MotionScheme，所以值写在这里并
+     * 注明出处；等 BOM 里有了，换成 MaterialTheme.motionScheme.fastSpatialSpec() 即可，别另挑参数。
      */
     fun <T> gestureRelease(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
+        spring(dampingRatio = 0.9f, stiffness = 1400f)
 
     /**
      * 与 [stateChange] 同一档时长，但晚一拍才开始。
