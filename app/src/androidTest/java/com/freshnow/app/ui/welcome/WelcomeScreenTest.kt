@@ -40,7 +40,7 @@ class WelcomeScreenTest {
 
         composeRule.onNodeWithText("下一步").assertIsDisplayed()
         assertNotVisible("跳过")
-        composeRule.onNodeWithText("把包装拍下来，之后不用再惦记它什么时候过期。").assertIsDisplayed()
+        composeRule.onNodeWithText("借助模型管理食品保质期。").assertIsDisplayed()
     }
 
     /** 「跳过」只出现在确实有可以不做的事那两步：配置（不填）与权限（不授权） */
@@ -84,7 +84,7 @@ class WelcomeScreenTest {
 
         clickSettled("上一步")
 
-        awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
+        awaitText("借助模型管理食品保质期。")
     }
 
     /**
@@ -99,7 +99,7 @@ class WelcomeScreenTest {
         composeRule.onRoot().performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("填上你的模型服务").assertIsDisplayed()
+        composeRule.onNodeWithText("填上你的模型").assertIsDisplayed()
         assertNotVisible("扫描时要用到相机")
     }
 
@@ -114,7 +114,7 @@ class WelcomeScreenTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("标签上的字交给模型读").assertIsDisplayed()
-        assertNotVisible("把包装拍下来，之后不用再惦记它什么时候过期。")
+        assertNotVisible("借助模型管理食品保质期。")
     }
 
     /**
@@ -137,7 +137,7 @@ class WelcomeScreenTest {
         if (stillThere) composeRule.onNodeWithText("上一步").performClick()
         composeRule.mainClock.autoAdvance = true
 
-        awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
+        awaitText("借助模型管理食品保质期。")
     }
 
     /** 「跳过」跳过的是当前这一步，不是整段引导：配置那一步不填就是直接往前走，不该收场 */
@@ -250,7 +250,7 @@ class WelcomeScreenTest {
     fun grantedPermissionBeforeCameraStepDoesNotSkipAhead() {
         setContent(cameraGrantedCount = { 1 })
 
-        composeRule.onNodeWithText("把包装拍下来，之后不用再惦记它什么时候过期。").assertIsDisplayed()
+        composeRule.onNodeWithText("借助模型管理食品保质期。").assertIsDisplayed()
         assertNotVisible("都设置好了")
     }
 
@@ -351,7 +351,7 @@ class WelcomeScreenTest {
         clickSettled("下一步")
         awaitText("标签上的字交给模型读")
         clickSettled("下一步")
-        awaitText("填上你的模型服务")
+        awaitText("填上你的模型")
         // 翻页是动画，没落定之前相邻页也在组合里（同一段文案会同时挂在两页上、其中一份在屏幕外），
         // 所以走到位之后要等它停稳，后面的断言才不会撞上屏幕外那一份
         composeRule.waitForIdle()

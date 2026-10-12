@@ -82,9 +82,10 @@ internal enum class WelcomeStep {
  * 首次启动的欢迎页，只在「这次安装还没走过引导」时由 [com.freshnow.app.ui.FreshNowApp] 渲染
  * （见 OnboardingRepository）。
  *
- * 引导的整体形状取 Material 的「Top User Benefits」模型：先给价值（第 1 步），再说清用它的代价
- * （第 2 步：识别要自备模型服务），然后是动作（第 3 步配置、第 4 步相机权限），最后收个尾
- * （第 5 步）。收尾那一步是有意留的：设置刚做完就直接落进主页，用户不知道自己走完了没有。
+ * 引导的整体形状取 Material 的「Top User Benefits」模型：先交代这是什么（第 1 步：一句话定位，
+ * 不列功能——功能与做法是第 2 步的事），再说清用它的代价（第 2 步：识别要用自备的模型），
+ * 然后是动作（第 3 步配置、第 4 步相机权限），最后收个尾（第 5 步）。收尾那一步是有意留的：
+ * 设置刚做完就直接落进主页，用户不知道自己走完了没有。
  *
  * 「跳过」跳过的是当前这一步要干的事，不是整个引导：一律往前走一项，而且只摆在「确实有可以不做
  * 的事」那两步（配置与权限）。信息页上它与「下一步」完全同义，两颗同义的按钮只会让人犹豫；
@@ -393,16 +394,6 @@ private fun WelcomeStepContent(
                     WelcomeTitle(stringResource(R.string.app_name))
                     StepSpacer()
                     WelcomeBody(stringResource(R.string.welcome_intro_body))
-                    Spacer(modifier = Modifier.height(FreshNowSpacing.md))
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
-                    ) {
-                        Benefit(stringResource(R.string.welcome_intro_benefit_scan))
-                        Benefit(stringResource(R.string.welcome_intro_benefit_expiry))
-                        Benefit(stringResource(R.string.welcome_intro_benefit_privacy))
-                    }
                 }
 
                 WelcomeStep.FLOW -> {
@@ -510,12 +501,3 @@ private fun WelcomeBody(text: String) {
     )
 }
 
-/** 第 1 步的三条要点。M3 规范建议这一屏最多讲三件事 */
-@Composable
-private fun Benefit(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        textAlign = TextAlign.Center
-    )
-}
