@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
@@ -85,6 +86,16 @@ class PhotoViewerTest {
         setContent()
 
         composeRule.onRoot().performTouchInput { swipeDown() }
+
+        composeRule.waitUntil(timeoutMillis = 5_000) { dismissed == 1 }
+    }
+
+    /** 四个方向一个标准：横向甩出去也算退出（微信、小红书都是全向的） */
+    @Test
+    fun swipingSidewaysDismissesTheViewer() {
+        setContent()
+
+        composeRule.onRoot().performTouchInput { swipeLeft() }
 
         composeRule.waitUntil(timeoutMillis = 5_000) { dismissed == 1 }
     }
