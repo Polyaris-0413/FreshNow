@@ -10,6 +10,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import com.freshnow.app.ui.theme.FreshNowTheme
@@ -82,6 +85,36 @@ class WelcomeScreenTest {
         clickSettled("上一步")
 
         awaitText("把包装拍下来，之后不用再惦记它什么时候过期。")
+    }
+
+    /**
+     * 手指往左滑不换页。滑动在这里与「跳过」同义：配置这一步还没填，滑过去等于把没填的东西跳过，
+     * 而屏幕上不给任何提示。M3 的 Gestures 只把横向滑动留给对等视图切换与完成动作。
+     */
+    @Test
+    fun swipingForwardDoesNotChangeStep() {
+        setContent()
+        goToConfigStep()
+
+        composeRule.onRoot().performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("填上你的模型服务").assertIsDisplayed()
+        assertNotVisible("扫描时要用到相机")
+    }
+
+    /** 往回滑也不换页：往回走只有「上一步」与系统返回键两条路 */
+    @Test
+    fun swipingBackwardDoesNotChangeStep() {
+        setContent()
+        clickSettled("下一步")
+        awaitText("标签上的字交给模型读")
+
+        composeRule.onRoot().performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("标签上的字交给模型读").assertIsDisplayed()
+        assertNotVisible("把包装拍下来，之后不用再惦记它什么时候过期。")
     }
 
     /**

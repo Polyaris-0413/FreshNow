@@ -89,7 +89,8 @@ internal enum class WelcomeStep {
  * 「跳过」跳过的是当前这一步要干的事，不是整个引导：一律往前走一项，而且只摆在「确实有可以不做
  * 的事」那两步（配置与权限）。信息页上它与「下一步」完全同义，两颗同义的按钮只会让人犹豫；
  * 收尾那一步也不摆（它和「开始使用」是同一件事）。结束引导的出口就是那颗「开始使用」，
- * 以及停在第一步时的返回键。「上一步」与系统返回键都能往回走。
+ * 以及停在第一步时的返回键。「上一步」与系统返回键都能往回走；往前只有「下一步／跳过」与主按钮，
+ * 手指左右滑动不换页（理由见下面 HorizontalPager 处的注释）。
  *
  * 状态与界面分开：[WelcomeSteps] 是不带状态的版式，测试直接摆它，不会碰到设备上真实的 DataStore。
  */
@@ -228,9 +229,16 @@ internal fun WelcomeSteps(
                 // 配置那一步要填三项，键盘弹出时底部按钮得跟着抬起来
                 .imePadding()
         ) {
+            // 关掉手指滑动。M3 的 Gestures 只把横向滑动留给两类事：对等视图之间切换（如标签页），
+            // 以及完成某个动作；而这里每一步是承接的（配置要落盘、权限要授予），滑过去与「跳过」
+            // 是同一件事——手一滑就把没填的配置、没授的权限跳掉，屏幕上没有任何提示。Google 现行的
+            // 引导指引（Android 设计指南的 Authentication & Onboarding）也只要求「一直摆着明确的
+            // 跳过或登录」，从没让滑动承担推进步进的职责；M2 时代那条「可左右滑动」讲的是纯信息轮播，
+            // 那种轮播只有一个固定的「开始使用」出口，滑到哪一页都不改任何状态。
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                userScrollEnabled = false
             ) { page ->
                 WelcomeStepContent(
                     step = steps[page],
