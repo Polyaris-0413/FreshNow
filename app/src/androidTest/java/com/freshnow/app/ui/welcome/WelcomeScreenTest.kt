@@ -43,7 +43,7 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("借助模型管理食品保质期。").assertIsDisplayed()
         // 定位之后再摆一节：相比传统 OCR 的三条优势
         composeRule.onNodeWithText("多模态识别相比传统 OCR 的优势").assertIsDisplayed()
-        composeRule.onNodeWithText("识别效率与准确度相当").assertIsDisplayed()
+        composeRule.onNodeWithText("识别效率与准确度相当，成本更低").assertIsDisplayed()
     }
 
     /** 「跳过」只出现在确实有可以不做的事那两步：配置（不填）与权限（不授权） */

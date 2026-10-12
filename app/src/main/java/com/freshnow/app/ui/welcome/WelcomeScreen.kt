@@ -409,8 +409,8 @@ private fun WelcomeStepContent(
             WelcomeBody(stringResource(step.bodyRes))
 
             when (step) {
-                // 第 1 步：定位之后摆一节「相比传统 OCR 的优势」，三条按准不准 / 花多少钱 /
-                // 要养多少代码排（措辞与取舍见 strings.xml 的 welcome_intro_advantage_*）
+                // 第 1 步：定位之后摆一节「相比传统 OCR 的优势」两条：识别水平与成本一条，
+                // 聪明程度与代码量一条（措辞与取舍见 strings.xml 的 welcome_intro_advantage_*）
                 WelcomeStep.INTRO -> {
                     Spacer(modifier = Modifier.height(FreshNowSpacing.md))
                     SectionHeading(
@@ -424,7 +424,6 @@ private fun WelcomeStepContent(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
                     ) {
-                        Advantage(stringResource(R.string.welcome_intro_advantage_accuracy))
                         Advantage(stringResource(R.string.welcome_intro_advantage_cost))
                         Advantage(stringResource(R.string.welcome_intro_advantage_maintenance))
                     }
