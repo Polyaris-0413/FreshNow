@@ -12,9 +12,9 @@ import org.junit.runner.RunWith
 /**
  * 录制 FreshNow 的 baseline profile。
  *
- * 走五条主路径：冷启动进首页、扫描页（CameraX 的预览与分析器在工作线程上初始化）、设置页、
- * 同步页、关于页到开源声明页。控件一律按文案与描述符定位，不用坐标——坐标会随屏幕尺寸与
- * 字体缩放失效。
+ * 走六条主路径：首次启动的欢迎页（引导）、冷启动进首页、扫描页（CameraX 的预览与分析器在工作线程上
+ * 初始化）、设置页、同步页、关于页到开源声明页。控件一律按文案与描述符定位，不用坐标——坐标会随
+ * 屏幕尺寸与字体缩放失效。
  *
  * 与 app/src/androidTest 下的界面测试不同，这里驱动的是装好的真实应用，会读写它自己的
  * DataStore（例如「显示思维链」被真的切换一次）。因此只能在一次性虚拟机上跑。
@@ -34,10 +34,15 @@ class BaselineProfileGenerator {
 
             pressHome()
             startActivityAndWait()
-            // 录制载体是没经 R8 收缩的 nonMinified 构建，冷启动比 release 慢得多，
-            // 首次界面要单独放宽等待，否则会在首帧刚出来前就判超时。
-            // 等的是「添加」这个描述符而不是首页标题：标题就是应用名，中文环境下是「食不宜迟」，
-            // 按它定位会让脚本随语言变
+            // 每轮录制都是重装后的干净包，所以本轮首屏是欢迎页——但只有**第一次**启动才是：
+            // 引导走完会写下「已看过」标记，而录制要跑多轮（本次配置下 10 轮），后面几轮直接进首页。
+            // 所以不能无脑等欢迎页：先看首页在不在（在就说明这一轮不用走引导），再看欢迎页在不在
+            // （在就把它走完）；两个都没看到就不插手，交给下面那个等「添加」去报真实的错。
+            if (!device.wait(Until.hasObject(By.desc(ADD)), PROBE_TIMEOUT_MS) &&
+                device.wait(Until.hasObject(By.text(WELCOME_NEXT)), PROBE_TIMEOUT_MS)
+            ) {
+                walkThroughWelcome()
+            }
             awaitDesc(ADD, LAUNCH_TIMEOUT_MS)
 
             // 扫描页
@@ -67,6 +72,33 @@ class BaselineProfileGenerator {
             awaitText(OPEN_SOURCE_ITEM)
             backToHome()
         }
+    }
+
+    /**
+     * 走完首次启动的欢迎页（引导）。
+     *
+     * 由调用方判过「这一轮确实在欢迎页」才调；**不能无脑调**——引导走完会写下标记，
+     * 同一台设备上后面几轮录制直接进首页（见 generate 里那段判断）。
+     *
+     * 每一步用**按钮**确认走到位，不靠各步标题的文案：标题改文案时会挂（同步页就吃过这个亏），
+     * 而引导每步能点的按钮是固定的——「上一步」从第 2 步起才有，「跳过」只在配置与权限那两步
+     * 出现，收尾页是「开始使用」。中间不能省等待：翻页是动画，`currentPage` 过半才变，
+     * 不等就再点一次「下一步」，那一下会落在原来那一步上。
+     *
+     * 调用前已经 `pm grant` 过相机权限，所以权限页不会弹系统窗，点它只是把回调叫回来；
+     * 这里仍然点一下，因为进引导时权限就在时应用不会自动跳过那一步（那是有意的，见 WelcomeScreen）。
+     */
+    private fun MacrobenchmarkScope.walkThroughWelcome() {
+        // 首帧刚出来时按钮未必已经合成出来，而托管虚拟机负载重时取一次无障碍树会退化成秒级
+        // （文档附录 A-2），所以这里跟首帧一样给足等待，不另用 30 秒那一档
+        clickText(WELCOME_NEXT, LAUNCH_TIMEOUT_MS)
+        awaitText(WELCOME_PREVIOUS)
+        clickText(WELCOME_NEXT)
+        awaitText(WELCOME_SKIP)
+        clickText(WELCOME_SKIP)
+        clickText(WELCOME_GRANT_CAMERA)
+        awaitText(WELCOME_START, LAUNCH_TIMEOUT_MS)
+        clickText(WELCOME_START)
     }
 
     private fun MacrobenchmarkScope.openOverflow() {
@@ -102,8 +134,8 @@ class BaselineProfileGenerator {
      * 不直接用 `findObject`：上一步的「等文案」只能证明目标页已经在树里，
      * 这一刻转场未必走完、要点的那个控件也未必已经合成出来，一次性查找会拷到空。
      */
-    private fun MacrobenchmarkScope.clickText(text: String) {
-        val node = device.wait(Until.findObject(By.text(text)), TIMEOUT_MS)
+    private fun MacrobenchmarkScope.clickText(text: String, timeoutMs: Long = TIMEOUT_MS) {
+        val node = device.wait(Until.findObject(By.text(text)), timeoutMs)
             ?: error("找不到文案为「$text」的控件")
         node.click()
     }
@@ -141,9 +173,20 @@ class BaselineProfileGenerator {
         const val LEAVE_SCAN = "离开扫描页？"
         const val DISCARD = "不保存"
 
+        // 欢迎页的出口按钮。引导每步能点什么是固定的：第 1 步只有「下一步」，「上一步」从第 2 步起
+        // 才有，「跳过」只在配置与权限那两步出现，权限页是「允许使用相机」，收尾页是「开始使用」
+        const val WELCOME_NEXT = "下一步"
+        const val WELCOME_PREVIOUS = "上一步"
+        const val WELCOME_SKIP = "跳过"
+        const val WELCOME_GRANT_CAMERA = "允许使用相机"
+        const val WELCOME_START = "开始使用"
+
         const val TIMEOUT_MS = 30_000L
         const val LAUNCH_TIMEOUT_MS = 90_000L
         const val SHORT_TIMEOUT_MS = 1_000L
+
+        /** 判「这一轮到底在首页还是在欢迎页」的等待：只花这点时间探一下，到了就不再多等 */
+        const val PROBE_TIMEOUT_MS = 10_000L
 
         /** 判「到首页了没有」的等待：给足，免得无障碍树慢一次就被当成没到而多按返回 */
         const val HOME_WAIT_MS = 10_000L
