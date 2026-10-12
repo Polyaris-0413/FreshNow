@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -20,6 +21,7 @@ import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -75,6 +77,51 @@ class RecordDetailPhotoTest {
         composeRule.onNodeWithText("编辑").assertIsDisplayed()
     }
 
+    /**
+     * 点开照片是「照片长到整屏」的过渡，不是硬切。
+     *
+     * 硬切也能通过[前面的]开关断言，所以这里比的是三帧：点开前、过渡中途、过渡结束。
+     * 时钟放开手动推进，才能在中间取到一帧；中途那一帧与结束那一帧不同，就说明它没有
+     * 一步到位。
+     */
+    @Test
+    fun openingTheViewerIsAnimatedNotAHardCut() {
+        seedRecordWithPhoto()
+        setContent()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithContentDescription(PHOTO).fetchSemanticsNodes().isNotEmpty()
+        }
+        val before = capture()
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.onNodeWithContentDescription(PHOTO).performClick()
+        // 页内过渡是 200ms（见 FreshNowTransitions.stateChange），取一半
+        composeRule.mainClock.advanceTimeBy(100)
+        val middle = capture()
+        saveScreenshot("detail-photo-open-mid.png")
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+        val end = capture()
+
+        assertTrue("点开后画面应变了", diff(before, middle) > 0)
+        assertTrue("过渡中途应与终止画面不同（相同即硬切）", diff(middle, end) > 0)
+        saveScreenshot("detail-photo-open-end.png")
+    }
+
+    private fun capture() = composeRule.onRoot().captureToImage().toPixelMap()
+
+    /** 两帧之间有多少像素不一样 */
+    private fun diff(a: androidx.compose.ui.graphics.PixelMap, b: androidx.compose.ui.graphics.PixelMap): Int {
+        var count = 0
+        for (y in 0 until minOf(a.height, b.height)) {
+            for (x in 0 until minOf(a.width, b.width)) {
+                if (a[x, y] != b[x, y]) count++
+            }
+        }
+        return count
+    }
+
     private fun setContent() {
         composeRule.setContent {
             FreshNowTheme {
@@ -123,7 +170,7 @@ class RecordDetailPhotoTest {
 
     private companion object {
         const val PHOTO = "扫描照片"
-        const val VIEW_HINT = "双指放大，拖动查看"
+        const val VIEW_HINT = "双指放大，双击缩放，单击关闭"
         const val BACK = "返回"
     }
 }

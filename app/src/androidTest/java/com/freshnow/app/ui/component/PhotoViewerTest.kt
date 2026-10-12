@@ -6,9 +6,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -30,12 +33,37 @@ class PhotoViewerTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+    private var dismissed = 0
+
     /** 手势没有可见把手，说明一句比让用户自己试出来省事（与裁剪页同一取舍） */
     @Test
     fun hintExplainsTheGestures() {
         setContent()
 
-        composeRule.onNodeWithText("双指放大，拖动查看").assertIsDisplayed()
+        composeRule.onNodeWithText("双指放大，双击缩放，单击关闭").assertIsDisplayed()
+    }
+
+    /** 单击关闭：全屏图不能点的话，用户会反复戳屏幕（微信、微博的看图页都是点一下退出） */
+    @Test
+    fun tappingClosesTheViewer() {
+        setContent()
+
+        composeRule.onRoot().performClick()
+
+        // 注册了双击，单击要等过双击的超时才会到；用等结果而不是睡固定时长
+        composeRule.waitUntil(timeoutMillis = 5_000) { dismissed == 1 }
+    }
+
+    @Test
+    fun doubleTapEnlargesThePhoto() {
+        setContent()
+        val before = photoPixels()
+
+        composeRule.onRoot().performTouchInput { doubleClick() }
+        composeRule.waitForIdle()
+
+        val after = photoPixels()
+        assertTrue("双击后照片应占更多像素：前 $before，后 $after", after > before)
     }
 
     @Test
@@ -73,7 +101,7 @@ class PhotoViewerTest {
     private fun setContent() {
         composeRule.setContent {
             FreshNowTheme {
-                PhotoViewer(image = photo)
+                PhotoViewer(image = photo, onDismiss = { dismissed += 1 })
             }
         }
     }
