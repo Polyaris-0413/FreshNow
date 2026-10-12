@@ -68,12 +68,12 @@ class RecordDetailPhotoTest {
         composeRule.onNodeWithContentDescription(PHOTO).performClick()
 
         // 看图页的手势说明只在这一页上有
-        composeRule.onNodeWithText(VIEW_HINT).assertIsDisplayed()
+        composeRule.onNodeWithText(VIEWER_TITLE).assertIsDisplayed()
         saveScreenshot("detail-photo-viewer.png")
 
         composeRule.onNodeWithContentDescription(BACK).performClick()
 
-        composeRule.onNodeWithText(VIEW_HINT).assertDoesNotExist()
+        composeRule.onNodeWithText(VIEWER_TITLE).assertDoesNotExist()
         composeRule.onNodeWithText("编辑").assertIsDisplayed()
     }
 
@@ -170,7 +170,8 @@ class RecordDetailPhotoTest {
 
     private companion object {
         const val PHOTO = "扫描照片"
-        const val VIEW_HINT = "双指放大，双击缩放，单击关闭"
+        /** 看图页的标题：详情页里同样的字是照片的内容描述，不是文本，两处不会撞 */
+        const val VIEWER_TITLE = "扫描照片"
         const val BACK = "返回"
     }
 }

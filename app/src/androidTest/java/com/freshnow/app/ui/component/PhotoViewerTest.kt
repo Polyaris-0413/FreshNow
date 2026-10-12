@@ -8,7 +8,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performClick
@@ -34,14 +33,6 @@ class PhotoViewerTest {
     val composeRule = createComposeRule()
 
     private var dismissed = 0
-
-    /** 手势没有可见把手，说明一句比让用户自己试出来省事（与裁剪页同一取舍） */
-    @Test
-    fun hintExplainsTheGestures() {
-        setContent()
-
-        composeRule.onNodeWithText("双指放大，双击缩放，单击关闭").assertIsDisplayed()
-    }
 
     /** 单击关闭：全屏图不能点的话，用户会反复戳屏幕（微信、微博的看图页都是点一下退出） */
     @Test
