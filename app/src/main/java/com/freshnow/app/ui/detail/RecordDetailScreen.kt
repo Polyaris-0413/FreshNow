@@ -76,7 +76,7 @@ fun RecordDetailScreen(
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
                             animatedVisibilityScope = this,
-                            boundsTransform = { _, _ -> FreshNowTransitions.stateChange() }
+                            boundsTransform = { _, _ -> FreshNowTransitions.gestureRelease() }
                         )
                     )
                 }
@@ -90,7 +90,7 @@ fun RecordDetailScreen(
                     photoModifier = Modifier.sharedElement(
                         sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
                         animatedVisibilityScope = this,
-                        boundsTransform = { _, _ -> FreshNowTransitions.stateChange() }
+                        boundsTransform = { _, _ -> FreshNowTransitions.gestureRelease() }
                     )
                 )
             }

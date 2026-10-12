@@ -100,12 +100,17 @@ class PhotoViewerTest {
         composeRule.waitUntil(timeoutMillis = 5_000) { dismissed == 1 }
     }
 
-    /** 只挪一点要弹回去：一摸就跑会让人不敢碰 */
+    /**
+     * 挪一点点要弹回去：一摸就跑会让人不敢碰。
+     *
+     * 位移要**超过触摸阈值**才有意义：20px 那一档还在触摸阈内，会被当成单击（单击本来就该退出），
+     * 测的就不是这里要测的东西了。取 60px：过阈，但远不到退出阈值（视窗短边的 18%）。
+     */
     @Test
     fun aSmallDragDoesNotDismiss() {
         setContent()
 
-        composeRule.onRoot().performTouchInput { swipeDown(startY = centerY, endY = centerY + 20f) }
+        composeRule.onRoot().performTouchInput { swipeDown(startY = centerY, endY = centerY + 60f) }
         composeRule.waitForIdle()
 
         assertEquals(0, dismissed)

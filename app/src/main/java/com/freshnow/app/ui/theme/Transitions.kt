@@ -6,6 +6,8 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -81,6 +83,18 @@ object FreshNowTransitions {
      * 由调用处决定，省得同一组时长与曲线在多处各写一遍、日后改一处漏一处。
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> = tween(STATE_CHANGE_MS)
+
+    /**
+     * 接手手势的动画：拖动松手后的回落、退场时照片飞回原处、双击缩放的放大与缩回。
+     *
+     * 【为什么不用 [stateChange] 的 tween】
+     * tween 默认曲线（FastOutSlowIn）起手是缓入的：手指刚离开那几帧画面几乎不动，手上读作
+     * 「顿一下」。手势松手后的运动应当接着手指的速度走，所以这一档改用弹簧：起手快、末尾自然收住
+     * （M3 里手势驱动的运动同样推荐弹簧，而不是固定曲线）。
+     * 阻尼比取 1（不过冲）：照片飞回列表时冲过头会显得轻浮。
+     */
+    fun <T> gestureRelease(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
 
     /**
      * 与 [stateChange] 同一档时长，但晚一拍才开始。
