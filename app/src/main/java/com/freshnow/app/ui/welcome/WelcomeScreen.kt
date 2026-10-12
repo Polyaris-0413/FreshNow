@@ -10,11 +10,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,16 +37,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.SubcomposeLayout
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
@@ -184,21 +176,6 @@ internal fun WelcomeSteps(
     val currentStep = steps[pagerState.currentPage]
     val scope = rememberCoroutineScope()
 
-    // 主视觉在所有页上落在同一高度，取「最高的一页正好居中」时的位置：既让主视觉不跟着各页内容
-    // 浮动，又保证最高的那一页（配置，三个输入框）不会被底部控件切掉。两个值都得实测：字体缩放、
-    // 文案变长、换机型都会改变各页高度，写死一个 dp 迟早会偏。
-    var tallestStepPx by remember { mutableIntStateOf(0) }
-    var tallestAreaPx by remember { mutableIntStateOf(0) }
-    // 键盘弹出时，可区会被 imePadding 压矮（见下面横向留白处的说明）：加上 ime 高度就是没收
-    // 键盘时的可区，键盘动画期间两项此消彼长，和基本不变
-    val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
-    // 还没量出来（第一帧）时留空：此时按老样子居中，免得把内容先甩到顶上再弹回去
-    val heroTop: Dp? = if (tallestStepPx in 1..<tallestAreaPx) {
-        with(LocalDensity.current) { ((tallestAreaPx - tallestStepPx) / 2).toDp() }
-    } else {
-        null
-    }
-
     fun goTo(step: WelcomeStep) {
         scope.launch { pagerState.animateScrollToPage(step.ordinal) }
     }
@@ -268,24 +245,9 @@ internal fun WelcomeSteps(
             // 引导指引（Android 设计指南的 Authentication & Onboarding）也只要求「一直摆着明确的
             // 跳过或登录」，从没让滑动承担推进步进的职责；M2 时代那条「可左右滑动」讲的是纯信息轮播，
             // 那种轮播只有一个固定的「开始使用」出口，滑到哪一页都不改任何状态。
-            // 量尺，不是界面：占 0 尺寸，只为把「最高的一页有多高」报上来（见上面 heroTop）
-            TallestStepProbe(
-                steps = steps,
-                basicConfig = basicConfig,
-                cameraPermissionBlocked = cameraPermissionBlocked,
-                onBaseUrlChange = onBaseUrlChange,
-                onModelNameChange = onModelNameChange,
-                onApiKeyChange = onApiKeyChange,
-                onMeasured = { if (it != tallestStepPx) tallestStepPx = it }
-            )
-
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .weight(1f)
-                    // 量一次可区高度。得记「没收键盘时」的那一个：键盘弹出来只该让内容能滚，
-                    // 不该让主视觉挪位置
-                    .onSizeChanged { tallestAreaPx = it.height + imeBottomPx },
+                modifier = Modifier.weight(1f),
                 userScrollEnabled = false
             ) { page ->
                 WelcomeStepContent(
@@ -295,7 +257,6 @@ internal fun WelcomeSteps(
                     onModelNameChange = onModelNameChange,
                     onApiKeyChange = onApiKeyChange,
                     cameraPermissionBlocked = cameraPermissionBlocked,
-                    topInset = heroTop,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -418,11 +379,9 @@ private fun pagerProgress(pagerState: PagerState, pageCount: Int): Float {
 }
 
 /**
- * 单步的内容。
- *
- * [topInset] 是主视觉上方的留白（由 [WelcomeSteps] 实测量出，各页共用一个值）；为空表示还没量出来，
- * 此时按老样子把整个可区居中，避免第一帧把内容甩到顶上再弹回去。留白取在 verticalScroll 之外，
- * 滚动的可区因此从留白下方开始：内容超过一屏时（第 3 步在小屏加键盘）不会先滚过一段空白。
+ * 单步的内容。整个可区居中摆：内容不足一屏时居中，超出一屏（第 3 步在小屏加键盘）时
+ * 从顶部开始滚。用 Box 居中而不是让可滚动的 Column 自己居中——Column 在 verticalScroll 下
+ * 拿到的最大高度是无界的，`Arrangement.Center` 在它身上不生效。
  */
 @Composable
 private fun WelcomeStepContent(
@@ -432,158 +391,83 @@ private fun WelcomeStepContent(
     onModelNameChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
     cameraPermissionBlocked: Boolean,
-    topInset: Dp?,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier,
-        contentAlignment = if (topInset == null) Alignment.Center else Alignment.TopCenter
-    ) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
-                .then(if (topInset != null) Modifier.padding(top = topInset) else Modifier)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = FreshNowSpacing.sm)
                 .padding(vertical = FreshNowSpacing.md),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            WelcomeStepBody(
-                step = step,
-                basicConfig = basicConfig,
-                onBaseUrlChange = onBaseUrlChange,
-                onModelNameChange = onModelNameChange,
-                onApiKeyChange = onApiKeyChange,
-                cameraPermissionBlocked = cameraPermissionBlocked
-            )
-        }
-    }
-}
+            WelcomeHero(step.iconRes)
+            StepSpacer()
+            WelcomeTitle(stringResource(step.titleRes))
+            StepSpacer()
+            WelcomeBody(stringResource(step.bodyRes))
 
-/**
- * 一步的内容本身：主视觉、标题、正文，外加该步特有的东西（要点、清单、表单、错误说明）。
- *
- * 与 [WelcomeStepContent] 分开是为了量高度：滚动的组件不许用无界高度量（见 [TallestStepProbe]），
- * 而量的时候要的正是这块内容自然有多高。内边距留给调用方，两边必须给成一样的，
- * 否则量出来的高度与真实那一页不等。
- */
-@Composable
-private fun WelcomeStepBody(
-    step: WelcomeStep,
-    basicConfig: AiBasicConfigDraft,
-    onBaseUrlChange: (String) -> Unit,
-    onModelNameChange: (String) -> Unit,
-    onApiKeyChange: (String) -> Unit,
-    cameraPermissionBlocked: Boolean
-) {
-    WelcomeHero(step.iconRes)
-    StepSpacer()
-    WelcomeTitle(stringResource(step.titleRes))
-    StepSpacer()
-    WelcomeBody(stringResource(step.bodyRes))
+            when (step) {
+                WelcomeStep.INTRO -> {
+                    Spacer(modifier = Modifier.height(FreshNowSpacing.md))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+                    ) {
+                        Benefit(stringResource(R.string.welcome_intro_benefit_days_left))
+                        Benefit(stringResource(R.string.welcome_intro_benefit_ocr))
+                        Benefit(stringResource(R.string.welcome_intro_benefit_packaging))
+                    }
+                }
 
-    when (step) {
-        WelcomeStep.INTRO -> {
-            Spacer(modifier = Modifier.height(FreshNowSpacing.md))
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
-            ) {
-                Benefit(stringResource(R.string.welcome_intro_benefit_days_left))
-                Benefit(stringResource(R.string.welcome_intro_benefit_ocr))
-                Benefit(stringResource(R.string.welcome_intro_benefit_packaging))
-            }
-        }
+                WelcomeStep.FLOW -> {
+                    Spacer(modifier = Modifier.height(FreshNowSpacing.md))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.welcome_flow_step_scan),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = stringResource(R.string.welcome_flow_step_read),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = stringResource(R.string.welcome_flow_step_expiry),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
 
-        WelcomeStep.FLOW -> {
-            Spacer(modifier = Modifier.height(FreshNowSpacing.md))
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
-            ) {
-                Text(
-                    text = stringResource(R.string.welcome_flow_step_scan),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = stringResource(R.string.welcome_flow_step_read),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = stringResource(R.string.welcome_flow_step_expiry),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
-        WelcomeStep.AI_CONFIG -> {
-            Spacer(modifier = Modifier.height(FreshNowSpacing.md))
-            AiBasicConfigForm(
-                draft = basicConfig,
-                onBaseUrlChange = onBaseUrlChange,
-                onModelNameChange = onModelNameChange,
-                onApiKeyChange = onApiKeyChange
-            )
-        }
-
-        WelcomeStep.CAMERA -> {
-            if (cameraPermissionBlocked) {
-                Spacer(modifier = Modifier.height(FreshNowSpacing.sm))
-                Text(
-                    text = stringResource(R.string.scan_permission_denied),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        // 收尾那一步只有标题与正文：要做的事就是底部那颗「开始使用」
-        WelcomeStep.DONE -> Unit
-    }
-}
-
-/**
- * 量出各步内容里最高的一页有多高，报上去后自己占 0 尺寸（子项一个也不摆）。
- *
- * 宽度取调用方给的最大宽度，与真实那一页一致（同一套版式、同一套内边距），换行位置因此也一样。
- * 内容整棵从语义树里去掉：它是量尺，读屏与仪器化测试都不该看见它。
- */
-@Composable
-private fun TallestStepProbe(
-    steps: List<WelcomeStep>,
-    basicConfig: AiBasicConfigDraft,
-    cameraPermissionBlocked: Boolean,
-    onBaseUrlChange: (String) -> Unit,
-    onModelNameChange: (String) -> Unit,
-    onApiKeyChange: (String) -> Unit,
-    onMeasured: (Int) -> Unit
-) {
-    SubcomposeLayout { constraints ->
-        val tallest = steps.maxOf { step ->
-            subcompose(step) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // 与真实那一页同一套内边距与对齐：换行位置与高度都得对得上
-                        .padding(horizontal = FreshNowSpacing.sm)
-                        .padding(vertical = FreshNowSpacing.md)
-                        .clearAndSetSemantics { },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    WelcomeStepBody(
-                        step = step,
-                        basicConfig = basicConfig,
+                WelcomeStep.AI_CONFIG -> {
+                    Spacer(modifier = Modifier.height(FreshNowSpacing.md))
+                    AiBasicConfigForm(
+                        draft = basicConfig,
                         onBaseUrlChange = onBaseUrlChange,
                         onModelNameChange = onModelNameChange,
-                        onApiKeyChange = onApiKeyChange,
-                        cameraPermissionBlocked = cameraPermissionBlocked
+                        onApiKeyChange = onApiKeyChange
                     )
                 }
-            }.maxOf { it.measure(Constraints(maxWidth = constraints.maxWidth)).height }
+
+                WelcomeStep.CAMERA -> {
+                    if (cameraPermissionBlocked) {
+                        Spacer(modifier = Modifier.height(FreshNowSpacing.sm))
+                        Text(
+                            text = stringResource(R.string.scan_permission_denied),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                // 收尾那一步只有标题与正文：要做的事就是底部那颗「开始使用」
+                WelcomeStep.DONE -> Unit
+            }
         }
-        onMeasured(tallest)
-        layout(0, 0) { }
     }
 }
 
@@ -623,9 +507,8 @@ private fun WelcomeBody(text: String) {
 }
 
 /**
- * 第 1 步的三条要点。条数上限三条来自 Material 的 Top User Benefits 模型，
- * 顺序也照它：先给用户拿到的东西（还剩几天），再摆两条支撑卖点；
- * 反过来先摆準确率与兼容性，首屏就成了一行行参数
+ * 第 1 步的三条好处。条数的上限来自 Material 的 Top User Benefits 模型（最多三条），
+ * 内容也只许写好处——摆一屏功能清单会把「这是什么应用」冲淡
  */
 @Composable
 private fun Benefit(text: String) {
