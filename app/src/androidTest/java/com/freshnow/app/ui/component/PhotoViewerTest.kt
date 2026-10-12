@@ -10,11 +10,13 @@ import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.theme.FreshNowTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -75,6 +77,27 @@ class PhotoViewerTest {
 
         val after = photoPixels()
         assertTrue("捏合后照片应占更多像素：前 $before，后 $after", after > before)
+    }
+
+    /** 下滑退出：没放大时纵向拖动超过阈值就关闭（微信、相册都是这个读法） */
+    @Test
+    fun swipingDownDismissesTheViewer() {
+        setContent()
+
+        composeRule.onRoot().performTouchInput { swipeDown() }
+
+        composeRule.waitUntil(timeoutMillis = 5_000) { dismissed == 1 }
+    }
+
+    /** 只挪一点要弹回去：一摸就跑会让人不敢碰 */
+    @Test
+    fun aSmallDragDoesNotDismiss() {
+        setContent()
+
+        composeRule.onRoot().performTouchInput { swipeDown(startY = centerY, endY = centerY + 20f) }
+        composeRule.waitForIdle()
+
+        assertEquals(0, dismissed)
     }
 
     /** 截图里照片那种颜色的像素个数 */

@@ -3,6 +3,8 @@ package com.freshnow.app.ui.component
 import android.graphics.Bitmap
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -25,6 +27,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -62,24 +65,30 @@ fun PhotoViewer(
         val viewport = IntSize(constraints.maxWidth, constraints.maxHeight)
         var zoom by remember(image) { mutableFloatStateOf(1f) }
         var offset by remember(image) { mutableStateOf(Offset.Zero) }
-        // 双击的动画：捏合要能随时打断它，所以留个句柄
-        var zoomAnimation by remember(image) { mutableStateOf<Job?>(null) }
+        // 下滑退出时图跟手的位移（像素，向下为正）
+        var dragDown by remember(image) { mutableFloatStateOf(0f) }
+        // 双击与下滑回弹的动画：捏合要能随时打断，所以留个句柄
+        var gestureAnimation by remember(image) { mutableStateOf<Job?>(null) }
         val scope = rememberCoroutineScope()
 
         val photoSize = photoSize(image, viewport)
         val density = LocalDensity.current
+        // 下滑多少像素算「要退出」：按视窗高度取比例，不写死 dp（换机型、分屏都不用改）
+        val dismissThreshold = viewport.height * DISMISS_THRESHOLD_RATIO
+        // 跟手时图缩小、淡出多少
+        val dragProgress = (dragDown / dismissThreshold).coerceIn(0f, 1f)
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            // 手指一动就接管：正在演的双击动画再往下演，就会和手指抢缩放值
-            zoomAnimation?.cancel()
+            // 手指一动就接管：正在演的动画再往下演，就会和手指抢缩放值
+            gestureAnimation?.cancel()
             zoom = (zoom * zoomChange).coerceIn(1f, MAX_VIEW_ZOOM)
             offset = clampViewerOffset(offset + panChange, image, viewport, zoom)
         }
 
         fun animateZoomTo(target: Float, tap: Offset) {
-            zoomAnimation?.cancel()
+            gestureAnimation?.cancel()
             val focus = tap - Offset(photoSize.width / 2f, photoSize.height / 2f)
-            zoomAnimation = scope.launch {
+            gestureAnimation = scope.launch {
                 val startZoom = zoom
                 val startOffset = offset
                 animate(
@@ -99,6 +108,19 @@ fun PhotoViewer(
             }
         }
 
+        /** 没到阈值就把图弹回原位：位移、缩放、透明一起回，免得各演各的 */
+        fun animateDragBack() {
+            gestureAnimation?.cancel()
+            if (dragDown == 0f) return
+            gestureAnimation = scope.launch {
+                animate(
+                    initialValue = dragDown,
+                    targetValue = 0f,
+                    animationSpec = FreshNowTransitions.stateChange()
+                ) { value, _ -> dragDown = value }
+            }
+        }
+
         Image(
             bitmap = remember(image) { image.asImageBitmap() },
             // 语义由页面标题承担，这里再报一遍是噪音；单击关闭在看图这类界面里是共识读法
@@ -108,23 +130,52 @@ fun PhotoViewer(
                     width = with(density) { photoSize.width.toDp() },
                     height = with(density) { photoSize.height.toDp() }
                 )
-                // 缩放要接在霖版之前：接在之后的话，图是在「霖版出来的那块矩形」里缩放，
+                // 缩放要接在蒙版之前：接在之后的话，图是在「蒙版出来的那块矩形」里缩放，
                 // 放大后只是那块矩形里换了内容，看上去没变大（测试里就撞上了这个）
                 .graphicsLayer(
-                    scaleX = zoom,
-                    scaleY = zoom,
+                    scaleX = zoom * (1f - DRAG_SHRINK * dragProgress),
+                    scaleY = zoom * (1f - DRAG_SHRINK * dragProgress),
                     translationX = offset.x,
-                    translationY = offset.y
+                    translationY = offset.y + dragDown,
+                    alpha = 1f - dragProgress
                 )
                 .clip(MaterialTheme.shapes.medium),
             // 节点已经是照片的比例，Fit 与 FillBounds 在这里等价
             contentScale = ContentScale.Fit
         )
 
-        // 手势挂在外层盒子上：指哪都能捏、都能点
+        // 手势都挂在外层盒子上：指哪都能捏、都能点
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                // 下滑退出。用 Initial 阶段旁听、不消费事件：一旦消费掉，与它同时开始的捏合与拖动
+                // 就会被抢走（transformable 再也拿不到事件）。只在未放大时生效：放大后纵向拖动是看图，不是退出
+                .pointerInput(image) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        var drag = 0f
+                        var multiTouch = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val pressed = event.changes.count { it.pressed }
+                            // 出现第二根手指就当成捏合，这一次手势不算下滑
+                            if (pressed > 1) multiTouch = true
+                            if (pressed == 0) break
+                            if (!multiTouch && zoom <= 1f) {
+                                val change = event.changes.first()
+                                drag += change.position.y - change.previousPosition.y
+                                dragDown = drag.coerceAtLeast(0f)
+                            }
+                        }
+                        if (!multiTouch && zoom <= 1f && drag > dismissThreshold) {
+                            // 这一页马上就没了，图也已经淡到几乎看不见：回弹动画不必跑，
+                            // 交给退场的共享元素过渡接着演
+                            onDismiss()
+                        } else {
+                            animateDragBack()
+                        }
+                    }
+                }
                 // 点击接在 transformable 之前：接在后面的话那一串手势先拿到事件，单击就轮不到了
                 .pointerInput(image) {
                     detectTapGestures(
@@ -142,6 +193,12 @@ private const val MAX_VIEW_ZOOM = 6f
 
 /** 双击放大到的倍率：够看清一行小字，又不至于一眼看不出看的是哪儿 */
 private const val DOUBLE_TAP_ZOOM = 2.5f
+
+/** 下滑多少（占视窗高度的比例）算「要退出」 */
+private const val DISMISS_THRESHOLD_RATIO = 0.18f
+
+/** 下滑到底时图缩到多小、淡到多透（比例） */
+private const val DRAG_SHRINK = 0.15f
 
 /** 照片按 [ContentScale.Fit] 铺进视窗后的尺寸。视窗还没量出来时为 [Size.Zero] */
 private fun photoSize(image: Bitmap, viewport: IntSize): Size {
