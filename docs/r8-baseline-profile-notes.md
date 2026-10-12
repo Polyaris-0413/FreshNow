@@ -2,14 +2,19 @@
 
 这份文档记录本项目在 R8 收缩与 baseline profile 录制上的可用做法、判据和操作性陷阱，供上下文丢失后重新接手时参考。与代码里的注释分工：注释只解释那行代码为什么必须那么写，本文记录整体链路、判据，以及**会静默退化**的点。
 
+## 维护约定（改这份文档前先读）
+
+1. **本文可以改，而且应当改。** 过时或已被证伪的结论当场删掉或订正，不能让读者先被错结论带偏再自己发现；需要留作对照的旧结论才进附录 C，并写明它错在哪。
+2. **写进正文的每一条都要是通用结论。** 判据要跨页面、跨机器、跨一次录制仍然成立，并且照着就能复现——涉及命令的把命令写上，涉及数字的把日期与口径写上；只对某一次运行成立的观测（某次耗时、某次条目数）不作结论，最多当该结论的实测样例，并标明会浮动。
+
 **只想知道怎么跑：读「怎么跑」和「当前基线」两节就够。** 后面四个附录是「什么会静默坏掉」「为什么这么配」和「别再犯的旧结论」，只在改配置、换机器或排查异常时才需要读。
 
-标「实测」的数字来自 2026-10-07 在 GMD（`pixel7Api36`）上的几次完整重录。后文没特别说明的「本次」都指当前配置那一次（`google_apis` / 4 核 / 4 GB）。录制是**非确定性**的：轮数、耗时、条目数都会浮动，判据要看形态与量级，不要比单点数值。
+数字是**非确定性**的：轮数、耗时、条目数都会浮动，判据要看形态与量级，不要比单点数值。标「实测」的都带日期——`2026-10-07` 是建立这套配置那几次，`2026-10-12` 是欢迎页 / 同步页 / 看图页进来之后的一次（配置同为 `google_apis` / 4 核 / 4 GB）。
 
 ## 怎么跑
 
 ```bash
-./gradlew :app:generateBaselineProfile   # 在 GMD 里录，当前约 6m24s
+./gradlew :app:generateBaselineProfile   # 在 GMD 里录：6~20 分钟（随宿主浮动，2026-10-12 实测 17m57s；看门狗别设短超时）
 ./gradlew :app:assembleRelease           # 把 profile 编进 APK
 ```
 
@@ -17,38 +22,64 @@
 
 **「跑成功」不等于「录到了」**，三段各取一个判据：
 
-1. **录制结果**：`baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/BaselineProfileGenerator_generate-baseline-prof-<时间戳>.txt` 里 `com/freshnow` 应有几百条**原始类名**（本次 863）。
-2. **最终 profile**：用 `app/build/outputs/mapping/release/mapping.txt` 反查混淆名，在 `app/build/intermediates/combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt` 里应能查到（`AiAnalysis -> h3` 就查 `Lh3;`）。
-3. **产物**：`unzip -l app/build/outputs/apk/release/app-release-unsigned.apk | grep baseline` 应有 `assets/dexopt/baseline.prof`（约 9 KB，本次 9120 字节）。
+1. **录制结果**：`baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/BaselineProfileGenerator_generate-baseline-prof-<时间戳>.txt` 里应有**上千条**应用侧原始类名：
+
+   ```bash
+   grep -cE '^[A-Z]*Lcom/freshnow' baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/*.txt
+   # 2026-10-12 实测 1806（2026-10-07 是 863，欢迎页与同步页进脚本后翻倍）
+   ```
+
+   **必须带 `^[A-Z]*`**：这份文件的行带标志位前缀（`Lcom/…`、`SPLcom/…`、`HSPLcom/…`）。写成 `grep -c '^com/freshnow'` 会恒为 **0**，而 0 正是附录 A-1「整批丢失」的症状，会把人骗去查一个不存在的问题。同一条命令在每一级中间产物上都能用，数字应一路持平到 R8 改写那一步（实测见附录 A-5）。
+2. **最终 profile**：用 `mapping.txt` 反查混淆名（`AiAnalysis -> g5` 就查 `Lg5;`），但**不能按类名逐个查**：顶层 Composable 类会被 R8 整体内联，在 `mapping.txt` 里没有独立条目（`PhotoViewerKt`、`WelcomeScreenKt` 都是），逐类查会得到假阴性。要判覆盖率就用**全部**应用类的混淆名批量比对：
+
+   ```bash
+   grep -oE '^com\.freshnow[^ ]* -> [^ :]+' app/build/outputs/mapping/release/mapping.txt
+   # 再逐个按 L<混淆名>; 在 app/build/intermediates/combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt 里查
+   # 2026-10-12 实测 306 个类命中 174 个（只算顶层类则 80 命中 47）
+   ```
+3. **产物**：`unzip -l app/build/outputs/apk/release/app-release-unsigned.apk | grep baseline` 应有 `assets/dexopt/baseline.prof`，旁边还有 `assets/dexopt/baseline.profm`（2026-10-12：12268 + 1629 字节；2026-10-07 是 9120）。
 
 真丢了东西时怎么定位，见附录 A-5。
 
 想**换一次**录制，不是加个 `--rerun` 就行（理由见附录 A-4），要先删旧输出：
 
 ```bash
-rm -rf baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifiedrelease
-       baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease
-       app/src/release/generated/baselineProfiles
+rm -rf \
+  baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifiedrelease \
+  baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease \
+  app/src/release/generated/baselineProfiles
 ```
 
-另外：每次成功录制都会改写**入库**的 `app/src/release/generated/baselineProfiles/baseline-prof.txt`，产生一个约 2.5 MB 的 git 变更（本次 566 增 / 354 删）。提交前先按上面第 1、2 条比对方法级覆盖，别把一次录浅了的结果默默提交进去。当前入库的这份对应 `google_apis` / 4 核 / 4 GB 那次。
+三条必须一起删。分行写时别漏了行尾的 `\`——漏了只有第一条会被执行，后两条会被当成命令名报错，而结果正好是附录 A-4 说的「以为重录了，其实没有」。
+
+另外：每次成功录制都会改写**入库**的 `app/src/release/generated/baselineProfiles/baseline-prof.txt`（2026-10-12 的提交是 205 增 / 105 删，2026-10-07 那次是 566 / 354）。
+
+**提交前判一次「有没有录浅」**——别看某个类在不在（理由见上面第 2 条），而是与上一次入库版比**规则留存率**：
+
+```bash
+git show HEAD:app/src/release/generated/baselineProfiles/baseline-prof.txt > /tmp/old.txt
+# 与录制后的新文件逐行取集合，算「旧规则里有多少还留在新集合里」
+```
+
+2026-10-12 实测 37537 / 37642 = **99.7%**（配合原始条目 1806 对 1804）。留存率远低于 99% 才说明这次录浅了。这个方法不依赖 R8 的改名与合并，比逐类查稳。
 
 ## 当前基线（正常时应该看到什么）
 
 配置：`google_apis` 镜像 + 托管 AVD 手改到 4 核 / 4 GB + `-gpu swiftshader_indirect`。再往上加核/内存没有收益（实测见附录 B-6）。
 
-| 指标 | 正常值 |
-|---|---|
-| `:app:generateBaselineProfile` 全程 | 约 6 分钟（本次 6m24s） |
-| 用例耗时 / 轮数 | 约 340 s，10 轮即 stable（本次 343.0 s） |
-| logcat 里 `lowmemorykiller` 杀进程 | 0 |
-| 首帧等待（脚本上限 90 s） | 十几秒就过（2 核 / 2 GB 时曾三次里两次直接超时） |
-| 录制结果里的 `com/freshnow` 条目 | 几百条**原始类名**（本次 863） |
-| 最终 profile 里「含方法的类」 | 约 4800（本次 4785） |
-| APK 内 `assets/dexopt/baseline.prof` | 约 9 KB（本次 9120 字节） |
-| 应用类覆盖（见附录 C-1） | 85 / 118 |
+| 指标 | 2026-10-12 实测 | 说明 |
+|---|---|---|
+| logcat 里 `lowmemorykiller` **真杀进程** | 0 | **判据**：非 0 就是附录 A-2 |
+| 脚本假失败（等不到文案 / 描述符） | 无 | **判据**：有就是附录 A-2 或 A-7 |
+| 与上一次入库版的规则留存率 | 99.7% | **判据**：远低于 99% 才是录浅了（正文「怎么跑」） |
+| 用例耗时 / 轮数 | 1034.1 s / 12 轮（单轮 86 s） | 2026-10-07 同配置是 343.0 s / 10 轮（单轮 34.2 s） |
+| `:app:generateBaselineProfile` 全程 | 17m57s | 同上；变动能到 2.5 倍，**别当判据** |
+| 录制结果里的 `com/freshnow` 条目（带标志位口径） | 1806 | 2026-10-07 是 863 |
+| 首帧等待（脚本上限 90 s） | 十几秒就过 | 2 核 / 2 GB 时曾三次里两次直接超时 |
+| APK 内 `assets/dexopt/baseline.prof`（另有 `.profm`） | 12268（+1629）字节 | 2026-10-07 是 9120 |
+| 应用类覆盖（mapping 全量口径，见附录 C-1） | 174 / 306 | 旧口径的「85 / 118」已废弃 |
 
-偏离这个量级——尤其是全程变回二十分钟、lmkd 又开始杀进程、首帧 90 秒超时——先按附录 A-2 查设备规格，别先去改录制脚本。
+上表只有标**判据**的三行能单独看健康状态。墙钟会随宿主负载膨胀（2026-10-12 规格没退、单轮却从 34.2 s 变成 86 s），所以「全程变回二十分钟」只能当去查一查的引子：先按附录 A-2 查设备规格，规格没退就别去改录制脚本。
 
 ---
 
@@ -58,13 +89,14 @@ rm -rf baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifi
 
 ## A-1 录制载体变成混淆构建
 
-- **症状**：录制结果里的 `com/freshnow` 条目从几百条掉到个位数，最终 profile 里应用类条目整批消失。构建仍然成功。
+- **症状**：录制结果里的应用类条目从上千条（2026-10-12 实测 1806）掉到个位数或 0，最终 profile 里应用类条目整批消失。构建仍然成功。
 - **原因**：`nonMinifiedRelease` 变体会被 `initWith(release)` 继承 `optimization.enable = true`（机制见附录 B-3），于是录出来的是混淆名，R8 按原始名改写时查不到，条目在 **`minifyReleaseWithR8`** 这一步被整批丢掉。
 - **恢复**：确认 `app/build.gradle.kts` 里那段 `maybeCreate("nonMinifiedRelease") { optimization { enable = false } }` 还在，然后删旧输出重录。
 
 ## A-2 设备规格退回默认（2 核 / 2 GB）
 
-- **症状**：全程从 6 分钟变回二十分钟；logcat 里 `lowmemorykiller` 开始杀进程（正常是 0 次）；脚本以「等不到文案 / 等不到描述符」失败，失败点通常是首帧等待或最后一段 `backToHome()`。
+- **症状**：logcat 里 `lowmemorykiller` 开始杀进程（正常是 0 次）；脚本以「等不到文案 / 等不到描述符」失败，失败点通常是首帧等待或最后一段 `backToHome()`；全程一般也一起变成二十分钟。
+- **但墙钟不是判据**：宿主负载也会把单轮成本抬上去（2026-10-12 实测规格未变，单轮 34.2 s → 86 s、全程 17m57s，而 lmkd 0 次、无假失败、覆盖留存 99.7%）。**先看 lmkd 与假失败这两条**，两条都没有就不是本附录的问题。
 - **原因**：内存压不住时，uiautomator 取一次无障碍树会从 ~100 ms 退化成秒级，脚本里 `SHORT_TIMEOUT_MS = 1000` 的短等待就成了假阴性——`backToHome()` 会以为「还没回首页」而连按返回，最后 30 秒也超时。**这是假失败，不是脚本逻辑问题。**
 - **什么时候会退回**：AVD 被删或重建、换机器、清掉 `~/.android/avd/gradle-managed`。AGP 没有内存/核数的 DSL，那份 4 核 / 4 GB 是**仓库外的手改**，代码里没有它的影子（机制见附录 B-6）。
 - **恢复**：见附录 A-6。
@@ -87,7 +119,7 @@ rm -rf baselineprofile/build/outputs/androidTest-results/managedDevice/nonminifi
 
 ## A-5 profile 没进包时逐级定位
 
-上面那 3 条判据只能告诉你「没进包」，要定位**在哪一步**丢的，就按中间产物顺序逐级比。类数在混淆前后本来就会大幅变化（本次是 merged 5382 → `expandReleaseArtProfileWildcards` 7998 → `minifyReleaseWithR8` 3118，都是类声明数），所以单看数字容易误判，**要看「应用类还在不在」而不是只看总量**：
+上面那 3 条判据只能告诉你「没进包」，要定位**在哪一步**丢的，就按中间产物顺序逐级比。类声明数在混淆前后本来就会大幅变化（2026-10-12 实测 8785 → 11693 → 4518 → 4518，四个阶段互相差着量级），所以**别拿类总数当判据**——要看「应用类还在不在」，用正文「怎么跑」第 1 条那条命令逐级数（数字应一路持平到 R8 改写那一步）：
 
 ```
 merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
@@ -96,7 +128,7 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
 → combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt
 ```
 
-本次就是靠它定位到丢弃发生在 `minifyReleaseWithR8`——那一步之后 `com/freshnow` 会变成混淆名（只剩 18 条没被改名的），如果应用类条目在这里整批消失，就是附录 A-1。
+这套顺序就是用来定位丢弃发生在哪一步的。2026-10-12 实测（统一用 `grep -cE '^[A-Z]*Lcom/freshnow' <该阶段的 baseline-prof.txt>`）：录制结果 1806 → merged 1805 → expandWildcards 1805 → **minifyReleaseWithR8 16** → combined 16。 R8 改写之后**必然**掉到十几条（其余都改成了 `h3` / `i3` 这类混淆名），所以「十几条」本身不是判据；要判的是形态：应用类条目在这里**整批消失**（掉到 0）才是附录 A-1。
 
 ## A-6 首次搭建 / 换机器要做的事
 
@@ -112,7 +144,7 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
 ## A-7 上一次失败留下僵尸模拟器
 
 - **症状**：setup 或在设备启动阶段就失败，`baselineprofile/build/outputs/androidTest-results/` 里**连测试结果文件都没有**；而且之后每次重跑都同样失败。
-- **原因**：setup 超时（或模拟器启动异常）时，AGP 不会回收它启的模拟器进程。残留的 `qemu-system-x86_64-headless` 会占住 AVD，后续所有运行都受它影响。本次 8 核那次超时后留下的进程**继续跑了 27 分钟、烧了 1508 秒 CPU**，直接让紧接着的 6 核录制白失败一次。
+- **原因**：setup 超时（或模拟器启动异常）时，AGP 不会回收它启的模拟器进程。残留的 `qemu-system-x86_64-headless` 会占住 AVD，后续所有运行都受它影响。2026-10-07 试 8 核那次超时后留下的进程**继续跑了 27 分钟、烧了 1508 秒 CPU**，直接让紧接着的 6 核录制白失败一次。
 - **恢复**：
 
   ```bash
@@ -122,6 +154,8 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
   ```
 
   然后重跑。**别一看失败就去改配置**——那一次的「6 核失败」就是这么误判出来的，清掉僵尸后 6 核一次就过。
+
+**成功之后也会残留**：2026-10-12 录制成功后仍看到一个 `emulator` 包装进程活着（当时 CPU≈0，无害）。上面的清理命令很便宜，每次录制之后——成功也一样——跑一遍再开始下一次，别让它和下一次录制抢资源。
 
 ---
 
@@ -141,7 +175,9 @@ buildTypes {
 }
 ```
 
-实测 `:app:assembleRelease`：APK 2587291 字节，`mapping.txt` 中 `com.freshnow` 条目 118 条，应用类被改名（如 `AiAnalysis → h3`），死代码带 `R8$$REMOVED$$CLASS$$` 标记。库的保底规则本来就齐全（Room / Compose / CameraX / DataStore 的 consumer 规则都在 `app/build/outputs/mapping/release/configuration.txt` 里），`app/src/main/keepRules/rules.keep` 保持空模板即可。
+实测 `:app:assembleRelease`（2026-10-12）：APK 3557433 字节，`mapping.txt` 里应用类条目 **306 条**（口径：`grep -oE '^com\.freshnow[^ ]* -> [^ :]+'`，含内嵌类与 `$$ExternalSyntheticLambda` 合成类；只算顶层类则是 80 条），应用类被改名（如 `AiAnalysis → g5`），死代码带 `R8$$REMOVED$$CLASS$$` 标记。
+
+注意这个条目数**不能当覆盖率指标**：顶层 Composable 类会被 R8 整体内联、条目直接消失，所以它会随 R8 的内联/合并反向变小（见附录 C-1）。库的保底规则本来就齐全（Room / Compose / CameraX / DataStore 的 consumer 规则都在 `app/build/outputs/mapping/release/configuration.txt` 里），`app/src/main/keepRules/rules.keep` 保持空模板即可。
 
 ## B-2 `packageScope` 是 gradual shrinking 的包范围
 
@@ -161,7 +197,7 @@ maybeCreate("nonMinifiedRelease").apply {
 }
 ```
 
-这就是附录 A-1 的成因。要判断这一步是否生效，看**录制结果**里 `com/freshnow` 是不是几百条原始类名。这里有个容易看错的地方：修好之后，`minifyReleaseWithR8` 那一步的 `com/freshnow` 条目**也只剩 18 条**（其余都改成了 `h3` / `i3` 这类混淆名）——「18 条」在坏、好两种状态下都会出现，区别是前者出现在**录制结果**里、后者出现在 **R8 改写后**的产物里。
+这就是附录 A-1 的成因。要判断这一步是否生效，用**同一条命令**一路数下去（`grep -cE '^[A-Z]*Lcom/freshnow' <该阶段的 baseline-prof.txt>`）：2026-10-12 实测录制结果 1806 → merged 1805 → expandWildcards 1805 → **minifyReleaseWithR8 16** → combined 16。R8 改写之后**必然**掉到十几条（其余都改成了 `h3` / `i3` 这类混淆名），所以「十几条」本身不是判据，要在意的是它**是不是 0**：整批消失才是附录 A-1。
 
 ## B-4 接线：谁是入口，缺了会怎样
 
@@ -179,16 +215,16 @@ dependencies {
 
 ## B-5 镜像：选 `google_apis` 是覆盖率取舍，不是速度取舍
 
-同一台机器、同样 4 核 / 4 GB 下把镜像换掉，只值 **约 12% 耗时**（6m24s → 5m38s），却少覆盖 **40 个「含方法的类」**：`androidx/emoji2/text`(+flatbuffer)、`androidx/core/provider` 与 `androidx/core/graphics` 的可下载字体 provider 路径等。这些分支要先探测只有 GMS 才提供的字体 provider，`aosp` 上在入口就返回了。应用类与 `androidx/camera` 两种镜像完全一致（244 / 584）。
+同一台机器、同样 4 核 / 4 GB 下把镜像换掉，只值 **约 12% 耗时**（2026-10-07 实测 6m24s → 5m38s），却少覆盖 **40 个「含方法的类」**：`androidx/emoji2/text`(+flatbuffer)、`androidx/core/provider` 与 `androidx/core/graphics` 的可下载字体 provider 路径等。这些分支要先探测只有 GMS 才提供的字体 provider，`aosp` 上在入口就返回了。两种镜像在应用类与 `androidx/camera` 上的覆盖**没有差别**（当时记的类数是 244 / 584；应用类那个数用的是已废弃的旧口径，见附录 C-1）。
 
 官方文档（`Create Baseline Profiles`）说 GMD 录制要设 `aosp`，理由是生成器需要 root——**那条只对 API < 33 成立**（同一文档也写了 API 33 及以上无需 root）。本项目 `apiLevel = 36`，实测 `google_apis` 能正常录制。要换成 `aosp` 就是 `systemImageSource = "aosp"`（AGP 里 `"aosp"` 与 `"default"` 同源，SDK 包是 `system-images;android-36;default;x86_64`）。
 
 ## B-6 耗时由「轮数 × 单轮成本」决定，两个因子都来自别处
 
 - **轮数**由 `BaselineProfileConfig` 决定，默认 `maxIterations = 15`、`stableIterations = 3`：脚本会被完整跑到「连续 3 轮 profile 不再增长」或跑满 15 轮为止。所以总耗时不是常数。
-- **单轮成本**取决于设备（冷启动 + 四条路径 + 每轮一次 ART profile reset/compile），而设备规格受 AGP 限制：AGP 把 `hw.cpu.ncore` 写死成 `EmulatedProperties.RECOMMENDED_NUMBER_OF_CORES`，并用 `restrictDefaultRamSize()` 把 `hw.ramSize` 顶到 `MAX_DEFAULT_RAM_SIZE = 2 GiB`（不管硬件档案要多少）；`ManagedDevice` 也没有相关 DSL。唯一入口是 AVD 首次生成后改 `config.ini`——`createOrRetrieveAvd` 发现 AVD 已存在且状态正常就直接复用，所以改动能留住（步骤见附录 A-6）。
+- **单轮成本**取决于设备（冷启动 + 六条路径 + 每轮一次 ART profile reset/compile），而设备规格受 AGP 限制：AGP 把 `hw.cpu.ncore` 写死成 `EmulatedProperties.RECOMMENDED_NUMBER_OF_CORES`，并用 `restrictDefaultRamSize()` 把 `hw.ramSize` 顶到 `MAX_DEFAULT_RAM_SIZE = 2 GiB`（不管硬件档案要多少）；`ManagedDevice` 也没有相关 DSL。唯一入口是 AVD 首次生成后改 `config.ini`——`createOrRetrieveAvd` 发现 AVD 已存在且状态正常就直接复用，所以改动能留住（步骤见附录 A-6）。
 
-把这套变量拆开实测的结果（同一套脚本、同一台机器）：
+把这套变量拆开实测的结果（**同一天连测**，同一套脚本、同一台机器，所以三列之间可比；跨天的墙钟不可比）：
 
 | | `google_apis` 2 核 / 2.5 GB | `google_apis` 4 核 / 4 GB | `aosp` 4 核 / 4 GB |
 |---|---|---|---|
@@ -203,25 +239,33 @@ dependencies {
 - **核数**：4 核 → 6 核，单轮从 34.2 s 降到 33.4 s（UI 段 19.3 s → 17.8 s，而那个无选择器的「空档」15.7 s 几乎不动），全程 6m24s → 5m58s。而且**再想上 8 核直接被模拟器拒了**——它把 `hw.cpu.ncore` 从 8 自行压回 6，并让 setup 任务超时（症状与后遗症见附录 A-7）。
 - **内存**：4 GB 下 `lowmemorykiller` / `kswapd` / `Compaction` / `onTrimMemory` **全是 0 次**，说明已经离开回收压力区，再加内存没有可修的东西；何况这台宿主只有 16 GB，8 GB 客体会反过来挤宿主。
 - 所以 **4 核 / 4 GB 就是这台机器上的甜点**，别再往上加。「多核能更快」只在那次 2 核 → 4 核成立，而那次本质上是脱离 thrashing（lmkd 从 9 次到 0 次），不是线性并行收益。
+- **单轮成本还会随宿主负载浮动**：2026-10-12 实测同一套配置、规格未变，单轮 34.2 s → 86 s（12 轮 / 1034.1 s，全程 17m57s）。所以上表只在同一天内可比；跨天比耗时之前，先看 `lowmemorykiller` 与脚本假失败（附录 A-2）。
 
 ## B-7 脚本与那条 startup profile 告警
 
-录制脚本在 `baselineprofile/src/main/java/com/freshnow/app/baselineprofile/BaselineProfileGenerator.kt`，覆盖四条路径：冷启动首页 → 扫描页（含 CameraX，靠 `pm grant` 过权限门）→ 设置 → 关于 → 开源声明。控件一律按文案与描述符定位，不用坐标。首次界面的等待放宽到 90 秒（非混淆构建冷启动明显慢于 release），但设备被 `lowmemorykiller` 拖住时 90 秒也可能不够，见附录 A-2。
+录制脚本在 `baselineprofile/src/main/java/com/freshnow/app/baselineprofile/BaselineProfileGenerator.kt`，覆盖六条路径：首次启动的欢迎页（引导，只在第一轮出现）→ 冷启动首页 → 扫描页（含 CameraX，靠 `pm grant` 过权限门）→ 设置页 → 同步页 → 关于页 → 开源声明页。控件一律按文案与描述符定位，不用坐标。首次界面的等待放宽到 90 秒（非混淆构建冷启动明显慢于 release），但设备被 `lowmemorykiller` 拖住时 90 秒也可能不够，见附录 A-2。
 
 脚本没有设 `includeInStartupProfile`，所以插件每次成功都会打一条 `No startup profile rules were generated for the variant 'release'`——这是默认行为（`BaselineProfileConfig.includeInStartupProfile` 默认 false），不是故障。要 startup profile 得在规则里显式设 true。
+
+**脚本在结构上到不了的地方不要再去想办法**：录制机每一轮都是重装后的干净包，凡是「库里得先有记录或照片才进得去」的界面就永远录不到（`HomeRecordItem`、`ScanThumbnailKt`、看图页的 `PhotoViewerKt`），从不真的扫描所以 `ScanStatus$Analyzing` / `$Failed` / `$NotConfigured` 也走不到。要覆盖只能先给录制器种数据，而 release 包不可 `run-as` —— 结论是**接受不覆盖**，别为此改脚本或加调试钩子。
 
 ---
 
 # 附录 C：已证伪的旧结论（别再写回去）
 
-## C-1 「应用类覆盖 118 / 118」不成立
+## C-1 「应用类覆盖 100%」不成立，且「118 个应用类」这种数字没有意义
 
-R8 保留了 118 个应用类（`mapping.txt` 口径），但录制脚本永远到不了其中一部分：
+「应用类条目数」不能当覆盖率指标：R8 会把**顶层 Composable 类整体内联**，这类类在 `mapping.txt` 里没有独立条目（`PhotoViewerKt`、`WelcomeScreenKt` 都是），条目数会随 R8 的内联/合并**反向变小**。要数就把口径写死（正文「怎么跑」第 2 条）：
 
-- 按混淆名在最终 profile 里查，命中 **85 / 118**；按原始类名在录制结果里数，只有 **72 / 118**。两者不等，是因为 R8 会合并类，未录制类的条目可能落到已录制类的混淆名上。
-- 缺的是脚本到不了的地方：记录详情页的 `RecordDetailViewModel` / `RecordDetailUiState`、需要已有记录才有数据的 `HomeRecordItem` / `ScanThumbnailKt`、以及 `ScanStatus$Analyzing` / `$Failed` / `$NotConfigured` 这些分支（脚本从不真的扫描）。
+```bash
+grep -oE '^com\.freshnow[^ ]* -> [^ :]+' app/build/outputs/mapping/release/mapping.txt
+# 逐个按 L<混淆名>; 在 combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt 里查
+# 2026-10-12 实测：306 个类命中 174 个（只算顶层类则 80 命中 47）
+```
 
-所以 118/118 在结构上不可能达到，85/118 这个量级才是正常的。
+**别按类名逐个查**：被内联掉的那些会给出假阴性，数出来偏低。
+
+命中的差额就是脚本到不了的地方，这部分在结构上补不齐（原因见附录 B-7）：`RecordDetailViewModel` / `RecordDetailUiState`、需要已有记录才有数据的 `HomeRecordItem` / `ScanThumbnailKt` / 看图页相关类、以及 `ScanStatus$Analyzing` / `$Failed` / `$NotConfigured`（脚本从不真的扫描）。所以 100% 不可能达到，**「差额是哪几类」比「命中率是多少」有意义**；命中率只用来和上一次入库版比有没有突然变低。
 
 ## C-2 「设备侧测试失败仍报 BUILD SUCCESSFUL」不成立
 
