@@ -91,10 +91,10 @@ internal enum class WelcomeStep(
  * 首次启动的欢迎页，只在「这次安装还没走过引导」时由 [com.freshnow.app.ui.FreshNowApp] 渲染
  * （见 OnboardingRepository）。
  *
- * 引导的整体形状取 Material 的「Top User Benefits」模型：先给价值，再说代价与动作
- * （第 2–5 步）。第 1 步是例外：它不是好处清单，而是作者自己的一段话（为什么做这个、
- * 为什么用模型），理由与取舍写在 strings.xml 的 welcome_intro_* 上。
- * 收尾那一步是有意留的：设置刚做完就直接落进主页，用户不知道自己走完了没有。
+ * 引导的整体形状取 Material 的「Top User Benefits」模型：先给价值（第 1 步：一句话定位，
+ * 外加最多三条好处——条数与「只说好处不说做法」都是该模型的规定），再说清用它的代价
+ * （第 2 步：识别要用自备的模型），然后是动作（第 3 步配置、第 4 步相机权限），最后收个尾
+ * （第 5 步）。收尾那一步是有意留的：设置刚做完就直接落进主页，用户不知道自己走完了没有。
  *
  * 「跳过」跳过的是当前这一步要干的事，不是整个引导：一律往前走一项，而且只摆在「确实有可以不做
  * 的事」那两步（配置与权限）。信息页上它与「下一步」完全同义，两颗同义的按钮只会让人犹豫；
@@ -408,11 +408,17 @@ private fun WelcomeStepContent(
             WelcomeBody(stringResource(step.bodyRes))
 
             when (step) {
-                // 第 1 步的正文占两段：先说为什么用模型，再交代这是个尝鲜向的项目
-                // （理由与取舍见 strings.xml 的 welcome_intro_*）
                 WelcomeStep.INTRO -> {
-                    Spacer(modifier = Modifier.height(FreshNowSpacing.sm))
-                    WelcomeBody(stringResource(R.string.welcome_intro_note))
+                    Spacer(modifier = Modifier.height(FreshNowSpacing.md))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+                    ) {
+                        Benefit(stringResource(R.string.welcome_intro_benefit_days_left))
+                        Benefit(stringResource(R.string.welcome_intro_benefit_ocr))
+                        Benefit(stringResource(R.string.welcome_intro_benefit_packaging))
+                    }
                 }
 
                 WelcomeStep.FLOW -> {
@@ -500,4 +506,16 @@ private fun WelcomeBody(text: String) {
     )
 }
 
+/**
+ * 第 1 步的三条好处。条数的上限来自 Material 的 Top User Benefits 模型（最多三条），
+ * 内容也只许写好处——摆一屏功能清单会把「这是什么应用」冲淡
+ */
+@Composable
+private fun Benefit(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center
+    )
+}
 
