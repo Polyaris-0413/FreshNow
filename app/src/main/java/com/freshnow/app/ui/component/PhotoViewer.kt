@@ -97,7 +97,7 @@ fun PhotoViewer(
                 animate(
                     initialValue = startZoom,
                     targetValue = target,
-                    animationSpec = FreshNowTransitions.gestureRelease()
+                    animationSpec = FreshNowTransitions.fastSpatial()
                 ) { value, _ ->
                     zoom = value
                     // 同一点在两套缩放下的屏幕位置相同 → 位移这么反推
@@ -120,7 +120,7 @@ fun PhotoViewer(
                 animate(
                     initialValue = 0f,
                     targetValue = 1f,
-                    animationSpec = FreshNowTransitions.gestureRelease()
+                    animationSpec = FreshNowTransitions.fastSpatial()
                 ) { value, _ -> dragOffset = start * (1f - value) }
             }
         }

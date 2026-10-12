@@ -55,6 +55,32 @@ object FreshNowTransitions {
     val backExit: ExitTransition = fadeOut(tween(DURATION_MS)) +
         slideOutHorizontally(tween(DURATION_MS)) { width -> width / SLIDE_FRACTION }
 
+    // ---- 运动方案的弹簧（M3 Expressive）----
+
+    /**
+     * M3 把弹簧归成两族：**spatial**（位置、大小、形状）与 **effects**（透明度、颜色）；
+     * 每族三档 fast / default / slow。**新增动画先在这几条里挑**——只有当 M3 确实没有对应角色时
+     * 才新增条目，并在那里注明取值出处。
+     *
+     * 本项目用弹簧的地方都是**接手手势**的：拖动松手后的回落、退场时照片飞回原处、双击缩放。
+     * 这类运动不该用带固定时长的 tween：tween 默认曲线起手是缓入的，手指刚离开那几帧几乎不动，
+     * 手上读作「顿一下」；弹簧没有固定时长，起手就跟着手指的速度走。0.9 的阻尼比允许一点点过冲，
+     * 这也是它不显得拖泥带水的原因。
+     *
+     * 本项目的 BOM（material3 1.5.0-alpha29）里还没有 MotionScheme，所以取值照 M3 的实现写在这里；
+     * 等 BOM 里有了，这五个函数换成 MaterialTheme.motionScheme.* 即可，别另挑参数。
+     */
+    fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 1400f)
+
+    fun <T> defaultSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 700f)
+
+    fun <T> slowSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 300f)
+
+    fun <T> fastEffects(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 3800f)
+
+    fun <T> defaultEffects(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 1600f)
+
+
     // ---- 页内状态切换 ----
 
     /**
@@ -83,21 +109,6 @@ object FreshNowTransitions {
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> = tween(STATE_CHANGE_MS)
 
-    /**
-     * 接手手势的动画：拖动松手后的回落、退场时照片飞回原处、双击缩放的放大与缩回。
-     *
-     * 【为什么用弹簧，而不是 [stateChange] 的 tween】
-     * tween 默认曲线（FastOutSlowIn）起手是缓入的：手指刚离开那几帧画面几乎不动，手上读作
-     * 「顿一下」；而手势松手后的运动应当接着手指的速度走。M3 对这类运动给的也是弹簧（没有固定
-     * 时长，随输入走）。
-     *
-     * 取值是 M3 Expressive 运动方案里的 **fast spatial**（阻尼比 0.9、刚度 1400）：0.9 允许
-     * 一点点过冲，这是它不显得拖泥带水的原因；刚度取「fast」那一档，长距离飞行也收得住。
-     * 本项目的 Compose BOM（material3 1.5.0-alpha29）里还没有 MotionScheme，所以值写在这里并
-     * 注明出处；等 BOM 里有了，换成 MaterialTheme.motionScheme.fastSpatialSpec() 即可，别另挑参数。
-     */
-    fun <T> gestureRelease(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.9f, stiffness = 1400f)
 
     /**
      * 与 [stateChange] 同一档时长，但晚一拍才开始。
