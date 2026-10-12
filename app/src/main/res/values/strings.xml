@@ -59,6 +59,10 @@
     <string name="record_image_change">更换照片</string>
     <string name="record_image_source_gallery">相册</string>
     <string name="record_image_remove">移除照片</string>
+    <!-- 详情页点照片可看大图，编辑页点照片是换照片：两处都有动作，读屏软件要能说清点下去会怎样 -->
+    <string name="record_image_open">查看大图</string>
+    <!-- 看图页的手势没有可见把手，说明一句比让用户自己试出来省事（同 photo_crop_hint） -->
+    <string name="record_image_view_hint">双指放大，拖动查看</string>
     <string name="record_image_read_failed">无法读取这张照片</string>
     <string name="record_image_save_failed">照片保存失败，已保留原照片</string>
     <string name="photo_capture_title">拍照</string>
