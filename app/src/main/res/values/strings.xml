@@ -130,12 +130,15 @@
 
     <!-- 欢迎页：只在首次使用时出现一次。五步依次是定位、代价（识别要用自备的模型）、配置、相机权限。
          最后一步是权限的 priming：先说明用途，再由用户点按钮触发系统弹窗。
-         第 1 步只交代这是什么（README 的一句话定位），不摆它的功能清单：功能与做法是第 2 步的事，
-         首屏摆一屏要点只会把「这是个什么应用」冲淡。
+         第 1 步＝一句话定位 + 三条好处。条数取 Material 的 Top User Benefits 模型（最多三条），
+         写的是好处（不用手打、不用注册），不是做法与功能清单（扫描流程、字段名交给第 2 步）。
          用词取用户视角的日常说法（「包装」「快到期」），不搬 README 里的功能名与口号
          （「OCR」「实时识别」「无广告无追踪、无内购」这类罗列不是人话）。
          取景识别一律说「扫描」不说「拍照」：扫描页是持续取景、没有快门，用户并没有按下去的那一下 -->
     <string name="welcome_intro_body">借助模型管理食品保质期。</string>
+    <string name="welcome_intro_benefit_scan">扫一下就好，名称和日期不用手打</string>
+    <string name="welcome_intro_benefit_expiry">快到期的自动排在前面</string>
+    <string name="welcome_intro_benefit_privacy">不用注册，记录留在本机</string>
     <string name="welcome_flow_title">标签上的字交给模型读</string>
     <!-- 不写「照片不会外传」之类的话：照片本来就会随请求发往用户自己配的模型，
          这一句要说的正是这件事 -->
@@ -146,7 +149,7 @@
     <string name="welcome_ai_title">填上你的模型</string>
     <string name="welcome_ai_body">三项都必填。填完就能扫描了；想换别的模型，之后在「设置 → 基础配置」里改。</string>
     <string name="welcome_camera_title">扫描时要用到相机</string>
-    <string name="welcome_camera_body">相机只在你点扫描的时候打开，扫描到的画面用于识别。</string>
+    <string name="welcome_camera_body">相机只在你点扫描的时候打开，扫描到的画面仅用于识别。</string>
     <string name="welcome_done_title">都设置好了</string>
     <string name="welcome_done_body">从主页的「添加」开始，拍下第一件东西。</string>
     <string name="welcome_action_next">下一步</string>
