@@ -72,6 +72,10 @@ fun PhotoViewer(
         var offset by remember(image) { mutableStateOf(Offset.Zero) }
         // 退出时图跟手的位移（像素，两轴都算）
         var dragOffset by remember(image) { mutableStateOf(Offset.Zero) }
+        // 一旦触发退出，这一页就在退场了：这时再来手势只会把「跟手位移」在退场动画中途改掉，
+        // 共享元素记住的是旧矩形、内容却已经挪走，图就留在屏幕角落（复现：滑走后 200~300ms 内
+        // 再点一下）。所以退场一开始就关掉这一页的手势，并让回弹别再跑
+        var dismissing by remember(image) { mutableStateOf(false) }
         // 双击与回弹的动画：捏合要能随时打断，所以留个句柄
         var gestureAnimation by remember(image) { mutableStateOf<Job?>(null) }
         val scope = rememberCoroutineScope()
@@ -121,10 +125,17 @@ fun PhotoViewer(
             }
         }
 
+        /** 唯一的出口：先关手势再交给调用方 */
+        fun dismiss() {
+            if (dismissing) return
+            dismissing = true
+            onDismiss()
+        }
+
         /** 没到阈值就把图弹回原位 */
         fun animateDragBack() {
             gestureAnimation?.cancel()
-            if (dragOffset == Offset.Zero) return
+            if (dismissing || dragOffset == Offset.Zero) return
             Log.d(TAG, "回弹开始 drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
             gestureAnimation = scope.launch {
                 val start = dragOffset
@@ -173,6 +184,7 @@ fun PhotoViewer(
                 .pointerInput(image) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        if (dismissing) return@awaitEachGesture
                         Log.d(TAG, "手势开始 zoom=$zoom pan=(${offset.x.toInt()},${offset.y.toInt()}) drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
                         var drag = Offset.Zero
                         var multiTouch = false
@@ -198,7 +210,7 @@ fun PhotoViewer(
                             // 这一页马上就没了，回弹动画不必跑：退场的共享元素过渡接着演，
                             // 图就停在跟手的位置，不会先弹回正中
                             Log.d(TAG, "退出：拖拽 拖动=(${drag.x.toInt()},${drag.y.toInt()})")
-                            onDismiss()
+                            dismiss()
                         } else {
                             animateDragBack()
                         }
@@ -209,15 +221,16 @@ fun PhotoViewer(
                     detectTapGestures(
                         onTap = {
                             Log.d(TAG, "退出：单击 zoom=$zoom pan=(${offset.x.toInt()},${offset.y.toInt()}) drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
-                            onDismiss()
+                            dismiss()
                         },
                         onDoubleTap = { tap ->
+                            if (dismissing) return@detectTapGestures
                             Log.d(TAG, "双击 落点=(${tap.x.toInt()},${tap.y.toInt()}) zoom=$zoom")
                             animateZoomTo(if (zoom > 1f) 1f else DOUBLE_TAP_ZOOM, tap)
                         }
                     )
                 }
-                .transformable(state = transformState)
+                .transformable(state = transformState, enabled = !dismissing)
         )
     }
 }

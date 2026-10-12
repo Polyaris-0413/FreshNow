@@ -10,14 +10,15 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.data.ScanImageStore
 import com.freshnow.app.data.local.FreshNowDatabase
 import com.freshnow.app.data.local.ScanRecord
+import androidx.test.espresso.Espresso
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -71,7 +72,9 @@ class RecordDetailPhotoTest {
         composeRule.onNodeWithText(VIEWER_TITLE).assertIsDisplayed()
         saveScreenshot("detail-photo-viewer.png")
 
-        composeRule.onNodeWithContentDescription(BACK).performClick()
+        // 用系统返回（本页的 BackHandler）：详情页现在常驻，「返回」这个描述在屏幕上会同时
+        // 命中详情页与看图页两个节点，按描述点会撞上"匹配到多个"
+        Espresso.pressBack()
 
         composeRule.onNodeWithText(VIEWER_TITLE).assertDoesNotExist()
         composeRule.onNodeWithText("编辑").assertIsDisplayed()
@@ -190,6 +193,5 @@ class RecordDetailPhotoTest {
         const val MAX_TRANSITION_MS = 1_200L
         /** 看图页的标题：详情页里同样的字是照片的内容描述，不是文本，两处不会撞 */
         const val VIEWER_TITLE = "扫描照片"
-        const val BACK = "返回"
     }
 }

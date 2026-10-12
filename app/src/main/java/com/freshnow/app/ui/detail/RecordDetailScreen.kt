@@ -3,9 +3,11 @@ package com.freshnow.app.ui.detail
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,16 +63,30 @@ fun RecordDetailScreen(
     // 系统返回只该退回记录页，而不是直接离开这一页，所以在这里拦一下
     BackHandler(enabled = viewingImage) { viewingImage = false }
 
-    // 照片从它在详情页里的样子长到整屏（M3 的 container transform 那套）：两层用同一个键
-    // 告诉框架说的是同一张图，位置与大小由它去补间；其余部分同时淡入淡出。
-    // 时长取页内状态切换那一档（200ms）：它确实不是一次页面跳转。
+    // 详情页常驻，看图页作为覆盖层进出：**同一个实例**进出，快速连点最多是把这段过渡反向，
+    // 不可能出现「退场与进场同时进行」——重叠时框架会把上一段留在屏幕上（实测：滑走后 200~300ms
+    // 内再点一下，图就卡在屏幕角落，且那个僵尸页几秒后仍在收手势）。
+    // 顺带把「退场要重建整页」的合成成本也省了（之前实测退出那一刻有一帧 80~100ms）。
     SharedTransitionLayout(modifier = modifier) {
-        AnimatedContent(
-            targetState = viewingImage && image != null,
-            transitionSpec = { FreshNowTransitions.fadeSwap() },
-            label = "recordPhoto"
-        ) { showingViewer ->
-            if (showingViewer && image != null) {
+        RecordDetailContent(
+            uiState = uiState,
+            image = image,
+            onBack = onBack,
+            onNavigateToEdit = onNavigateToEdit,
+            onOpenImage = { viewingImage = true },
+            photoModifier = Modifier.sharedElementWithCallerManagedVisibility(
+                sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
+                visible = !viewingImage,
+                boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
+            )
+        )
+
+        AnimatedVisibility(
+            visible = viewingImage && image != null,
+            enter = fadeIn(FreshNowTransitions.stateChange()),
+            exit = fadeOut(FreshNowTransitions.stateChange())
+        ) {
+            if (image != null) {
                 FreshNowSubPage(
                     title = stringResource(R.string.record_image),
                     onBack = { viewingImage = false }
@@ -78,32 +95,19 @@ fun RecordDetailScreen(
                         image = image,
                         onDismiss = { viewingImage = false },
                         modifier = Modifier.padding(innerPadding),
-                        imageModifier = Modifier.sharedElement(
+                        imageModifier = Modifier.sharedElementWithCallerManagedVisibility(
                             sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                            animatedVisibilityScope = this,
+                            visible = viewingImage,
                             boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
                         )
                     )
                 }
-            } else {
-                RecordDetailContent(
-                    uiState = uiState,
-                    image = image,
-                    onBack = onBack,
-                    onNavigateToEdit = onNavigateToEdit,
-                    onOpenImage = { viewingImage = true },
-                    photoModifier = Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                        animatedVisibilityScope = this,
-                        boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
-                    )
-                )
             }
         }
     }
 }
 
-/** 记录本身那一屏。抽出来是为了让它与看图屏在 [AnimatedContent] 里各占一支 */
+/** 记录本身那一屏。它常驻：看图页是盖在它上面的覆盖层 */
 @Composable
 private fun RecordDetailContent(
     uiState: RecordDetailUiState,
