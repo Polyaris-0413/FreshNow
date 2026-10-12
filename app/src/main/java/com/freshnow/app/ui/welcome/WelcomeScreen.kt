@@ -410,6 +410,7 @@ private fun WelcomeStepContent(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
                     ) {
+                        Benefit(stringResource(R.string.welcome_intro_benefit_days_left))
                         Benefit(stringResource(R.string.welcome_intro_benefit_ocr))
                         Benefit(stringResource(R.string.welcome_intro_benefit_packaging))
                     }
@@ -501,8 +502,9 @@ private fun WelcomeBody(text: String) {
 }
 
 /**
- * 第 1 步的三条好处。条数的上限来自 Material 的 Top User Benefits 模型（最多三条），
- * 内容也只许写好处——摆一屏功能清单会把「这是什么应用」冲淡
+ * 第 1 步的三条要点。条数上限三条来自 Material 的 Top User Benefits 模型，
+ * 顺序也照它：先给用户拿到的东西（还剩几天），再摆两条支撑卖点；
+ * 反过来先摆準确率与兼容性，首屏就成了一行行参数
  */
 @Composable
 private fun Benefit(text: String) {
