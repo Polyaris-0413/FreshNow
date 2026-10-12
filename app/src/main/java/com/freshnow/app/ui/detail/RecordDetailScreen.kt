@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.detail
 
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -52,6 +53,10 @@ fun RecordDetailScreen(
     // 看图是这一页内的一次状态切换，不是新的目的地：照片已经在内存里，走导航得把文件重读一遍。
     // 没有照片时也看不了图——那个位置本来就是占位图
     var viewingImage by remember { mutableStateOf(false) }
+    // 交接处最容易出问题（退出动画中途被打断、状态没归零），进出都记一笔
+    LaunchedEffect(viewingImage) {
+        Log.d("PhotoViewer", "详情页 看图页可见=$viewingImage 有图=${image != null}")
+    }
     // 系统返回只该退回记录页，而不是直接离开这一页，所以在这里拦一下
     BackHandler(enabled = viewingImage) { viewingImage = false }
 

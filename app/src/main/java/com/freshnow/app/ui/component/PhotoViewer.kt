@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.component
 
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +83,14 @@ fun PhotoViewer(
         val dismissThreshold =
             min(viewport.width, viewport.height) * DISMISS_THRESHOLD_RATIO
 
+        // 复现「图卡在屏幕边缘」时要看的是退出那一刻的状态，所以进出这一页都打一份快照
+        DisposableEffect(Unit) {
+            Log.d(TAG, "看图页进入 viewport=${viewport.width}x${viewport.height} photo=${photoSize.width.toInt()}x${photoSize.height.toInt()}")
+            onDispose {
+                Log.d(TAG, "看图页离开 zoom=${zoom} pan=(${offset.x.toInt()},${offset.y.toInt()}) drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
+            }
+        }
+
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
             // 手指一动就接管：正在演的动画再往下演，就会和手指抢缩放值
             gestureAnimation?.cancel()
@@ -115,6 +125,7 @@ fun PhotoViewer(
         fun animateDragBack() {
             gestureAnimation?.cancel()
             if (dragOffset == Offset.Zero) return
+            Log.d(TAG, "回弹开始 drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
             gestureAnimation = scope.launch {
                 val start = dragOffset
                 animate(
@@ -122,6 +133,7 @@ fun PhotoViewer(
                     targetValue = 1f,
                     animationSpec = FreshNowTransitions.fastSpatial()
                 ) { value, _ -> dragOffset = start * (1f - value) }
+                Log.d(TAG, "回弹结束 drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
             }
         }
 
@@ -161,6 +173,7 @@ fun PhotoViewer(
                 .pointerInput(image) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        Log.d(TAG, "手势开始 zoom=$zoom pan=(${offset.x.toInt()},${offset.y.toInt()}) drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
                         var drag = Offset.Zero
                         var multiTouch = false
                         while (true) {
@@ -175,9 +188,16 @@ fun PhotoViewer(
                                 dragOffset = drag
                             }
                         }
-                        if (!multiTouch && zoom <= 1f && drag.getDistance() > dismissThreshold) {
+                        val distance = drag.getDistance()
+                        Log.d(
+                            TAG,
+                            "手势结束 多指=$multiTouch zoom=$zoom 拖动=(${drag.x.toInt()},${drag.y.toInt()}) " +
+                                "距离=${distance.toInt()} 阈值=${dismissThreshold.toInt()} pan=(${offset.x.toInt()},${offset.y.toInt()})"
+                        )
+                        if (!multiTouch && zoom <= 1f && distance > dismissThreshold) {
                             // 这一页马上就没了，回弹动画不必跑：退场的共享元素过渡接着演，
                             // 图就停在跟手的位置，不会先弹回正中
+                            Log.d(TAG, "退出：拖拽 拖动=(${drag.x.toInt()},${drag.y.toInt()})")
                             onDismiss()
                         } else {
                             animateDragBack()
@@ -187,14 +207,23 @@ fun PhotoViewer(
                 // 点击接在 transformable 之前：接在后面的话那一串手势先拿到事件，单击就轮不到了
                 .pointerInput(image) {
                     detectTapGestures(
-                        onTap = { onDismiss() },
-                        onDoubleTap = { tap -> animateZoomTo(if (zoom > 1f) 1f else DOUBLE_TAP_ZOOM, tap) }
+                        onTap = {
+                            Log.d(TAG, "退出：单击 zoom=$zoom pan=(${offset.x.toInt()},${offset.y.toInt()}) drag=(${dragOffset.x.toInt()},${dragOffset.y.toInt()})")
+                            onDismiss()
+                        },
+                        onDoubleTap = { tap ->
+                            Log.d(TAG, "双击 落点=(${tap.x.toInt()},${tap.y.toInt()}) zoom=$zoom")
+                            animateZoomTo(if (zoom > 1f) 1f else DOUBLE_TAP_ZOOM, tap)
+                        }
                     )
                 }
                 .transformable(state = transformState)
         )
     }
 }
+
+/** 日志标签：复现手势异常时用 adb logcat -s PhotoViewer 抓 */
+private const val TAG = "PhotoViewer"
 
 /** 看图能放到的最大倍率。比裁剪页高，看图的一个用途是看清标签上的小字 */
 private const val MAX_VIEW_ZOOM = 6f
