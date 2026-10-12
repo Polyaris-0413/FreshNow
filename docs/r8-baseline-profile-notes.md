@@ -177,7 +177,17 @@ buildTypes {
 
 实测 `:app:assembleRelease`（2026-10-12）：APK 3557433 字节，`mapping.txt` 里应用类条目 **306 条**（口径：`grep -oE '^com\.freshnow[^ ]* -> [^ :]+'`，含内嵌类与 `$$ExternalSyntheticLambda` 合成类；只算顶层类则是 80 条），应用类被改名（如 `AiAnalysis → g5`），死代码带 `R8$$REMOVED$$CLASS$$` 标记。
 
-注意这个条目数**不能当覆盖率指标**：顶层 Composable 类会被 R8 整体内联、条目直接消失，所以它会随 R8 的内联/合并反向变小（见附录 C-1）。库的保底规则本来就齐全（Room / Compose / CameraX / DataStore 的 consumer 规则都在 `app/build/outputs/mapping/release/configuration.txt` 里），`app/src/main/keepRules/rules.keep` 保持空模板即可。
+注意这个条目数**不能当覆盖率指标**：顶层 Composable 类会被 R8 整体内联、条目直接消失，所以它会随 R8 的内联/合并反向变小（见附录 C-1）。库的保底规则本来就齐全（Room / Compose / CameraX / DataStore / kotlinx.serialization / Ktor 的 consumer 规则都在 `app/build/outputs/mapping/release/configuration.txt` 里，2026-10-12 各自数到 6 / 50 / 18 / 15 / 21 / 5 条）。应用自己的规则只有一个文件 `app/proguard-rules.pro`，里面只有一条 `-dontwarn java.lang.management.**`（Ktor 的 JVM-only 反射路径，缺了它 R8 会因为找不到被引用的类而中止构建；理由在该文件的注释里）。**没有 `app/src/main/keepRules/`，那是旧文档里的路径。**
+
+### 什么时候才需要动规则
+
+2026-10-12 核对：**不需要新增**。判据与理由：
+
+- R8 要不要补规则只看两件事：`app/build/outputs/mapping/release/missing_rules.txt` **有没有生成**，以及构建日志里有没有 `Missing class` / R8 warning。两者都没有就不需要加。
+- 需要 keep 的是**按名字找类**的反射。应用代码里这类反射是零：只有 `getSystemService(X::class.java)`、Room 的 `FreshNowDatabase::class.java`，以及附录 D 那条显示问题——按 `KClass` 取系统服务不是名字反射。
+- Room 的 `FreshNowDatabase_Impl` 由 Room 自带的 `-keep class * extends androidx.room.RoomDatabase { void <init>(); }` 保住，应用不需要再写一条。
+- 序列化只用在 4 个 `@Serializable` **data class**（无多态、无 `@SerialName`、无 `classDiscriminator`），生成的 serializer 是静态引用且被 kotlinx 自带规则保住；JSON 的键是编译期字符串常量，混淆不影响两台设备间以及跨版本的互通。
+- 反例就看附录 D 那条 `e::class.java.simpleName`：显示成混淆名是**代码侧**的事，别用 `-keepnames class * extends Throwable` 去修——那是拿体积换一个显示问题。
 
 ## B-2 `packageScope` 是 gradual shrinking 的包范围
 
