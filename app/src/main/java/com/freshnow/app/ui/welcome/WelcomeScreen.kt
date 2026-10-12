@@ -54,7 +54,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import com.freshnow.app.ui.component.AiBasicConfigForm
-import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.scan.rememberCameraPermissionState
 import com.freshnow.app.ui.theme.FreshNowSize
@@ -435,11 +434,10 @@ private fun WelcomeStepContent(
         modifier = modifier,
         contentAlignment = if (topInset == null) Alignment.Center else Alignment.TopCenter
     ) {
-        val scroll = rememberScrollState()
         Column(
             modifier = Modifier
                 .then(if (topInset != null) Modifier.padding(top = topInset) else Modifier)
-                .verticalScroll(scroll)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = FreshNowSpacing.sm)
                 .padding(vertical = FreshNowSpacing.md),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -453,13 +451,6 @@ private fun WelcomeStepContent(
                 cameraPermissionBlocked = cameraPermissionBlocked
             )
         }
-
-        // 键盘顶起底栏时可区会矮到装不下这一步的内容，下边缘必然要切一刀；用渐隐代替硬切，
-        // 免得那一刀正好落在输入框与进度条之间、看着像进度条压在框上（ScanScreen 同一手法）
-        ScrollEdgeFade(
-            visible = scroll.canScrollForward,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
     }
 }
 
