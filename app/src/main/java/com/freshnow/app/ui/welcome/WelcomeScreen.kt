@@ -300,6 +300,11 @@ internal fun WelcomeSteps(
                 )
             }
 
+            // 内容区与底栏之间留一条缝。滚到底时内容的下边界本来就与进度条贴着，键盘顶起底栏后
+            // 更明显：输入框的底边正好压在进度条那一行上，看着像进度条盖住了输入框。
+            // 这条缝让内容区的下边界看得见（底栏自身的尺寸与位置不变）
+            Spacer(modifier = Modifier.height(FreshNowSpacing.sm))
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
