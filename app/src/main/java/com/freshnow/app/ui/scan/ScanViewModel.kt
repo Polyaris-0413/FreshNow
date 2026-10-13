@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.scan
 
 import android.app.Application
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,8 @@ import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.ScanResult
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.data.mergeObservation
+import com.freshnow.app.ui.theme.FreshNowTransitions
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +41,8 @@ data class ScanUiState(
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     val reasoning: String = "",
     val showReasoning: Boolean = false,
+    /** 取景框里那枚状态胶囊该说什么，见 [ScanStatus] */
+    val status: ScanStatus = ScanStatus.Hidden,
     /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
     val serviceProblem: ServiceProblem? = null
 )
@@ -59,6 +64,12 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 连续处于问题状态（未配置或请求失败）的帧数 */
     private var problemFrames = 0
+
+    /** 状态胶囊的最短停留，见 [ScanStatusDwell] */
+    private val statusDwell = ScanStatusDwell(FreshNowTransitions.STATUS_DWELL_MS)
+
+    /** 那句「正在识别…」的计时器；请求回来就把这榟事作废 */
+    private var statusJob: Job? = null
 
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
@@ -83,6 +94,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         Log.d(TAG, "提交一帧，${jpeg.size} 字节")
 
         viewModelScope.launch {
+            startStatusWatch()
+            // 这一帧模型看到的（不是累加后的记录）：胶囊报的就是它，见 [finishStatus]
+            var observation: ScanResult? = null
             try {
                 val settings = settingsRepository.aiSettings.first()
                 val configured = settings.baseUrl.isNotBlank() &&
@@ -90,6 +104,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     settings.apiKey.isNotBlank()
                 if (configured) {
                     val analysis = client.analyze(settings, jpeg)
+                    observation = analysis.result
                     _uiState.update { state ->
                         // 累加记录：本帧没看到的字段保留已有值，推算也基于累加后的记录
                         val record = state.record.mergeObservation(analysis.result)
@@ -106,7 +121,43 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 delay(RETRY_DELAY_MS)
             } finally {
                 busy.set(false)
+                finishStatus(observation)
             }
+        }
+    }
+
+    /**
+     * 请求发出：先不开口，等够 [FreshNowTransitions.RECOGNIZING_THRESHOLD_MS] 还没回来才说「正在识别」。
+     * 平常一趟就几百毫秒，低于这个门槛就结果已经回来了，摆了也是一闪而过。
+     */
+    private fun startStatusWatch() {
+        statusJob?.cancel()
+        statusJob = viewModelScope.launch {
+            delay(FreshNowTransitions.RECOGNIZING_THRESHOLD_MS)
+            publishStatus(ScanStatus.Recognizing)
+        }
+    }
+
+    /**
+     * 请求回来（成败都是）：那句「正在识别」作废，改报**这一帧**看到的项数。
+     *
+     * 报单帧而不是累加值：累加值很快停在上限（四项都读到）就永不再动，而用户要知道的是「眼下这一下
+     * 有没有收获」——单帧的项数会跟着他对得准不准升降，一直在说话。代价是它有时小于屏幕上已填好的
+     * 字段数（那是累加的结果），这是两者口径不同，不是丢了数据。
+     *
+     * [observation] 为 null（这一帧失败、或服务还没配置）时保持上一句不说话：那一帧本就没有观察可言，
+     * 而这时屏幕上会弹服务说明对话框，轮不到胶囊发言。
+     */
+    private fun finishStatus(observation: ScanResult?) {
+        statusJob?.cancel()
+        if (observation == null) return
+        publishStatus(ScanStatus.of(observation))
+    }
+
+    /** 报给停留器，由它定下画面要不要改 */
+    private fun publishStatus(wanted: ScanStatus) {
+        statusDwell.offer(SystemClock.elapsedRealtime(), wanted)?.let { shown ->
+            _uiState.update { it.copy(status = shown) }
         }
     }
 
@@ -160,7 +211,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun clearRecord() {
         latestFrame = null
-        _uiState.update { it.withRecord(ScanResult()).copy(reasoning = "") }
+        _uiState.update { it.withRecord(ScanResult()).copy(reasoning = "", status = ScanStatus.Hidden) }
+        // 不走停留：四个字段已经当场变成「未知」，胶囊若还被上一句拦着就跟眼前对不上了
+        statusDwell.reset(ScanStatus.Hidden)
     }
 
     /** 记录与推算结果必须一起更新，避免两处状态不同步 */

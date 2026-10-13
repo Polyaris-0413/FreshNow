@@ -23,6 +23,9 @@
     <string name="scan_shelf_life">保质期</string>
     <string name="scan_value_unknown">未知</string>
     <string name="scan_expiry_unparseable">无法推算</string>
+    <!-- 相机画面里那枚状态胶囊的两句话。说的是「此刻如何」，不是进度：这件事没有「做完」的那一刻 -->
+    <string name="scan_status_recognizing">正在识别…</string>
+    <string name="scan_status_found">已读到 %1$d 项</string>
     <string name="scan_clear">清空</string>
     <!-- 两条文案说的是「点一下会发生什么」，不是「当前是什么状态」：切换态图标的读法在两种设备上不一致 -->
     <string name="scan_flashlight_on">开启手电筒</string>

@@ -3,6 +3,7 @@ package com.freshnow.app.ui.scan
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,6 +46,7 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
 
 @Composable
@@ -88,6 +91,7 @@ fun ScanScreen(
                 permission = permission,
                 torchOn = torchOn,
                 onTorchChange = { torchOn = it },
+                status = uiState.status,
                 canAcceptFrame = viewModel::canAcceptFrame,
                 onFrame = viewModel::submitFrame,
                 modifier = sizeConstraint
@@ -267,6 +271,11 @@ internal fun ServiceUnavailableDialog(
  * 无内容时置灰而不隐藏：隐藏会让它在第一条识别结果到达的瞬间凭空出现、把上方内容顶一下。
  * 保存是主操作（填充按钮）、清空是次操作（文字按钮），与设置页的取消/保存同一套主次关系。
  *
+ * 两个按钮的「可点 / 不可点」不是用户点出来的，而是识别结果到了自己翻过来的：两端颜色硬切的话，
+ * 屏幕上会有一处颜色「啪」地变掉。所以颜色自己插值，并把同一个值喂给默认态与不可点态两个槽
+ * （与手电筒按钮同一个办法：开关语义仍由 `enabled` 提供，颜色由我们演）。
+ * 两端的取值就是这两组组件的 token，见 ButtonDefaults / TextButtonDefaults 各自的默认色。
+ *
  * 提为 internal 是为了能在仪器化测试里直接断言置灰与可点两种状态：设备上要出现「已扫到内容」
  * 得靠相机真的拍到标签，测试里没法复现。
  */
@@ -282,10 +291,44 @@ internal fun ScanActionBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TextButton(onClick = onClear, enabled = enabled) {
+        val clearColors = ButtonDefaults.textButtonColors()
+        val clearContentColor by animateColorAsState(
+            targetValue = if (enabled) clearColors.contentColor else clearColors.disabledContentColor,
+            animationSpec = FreshNowTransitions.stateChange(),
+            label = "clearContentColor"
+        )
+        TextButton(
+            onClick = onClear,
+            enabled = enabled,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = clearContentColor,
+                disabledContentColor = clearContentColor
+            )
+        ) {
             Text(text = stringResource(R.string.scan_clear))
         }
-        Button(onClick = onSave, enabled = enabled) {
+
+        val saveColors = ButtonDefaults.buttonColors()
+        val saveContainerColor by animateColorAsState(
+            targetValue = if (enabled) saveColors.containerColor else saveColors.disabledContainerColor,
+            animationSpec = FreshNowTransitions.stateChange(),
+            label = "saveContainerColor"
+        )
+        val saveContentColor by animateColorAsState(
+            targetValue = if (enabled) saveColors.contentColor else saveColors.disabledContentColor,
+            animationSpec = FreshNowTransitions.stateChange(),
+            label = "saveContentColor"
+        )
+        Button(
+            onClick = onSave,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = saveContainerColor,
+                contentColor = saveContentColor,
+                disabledContainerColor = saveContainerColor,
+                disabledContentColor = saveContentColor
+            )
+        ) {
             Text(text = stringResource(R.string.action_save))
         }
     }
@@ -364,6 +407,7 @@ private fun CameraBox(
     permission: CameraPermissionState,
     torchOn: Boolean,
     onTorchChange: (Boolean) -> Unit,
+    status: ScanStatus,
     canAcceptFrame: () -> Boolean,
     onFrame: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
@@ -381,6 +425,14 @@ private fun CameraBox(
             canAcceptFrame = canAcceptFrame,
             onFrame = onFrame,
             modifier = Modifier.fillMaxSize()
+        )
+        // 状态胶囊叠在画面上、不占布局：下面五块正好塞满一屏，在这里多要一行高度，
+        // 就会把最后那块「过期日期」挤出屏幕。它是叠上去的，所以只能放在这层 Box 里
+        ScanStatusChip(
+            status = status,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(FreshNowSpacing.xs)
         )
     }
 }

@@ -35,9 +35,28 @@ internal fun anyFieldFilled(
     productionDate: String,
     expiryDate: String,
     shelfLife: String
-): Boolean = productName.isNotBlank() || productionDate.isNotBlank() ||
-    expiryDate.isNotBlank() || shelfLife.isNotBlank()
+): Boolean = filledFieldCount(productName, productionDate, expiryDate, shelfLife) > 0
+
+/**
+ * 四个字段里填了几个。扫描页取景框里那枚状态胶囊报的「已读到 N 项」就是它。
+ *
+ * 与 [anyFieldFilled] 共用一套口径：两处各算各的，界面就会出现「已读到 3 项」而
+ * 「清空 / 保存」还是灰的这种自相矛盾。
+ *
+ * 上限就是 4：标签上能读的就这四项，所以它只能当「读到了些什么」用，不能当进度用。
+ * 单帧的观察与累加后的记录都用它算，区别只在传进来的是哪一个（见 ScanStatus.of）。
+ */
+internal fun filledFieldCount(
+    productName: String,
+    productionDate: String,
+    expiryDate: String,
+    shelfLife: String
+): Int = listOf(productName, productionDate, expiryDate, shelfLife).count { it.isNotBlank() }
 
 /** 是否已经累计到任何内容，用于决定要不要给出「清空」入口 */
 val ScanResult.hasAnyValue: Boolean
     get() = anyFieldFilled(productName, productionDate, expiryDate, shelfLife)
+
+/** 已填字段数，口径见 [filledFieldCount] */
+internal val ScanResult.filledFieldCount: Int
+    get() = filledFieldCount(productName, productionDate, expiryDate, shelfLife)

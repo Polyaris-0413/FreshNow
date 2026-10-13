@@ -157,6 +157,29 @@ object FreshNowTransitions {
     private const val PREVIEW_FADE_IN_MS = 250
 
     fun <T> previewFadeIn(): FiniteAnimationSpec<T> = tween(PREVIEW_FADE_IN_MS)
+
+    // ---- 扫描页那枚状态胶囊 ----
+
+    /**
+     * 一趟请求飞多久还没回来，才允许说「正在识别…」。
+     *
+     * 取 1 秒：低于它的话，这句话刚浮出来就被下一帧的结果顶掉了，落在眼里的正好是一次闪烁，
+     * 而它要挡的就是这种闪烁。1 秒也是「这一趟明显比平常慢」的分界——平常一趟就是几百毫秒
+     * 到一两秒（见 AiVisionClient 的超时）。
+     */
+    const val RECOGNIZING_THRESHOLD_MS = 1_000L
+
+    /**
+     * 状态胶囊上同一句话在画面里至少留多久。
+     *
+     * 取 600ms：比页内状态切换（[STATE_CHANGE_MS] 的 200ms）长，因为它挡的不是一次过渡好不好看，
+     * 而是两句话来回打架——请求每秒回来好几次，跟着信号换字的话一秒里能跳三次。
+     * 停留期内报上来的短状态由 ScanStatusDwell 直接丢掉，不排队补演。
+     */
+    const val STATUS_DWELL_MS = 600L
+
+    // 值到达时**不给**底色回执（曾经有过一套 FIELD_ARRIVAL_*，已删）：同一屏里几块各闪各的，
+    // 颜色太乱，而且它与 FreshNowFieldRow 里那一下淡化重复表达同一件事。别再往这个方向加。
 }
 
 /**
