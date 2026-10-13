@@ -41,6 +41,15 @@ object ScanValueFormat {
     private const val MONTHS_PER_YEAR = 12
     private const val DAYS_PER_WEEK = 7
 
+    /**
+     * 首尾要去掉的东西：空白与句读。
+     *
+     * 这是一类字符（标点），不是一列词：列词就永远说不清生效的是规则还是词表，遇到没列进去的
+     * 写法就失效；标点作为一个字符类是封闭的，跟本文件里其它正则字符类同一种东西。
+     */
+    private const val SURROUNDING_PUNCTUATION =
+        "。，、；：？！…～·—「」『』《》【】（）“”‘’\"'.,;:!?()"
+
     private val CHINESE_DIGITS = mapOf(
         '〇' to 0, '零' to 0, '一' to 1, '二' to 2, '两' to 2, '三' to 3, '四' to 4,
         '五' to 5, '六' to 6, '七' to 7, '八' to 8, '九' to 9
@@ -48,6 +57,17 @@ object ScanValueFormat {
 
     /** 日期统一成 yyyy-MM-dd */
     fun date(raw: String): String = parseDate(raw.trim())?.let(::format) ?: raw
+
+    /**
+     * 品名统一成「去掉首尾空白与句读」的样子。
+     *
+     * 品名是四项里唯一没有固定写法的（日期能解析成一种形式、保质期能收成「整数 + 单位」），
+     * 所以这里只能做这一步：模型多打一个空格、或照抄时末尾带一个句号，在累加规则里就会被当成
+     * 「换了个值」——而界面上那一下回执是给用户看的，为空格闪一次就是假消息。
+     *
+     * 只动首尾，不动中间：中文品名里本不该有空格，但拉丁品名有，删了会粘成一个词。
+     */
+    fun text(raw: String): String = raw.trim { it.isWhitespace() || it in SURROUNDING_PUNCTUATION }
 
     /** 保质期统一成「数字+单位」，天/日 归到天，月/个月 归到个月，周/星期 也归到天 */
     fun shelfLife(raw: String): String = parseShelfLife(raw)?.let(::formatShelfLife) ?: raw

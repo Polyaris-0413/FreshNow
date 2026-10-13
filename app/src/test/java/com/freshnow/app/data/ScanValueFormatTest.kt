@@ -204,4 +204,28 @@ class ScanValueFormatTest {
             ExpiryCalculator.resolve(printedExpiry = "", productionDate = "2026-10-06", shelfLife = "两个月")
         )
     }
+
+    /**
+     * 品名是四项里唯一没有固定写法的（日期与保质期都能解析成一种形式），只能做这一步：
+     * 模型多打一个空格，在累加规则里就会被当成「换了个值」，界面上那一下回执就成了假消息。
+     */
+    @Test
+    fun text_trimsSurroundingWhitespace() {
+        assertEquals("纯牛奶", ScanValueFormat.text("  纯牛奶 "))
+        assertEquals("纯牛奶", ScanValueFormat.text("纯牛奶\n"))
+    }
+
+    /** 照抄标签时末尾带一个句号，同理不该让它看起来是另一个值 */
+    @Test
+    fun text_dropsSurroundingPunctuation() {
+        assertEquals("纯牛奶", ScanValueFormat.text("纯牛奶。"))
+        assertEquals("纯牛奶", ScanValueFormat.text("「纯牛奶」"))
+    }
+
+    /** 只动首尾：中文品名里本不该有空格，但拉丁品名有，删了会粘成一个词 */
+    @Test
+    fun text_keepsInnerSpacing() {
+        assertEquals("Coca Cola", ScanValueFormat.text(" Coca Cola "))
+        assertEquals("原味 酸奶", ScanValueFormat.text("原味 酸奶"))
+    }
 }
