@@ -97,6 +97,35 @@ class SettledNavigatorTest {
     }
 
     /**
+     * 落定之后那条记录再走到 RESUMED 一次：不许崩。
+     *
+     * 【这条盯的是一个真撞过的崩溃】等落定的那个 lifecycle 观察者原先只在协程被取消时摘掉，正常
+     * resume 之后它就留在了那条记录的 lifecycle 上。那条记录下一次 RESUMED（返回回到它、或切后台
+     * 再回来）时，僵尸观察者会对一个已经结束的 continuation 再 resume 一次，抛 Already resumed，
+     * 把整个进程带走——真机上表现为「莫名闪退」。
+     *
+     * 复现走最短的一条路：先制造一次「转场中途再出发」（僵尸因此落在 B 那条记录上），等它落定，
+     * 再回退到 B——B 那条记录于是又 RESUMED 一次。
+     */
+    @Test
+    fun resumingThatEntryAgain_doesNotCrash() {
+        setContent()
+
+        composeRule.runOnUiThread { navigator.navigate(B) }
+        composeRule.mainClock.advanceTimeBy(TRANSITION_HALF_MS)
+        // 这一下让 awaitSettled 真的跑起来，僵尸就留在 B 上
+        composeRule.runOnUiThread { navigator.navigate(C) }
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 4)
+        composeRule.onNodeWithText(C).assertExists()
+
+        // 回退到 B：B 那条记录再一次 RESUMED
+        composeRule.runOnUiThread { navController.popBackStack() }
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 4)
+
+        composeRule.onNodeWithText(B).assertExists()
+    }
+
+    /**
      * 一帧一帧推到 [text] 那一页出现为止。
      *
      * 不按「推多久」写死：转场结束、延迟那一程出发、新页开始进场，这几步各有一两帧的调度延迟，

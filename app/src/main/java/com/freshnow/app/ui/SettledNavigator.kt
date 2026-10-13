@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -77,8 +78,18 @@ class SettledNavigator internal constructor(
             val entry = navController.currentBackStackEntry ?: return
             if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
             suspendCancellableCoroutine { continuation ->
-                val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_RESUME) continuation.resume(Unit)
+                // 说完话就把自己摘掉，不能只靠取消那条路：只靠它的话，正常落定之后这个观察者会一直
+                // 留在这条记录的 lifecycle 上，而那条记录下一次 RESUMED（返回回到它、或切后台再回来）
+                // 时会唤醒它，使它对一个已经结束的 continuation 再 resume 一次，抛 Already resumed
+                // 把整个进程带走（真机上撞过）。
+                //
+                // 写成 object 而不是 lambda，只是为了在回调里能引用到自己（removeObserver 要那个实例）。
+                val observer = object : LifecycleEventObserver {
+                    override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                        if (event != Lifecycle.Event.ON_RESUME) return
+                        source.lifecycle.removeObserver(this)
+                        continuation.resume(Unit)
+                    }
                 }
                 entry.lifecycle.addObserver(observer)
                 continuation.invokeOnCancellation { entry.lifecycle.removeObserver(observer) }
