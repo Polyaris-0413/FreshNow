@@ -57,7 +57,7 @@ class ScanPhotoTest {
 
     private fun setContent(image: Bitmap?) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 ScanPhoto(image = image)
             }
         }

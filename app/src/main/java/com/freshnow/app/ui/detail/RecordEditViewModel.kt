@@ -16,6 +16,7 @@ import com.freshnow.app.data.decodePickedImage
 import com.freshnow.app.data.decodeScanImage
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.toSquareJpegBytes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -306,10 +307,14 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                         current.imageChange
                     )
                 }
+            } catch (e: CancellationException) {
+                // 本页被销毁（用户返回、进程内重建）时这次写入会随作用域一起取消，取消必须原样抛出：
+                // 吞掉它等于把「协程被取消」记成「写入失败」，而 CancellationException 正是 Exception
+                // 的子类，下面的 catch (Exception) 捕得到它
+                throw e
             } catch (e: Exception) {
                 // 写库本身就失败了：留在本页并放开保存，让用户再试一次。
                 // 抛出去只会把应用崩掉，而这一次失败对用户来说是「没存上」不是「应用坏了」。
-                // 按 Exception 而不是 Throwable 捕：本页被销毁时的取消不该被当成一次写入失败
                 _uiState.update { it.copy(saving = false) }
                 return@launch
             }

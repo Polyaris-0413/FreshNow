@@ -58,7 +58,7 @@ class UpdateDialogTest {
         onDismiss: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 UpdateDialog(version = "v1.0.1", onDownload = onDownload, onDismiss = onDismiss)
             }
         }

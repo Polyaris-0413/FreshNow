@@ -710,7 +710,7 @@ class HomeScreenTest {
         val manualEntry = mutableStateOf(false)
         val targets = mutableListOf<String>()
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 HomeScreen(
                     records = null,
                     newRecordIds = emptySet(),
@@ -773,7 +773,7 @@ class HomeScreenTest {
         firstEmptyLoad: MutableState<Boolean> = mutableStateOf(false)
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 HomeScreen(
                     records = records.value,
                     newRecordIds = newRecordIds.value,
@@ -896,7 +896,7 @@ class HomeScreenTest {
         onSortOrderChange: (SortOrder) -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 // 断言描边颜色要用主题里的 primary，顺手在合成里记下来
                 primaryArgb = MaterialTheme.colorScheme.primary.toArgb()
                 HomeScreen(

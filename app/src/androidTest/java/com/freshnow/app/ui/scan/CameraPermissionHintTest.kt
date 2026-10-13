@@ -57,7 +57,7 @@ class CameraPermissionHintTest {
         onGrantPermission: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 CameraPermissionHint(
                     permissionBlocked = permissionBlocked,
                     onGrantPermission = onGrantPermission

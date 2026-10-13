@@ -1,6 +1,5 @@
 package com.freshnow.app.data.sync
 
-import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
@@ -88,11 +87,4 @@ internal object SyncCrypto {
     /** 随机一个 6 位配对码。前导零要留着，否则「000123」会变成五位 */
     fun newPairingCode(): String =
         SecureRandom().nextInt(1_000_000).toString().padStart(6, '0')
-
-    /**
-     * 配对码的比较用固定时间的实现：普通的字符串比较遇到第一个不同的字符就返回，
-     * 失败次数多了，攻击者能从耗时差异里把码一位一位试出来。
-     */
-    fun codeMatches(expected: String, candidate: String): Boolean =
-        MessageDigest.isEqual(expected.toByteArray(), candidate.toByteArray())
 }

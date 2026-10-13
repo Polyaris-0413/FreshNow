@@ -139,8 +139,7 @@
          不写「省掉一份 OCR 服务的开销」——那是把用户本来不必花的钱算成自己的优势，属于错位对比。
          「商用 OCR」是有意留的参照物：它就是「认字准不准」这件事现成的尺子，换成「识别引擎」反而没人认识；
          除此之外的技术名词不进文案。
-         取景识别一律说「扫描」不说「拍照」：扫描页是持续取景、没有快门，用户并没有按下去的那一下
-         （第 5 步的「拍下第一件东西」还是旧写法，待改）。 -->
+         取景识别一律说「扫描」不说「拍照」：扫描页是持续取景、没有快门，用户并没有按下去的那一下。 -->
     <string name="welcome_intro_body">借助模型管理食品保质期。</string>
     <string name="welcome_intro_advantage_title">多模态识别相比传统 OCR 的优势</string>
     <string name="welcome_intro_advantage_cost">识别效率与准确度相当，成本更低</string>
@@ -159,7 +158,7 @@
     <string name="welcome_camera_title">扫描时要用到相机</string>
     <string name="welcome_camera_body">相机只在你点扫描的时候打开，扫描到的画面仅用于识别。</string>
     <string name="welcome_done_title">都设置好了</string>
-    <string name="welcome_done_body">从主页的「添加」开始，拍下第一件东西。</string>
+    <string name="welcome_done_body">从主页的「添加」开始，记下第一件东西。</string>
     <string name="welcome_action_next">下一步</string>
     <string name="welcome_action_previous">上一步</string>
     <string name="welcome_action_grant_camera">允许使用相机</string>

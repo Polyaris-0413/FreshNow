@@ -115,7 +115,7 @@ class SettledNavigatorTest {
         composeRule.setContent {
             navController = rememberNavController()
             navigator = rememberSettledNavigator(navController)
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 NavHost(
                     navController = navController,
                     startDestination = A,

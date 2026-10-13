@@ -46,7 +46,7 @@ class ScanActionBarTest {
         onSave: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 ScanActionBar(enabled = enabled, onClear = onClear, onSave = onSave)
             }
         }

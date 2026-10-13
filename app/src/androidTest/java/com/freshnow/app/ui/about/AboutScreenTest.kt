@@ -95,7 +95,7 @@ class AboutScreenTest {
     @Test
     fun openSourceScreenListsProjectsWithoutLicenseText() {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 OpenSourceScreen(onBack = {})
             }
         }
@@ -146,7 +146,7 @@ class AboutScreenTest {
         onCheckUpdateClick: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 AboutList(
                     onOpenUrl = onOpenUrl,
                     onOpenSourceClick = onOpenSourceClick,

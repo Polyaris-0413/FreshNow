@@ -138,7 +138,7 @@ class RecordEditFormTest {
     fun invalidValueReportsOnlyAfterLeavingTheField() {
         composeRule.setContent {
             var uiState by mutableStateOf(EMPTY)
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 RecordEditForm(
                     uiState = uiState,
                     onProductNameChange = {},
@@ -193,7 +193,7 @@ class RecordEditFormTest {
         onChangePhoto: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 RecordEditForm(
                     uiState = uiState,
                     onProductNameChange = onProductNameChange,

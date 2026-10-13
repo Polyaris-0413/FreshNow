@@ -59,16 +59,17 @@ object FreshNowTransitions {
 
     /**
      * M3 把弹簧归成两族：**spatial**（位置、大小、形状）与 **effects**（透明度、颜色）；
-     * 每族三档 fast / default / slow。**新增动画先在这几条里挑**——只有当 M3 确实没有对应角色时
-     * 才新增条目，并在那里注明取值出处。
+     * 每族三档 fast / default / slow。**新增动画先在这六条里挑**，不要按用途另挑参数。
      *
      * 本项目用弹簧的地方都是**接手手势**的：拖动松手后的回落、退场时照片飞回原处、双击缩放。
      * 这类运动不该用带固定时长的 tween：tween 默认曲线起手是缓入的，手指刚离开那几帧几乎不动，
      * 手上读作「顿一下」；弹簧没有固定时长，起手就跟着手指的速度走。0.9 的阻尼比允许一点点过冲，
      * 这也是它不显得拖泥带水的原因。
      *
-     * 本项目的 BOM（material3 1.5.0-alpha29）里还没有 MotionScheme，所以取值照 M3 的实现写在这里；
-     * 等 BOM 里有了，这五个函数换成 MaterialTheme.motionScheme.* 即可，别另挑参数。
+     * 取值只能抄在这里：本项目 BOM（2026.02.01）解析到的是 material3 **1.4.0**，而那一版里
+     * MotionScheme 仍是 internal（Kotlin 侧取不到 MaterialTheme.motionScheme），到 1.5.0-alpha29
+     * 才对外公开。两版的取值实测逐个相同（0.9 & 1400/700/300、1 & 3800/1600），所以哪天 BOM 提到
+     * 公开它的版本，把这几个函数换成 MaterialTheme.motionScheme.* 即可，不会改观感，也别另挑参数。
      */
     fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 1400f)
 
@@ -143,6 +144,19 @@ object FreshNowTransitions {
             initialContentExit = fadeOut(stateChange()),
             sizeTransform = SizeTransform { _, _ -> stateChange() }
         )
+
+    // ---- 相机预览 ----
+
+    /**
+     * 相机预览层从透明到画面的淡入。
+     *
+     * 时长取 M3 时长表的 standard decelerate（250ms，「进入屏幕」那一列），曲线仍用 tween 默认的
+     * FastOutSlowInEasing（M3 的 standard 曲线，与页面切换同一条）。它与页面转场（350ms）、页内状态
+     * 切换（200ms）都不是同一件事，所以单列一档，不并进 [stateChange]。
+     */
+    private const val PREVIEW_FADE_IN_MS = 250
+
+    fun <T> previewFadeIn(): FiniteAnimationSpec<T> = tween(PREVIEW_FADE_IN_MS)
 }
 
 /**

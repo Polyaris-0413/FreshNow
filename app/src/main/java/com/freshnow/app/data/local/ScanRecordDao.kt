@@ -42,9 +42,6 @@ interface ScanRecordDao {
     @Query("SELECT * FROM scan_records WHERE syncId = :syncId LIMIT 1")
     suspend fun findBySyncId(syncId: String): ScanRecord?
 
-    @Query("SELECT imageName FROM scan_records WHERE id IN (:ids)")
-    suspend fun findImageNames(ids: List<Long>): List<String>
-
     /**
      * 把记录打成墓碑。时刻与修改时刻取同一个值：删除就是一次修改，分开取值会让
      * 「先改后删」和「先删后改」在同步里算出不同结果。

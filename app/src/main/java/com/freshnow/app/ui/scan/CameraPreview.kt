@@ -12,7 +12,6 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +29,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.freshnow.app.data.squareCrop
 import com.freshnow.app.data.toSquareJpegBytes
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
@@ -42,7 +42,6 @@ import kotlin.coroutines.resumeWithException
  */
 internal const val CAMERA_ASPECT_RATIO = 1f
 
-private const val PREVIEW_FADE_IN_MS = 250
 private const val OPAQUE_ALPHA = 0xFF shl 24
 
 /**
@@ -81,7 +80,7 @@ fun CameraPreview(
     var streaming by remember { mutableStateOf(false) }
     val previewAlpha by animateFloatAsState(
         targetValue = if (streaming) 1f else 0f,
-        animationSpec = tween(PREVIEW_FADE_IN_MS),
+        animationSpec = FreshNowTransitions.previewFadeIn(),
         label = "previewAlpha"
     )
 

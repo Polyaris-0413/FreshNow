@@ -39,7 +39,7 @@ class ScrollEdgeFadeTest {
     @Test
     fun fadeFollowsScrollPosition() {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 val scrollState = rememberScrollState()
                 Box(modifier = Modifier.height(VIEWPORT).fillMaxWidth()) {
                     Column(

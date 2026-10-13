@@ -74,7 +74,7 @@ class EditStepTransitionTest {
     private fun setContent(step: () -> EditStep) {
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 EditStepTransition(step = step()) { current ->
                     Text(text = if (current is EditStep.Crop) CROP else EDIT)
                 }

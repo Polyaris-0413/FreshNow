@@ -8,8 +8,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * 一次配对的时间窗。
  *
  * 配对码是一把共享秘密，谁先看到谁就能配上，所以它不能长期有效：只在用户打开配对页之后存在，
- * 配对成功或超时即作废。次数限制与固定时间比较（[SyncCrypto.codeMatches]）一起，把「在线猜码」
- * 压到没有胜算——窗口两分钟、三次机会，猜中概率是百万分之三。
+ * 配对成功或超时即作废。在线猜码的成本由两条一起挡住：每次尝试都要拿配对码派生出密钥去解密请求
+ * （PBKDF2 十万次迭代，见 [SyncCrypto.derivePairingKey]），解不开就记一次失败（[recordFailure]），
+ * 三次即关窗。于是窗口两分钟、三次机会，猜中概率是百万分之三。
  *
  * 码用 [StateFlow] 而不是一个普通字段：关窗有两个来源（用户关、对方配对成功、超时），
  * 而界面要跟着变。让界面去轮询「还开着吗」的话，界面上会留着码、服务端已经不认它，
@@ -44,18 +45,6 @@ internal class PairingSession {
     fun close() {
         _code.value = null
         attemptsLeft = 0
-    }
-
-    /**
-     * 核对一次尝试。对就返回 true；错则扣掉一次机会，机会用尽当场关窗——
-     * 不关的话，攻击者可以在这个窗口里一直猜下去，而用户看到码还以为它只在两分钟内有效。
-     */
-    @Synchronized
-    fun verify(candidate: String): Boolean {
-        val expected = _code.value ?: return false
-        if (SyncCrypto.codeMatches(expected, candidate)) return true
-        recordFailure()
-        return false
     }
 
     /**

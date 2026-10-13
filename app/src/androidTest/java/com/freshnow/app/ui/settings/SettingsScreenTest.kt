@@ -131,7 +131,7 @@ class SettingsScreenTest {
         onSyncClick: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 SettingsList(
                     summary = "未配置",
                     extraSummary = "跟随服务商默认",

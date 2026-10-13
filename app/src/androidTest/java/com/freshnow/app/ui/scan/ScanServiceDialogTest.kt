@@ -90,7 +90,7 @@ class ScanServiceDialogTest {
         onAcknowledge: () -> Unit = {}
     ) {
         composeRule.setContent {
-            FreshNowTheme(dynamicColor = false) {
+            FreshNowTheme() {
                 ServiceUnavailableDialog(
                     problem = problem,
                     onOpenSettings = onOpenSettings,
