@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,6 +51,8 @@ fun PhotoCaptureScreen(
     var torchOn by rememberSaveable { mutableStateOf(false) }
     // 分析线程读它、主线程写它，故用原子量跨线程传（与 ScanViewModel 表示"请求进行中"同一个理由）
     val shutter = remember { AtomicBoolean(false) }
+    // 按下那一下的回执：每按一次加一，取景框收一下再弹回（见 shutterSqueeze）
+    var squeeze by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         if (!permission.granted) permission.request()
@@ -74,6 +77,7 @@ fun PhotoCaptureScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .shutterSqueeze(squeeze)
             ) {
                 CameraViewport(
                     permission = permission,
@@ -93,7 +97,10 @@ fun PhotoCaptureScreen(
             // 快门放在取景框外面而不是叠在画面上：它按一下就要离开本页，是页面级的动作，
             // 与「保存」「清空」同档，用填充按钮；叠在画面里反而会让人以为它还能拨动取景
             Button(
-                onClick = { shutter.set(true) },
+                onClick = {
+                    shutter.set(true)
+                    squeeze++
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(

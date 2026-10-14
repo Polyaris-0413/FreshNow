@@ -82,6 +82,20 @@ object FreshNowTransitions {
     fun <T> defaultEffects(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 1600f)
 
 
+    // ---- 拍照页的快门 ----
+
+    /**
+     * 按下快门那一下取景框收多少：收下去再弹回，回弹就取上面那族弹簧里的 [fastSpatial]。
+     *
+     * 取 0.97：再小就看得出来是在「做动画」，而不是快门那一下收紧；这个量级在正方形取景框上
+     * 边缘只挪几个 dp，配上 stiffness 1400 的弹簧，收得快、回得也快。
+     *
+     * 这一下是「我拍到了」的回执，不是「请等待」：帧一直流着，从按下到结果只有几十毫秒，
+     * 给它配等待话术等于把一段看不见的等待变成看得见的（见 ShutterSqueeze 的说明）。
+     */
+    const val SHUTTER_SQUEEZE_SCALE = 0.97f
+
+
     // ---- 页内状态切换 ----
 
     /**

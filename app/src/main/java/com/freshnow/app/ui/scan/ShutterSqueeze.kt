@@ -1,0 +1,39 @@
+package com.freshnow.app.ui.scan
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import com.freshnow.app.ui.theme.FreshNowTransitions
+
+/**
+ * 按下快门那一下，取景框先收一下再弹回。
+ *
+ * 【这是「我拍到了」的回执，不是「请等待」】
+ * 相机的帧一直流着，快门只是取下一帧，从按到结果只有几十毫秒（见 PhotoCaptureScreen 的注释）。
+ * 给它配一句「正在拍摄…」等于把一段看不见的等待变成看得见的——这正是列表缩略图那版被撤掉的原因。
+ * 真要在某些机器上量出这段等待很长，也该按阈值门控单独补一句话术（与状态胶囊满 1 秒才说
+ * 「正在识别」同一个思路），而不是让这个动作本身去承担等待感。
+ *
+ * [trigger] 每按一次加一，用计数而不是布尔：连着按两下也各演一次。
+ * 首次合成（trigger 为 0）不演——进这一页时取景框不该自己收一下。
+ *
+ * 收多少见 [FreshNowTransitions.SHUTTER_SQUEEZE_SCALE]，回弹取设计源里那族弹簧的 fastSpatial，
+ * 不另挑参数。
+ */
+@Composable
+internal fun Modifier.shutterSqueeze(trigger: Int): Modifier {
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(trigger) {
+        if (trigger == 0) return@LaunchedEffect
+        // 先直接落到收紧的那一档，再交给弹簧弹回：按下是「一下」，不是「渐变着收」
+        scale.snapTo(FreshNowTransitions.SHUTTER_SQUEEZE_SCALE)
+        scale.animateTo(1f, FreshNowTransitions.fastSpatial())
+    }
+    return graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
+    }
+}
