@@ -34,6 +34,11 @@ import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
+import com.freshnow.app.ui.CHANNEL_TOLERANCE
+import com.freshnow.app.ui.channelDifference
+import com.freshnow.app.ui.differs
+import com.freshnow.app.ui.drawsSomethingBetween
+import com.freshnow.app.ui.maxContrast
 import com.freshnow.app.ui.sync.SyncMessage
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -346,15 +351,6 @@ class HomeScreenTest {
         assertTrue("半途应当已经淡下去一些：before=$before middle=$middle", differs(middle, before))
     }
 
-    /** 两个颜色是否看得出差别：通道差超过容差即可，不比较具体颜色，免得把配色写进断言 */
-    private fun differs(a: Int, b: Int): Boolean = channelDifference(a, b) > CHANNEL_TOLERANCE
-
-    private fun channelDifference(a: Int, b: Int): Int = maxOf(
-        abs(Color.red(a) - Color.red(b)),
-        abs(Color.green(a) - Color.green(b)),
-        abs(Color.blue(a) - Color.blue(b))
-    )
-
     /**
      * 第一条记录出现时，空态要淡出——它和记录行是同一次换位的两半，不该硬消失。
      *
@@ -370,7 +366,7 @@ class HomeScreenTest {
         // 先让空态淡到位，取它的满值作对照
         composeRule.waitForIdle()
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
-        val full = maxContrast(region)
+        val full = composeRule.maxContrast(region)
 
         composeRule.mainClock.autoAdvance = false
         composeRule.runOnUiThread {
@@ -379,11 +375,11 @@ class HomeScreenTest {
         }
 
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
-        val middle = maxContrast(region)
+        val middle = composeRule.maxContrast(region)
 
         // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
-        val end = maxContrast(region)
+        val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
         assertTrue("半途应当已经淡下去一些、但还没淡完：full=$full middle=$middle", middle in 1 until full)
@@ -415,15 +411,15 @@ class HomeScreenTest {
         // 条目淡出的半程：空态这时候还不该看得见
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
-        assertEquals("条目淡出没结束前不该已经看得见：${maxContrast(region)}", 0, maxContrast(region))
+        assertEquals("条目淡出没结束前不该已经看得见：${composeRule.maxContrast(region)}", 0, composeRule.maxContrast(region))
 
         // 等过这一拍，它才开始淡入
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS)
-        val middle = maxContrast(region)
+        val middle = composeRule.maxContrast(region)
 
         // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
-        val end = maxContrast(region)
+        val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
         assertTrue("半途应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
@@ -444,10 +440,10 @@ class HomeScreenTest {
         setContent(items = emptyList<HomeRecordItem>())
 
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
-        val atStart = maxContrast(region)
+        val atStart = composeRule.maxContrast(region)
 
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
-        val late = maxContrast(region)
+        val late = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
         assertTrue(
@@ -469,15 +465,15 @@ class HomeScreenTest {
         setContent(items = emptyList<HomeRecordItem>(), firstEmptyLoad = true)
 
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
-        assertEquals("第一帧还看不见：${maxContrast(region)}", 0, maxContrast(region))
+        assertEquals("第一帧还看不见：${composeRule.maxContrast(region)}", 0, composeRule.maxContrast(region))
 
         // 半程：已经在淡入的路上（没有延迟，所以这时候看得见一点）
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
-        val middle = maxContrast(region)
+        val middle = composeRule.maxContrast(region)
 
         // 越过整段时长，它该到终态
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
-        val end = maxContrast(region)
+        val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
         assertTrue("半程应当已经看得见、但还没到最终的样子：middle=$middle end=$end", middle in 1 until end)
@@ -506,11 +502,11 @@ class HomeScreenTest {
 
         // 取样从半程开始：这一帧上旧条目正从上方滑过，取到的对比度是它的，不是新条目的
         composeRule.mainClock.advanceTimeBy(DEFER_FRAME_MS + STATE_CHANGE_HALF_MS)
-        val middle = maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
+        val middle = composeRule.maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
 
         // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
-        val end = maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
+        val end = composeRule.maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
         composeRule.mainClock.autoAdvance = true
 
         assertTrue(
@@ -572,11 +568,11 @@ class HomeScreenTest {
 
         val region = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot()
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
-        val middle = maxContrast(region)
+        val middle = composeRule.maxContrast(region)
 
         // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
-        val end = maxContrast(region)
+        val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
 
         assertTrue("中途不该有半透明的时候：middle=$middle end=$end", abs(middle - end) <= 1)
@@ -607,43 +603,11 @@ class HomeScreenTest {
         val textTop = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot().top
         assertTrue(
             "文案正上方应当画着曲奇（空态整块居中，曲奇在文案之上一个组件间距处）",
-            drawsSomethingBetween(
+            composeRule.drawsSomethingBetween(
                 top = textTop - FreshNowSpacing.sm - FreshNowSize.icon,
                 bottom = textTop - FreshNowSpacing.sm
             )
         )
-    }
-
-    /** 这条 y 带内有没有画了东西的像素：装饰图形没有语义节点，只能这样验收 */
-    private fun drawsSomethingBetween(top: Dp, bottom: Dp): Boolean {
-        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
-        val background = bitmap.getPixel(0, bitmap.height - 1)
-        val from = with(composeRule.density) { top.roundToPx() }.coerceIn(0, bitmap.height - 1)
-        val to = with(composeRule.density) { bottom.roundToPx() }.coerceIn(0, bitmap.height)
-        return (from until to).any { y ->
-            (0 until bitmap.width).any { x ->
-                channelDifference(bitmap.getPixel(x, y), background) > CHANNEL_TOLERANCE
-            }
-        }
-    }
-
-    /** 该区域里与页面底色差得最远的那个像素差多少：文字淡入时它会从 0 涨到最终值 */
-    private fun maxContrast(region: DpRect): Int {
-        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
-        val background = bitmap.getPixel(0, bitmap.height - 1)
-        val left = with(composeRule.density) { region.left.roundToPx() }.coerceIn(0, bitmap.width - 1)
-        val top = with(composeRule.density) { region.top.roundToPx() }.coerceIn(0, bitmap.height - 1)
-        val right = with(composeRule.density) { region.right.roundToPx() }.coerceIn(0, bitmap.width)
-        val bottom = with(composeRule.density) { region.bottom.roundToPx() }.coerceIn(0, bitmap.height)
-
-        var max = 0
-        for (y in top until bottom) {
-            for (x in left until right) {
-                val difference = channelDifference(bitmap.getPixel(x, y), background)
-                if (difference > max) max = difference
-            }
-        }
-        return max
     }
 
     /**
@@ -961,7 +925,6 @@ class HomeScreenTest {
         const val PREVIEW_NAME = "home_list_preview.png"
         const val SELECTION_PREVIEW_NAME = "home_selection_preview.png"
         const val COUNT_ROLL_PREVIEW_NAME = "home_count_roll_preview.png"
-        const val CHANNEL_TOLERANCE = 8
 
         /** 选中计数标题里数字之前那一段文字，用来断言它没有跟着数字一起动 */
         const val SELECTED_COUNT_PREFIX = "已选"

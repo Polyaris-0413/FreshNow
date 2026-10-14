@@ -19,20 +19,12 @@
 看图有回弹（`PhotoViewer.kt` 的 `fastSpatial`），裁剪页没有（`ImageCropScreen.kt` 在拖动中就夹住了，
 既无过冲也无回弹）。同一套 `transformable`，两种手感。二选一并把理由写进注释。
 
-## 3. 同步页的状态整块硬切
-
-`ui/sync/SyncScreen.kt`：搜索中 → 发现 N 台 → 已配对。沿用 `fadeSwap` 与 `animateItem`。
-
-## 4. 瞬时反馈走的是系统 Toast
+## 3. 瞬时反馈走的是系统 Toast
 
 `ui/Toast.kt` 用的是 `android.widget.Toast`：位置、时长、长相都不由应用控制，是全应用唯一一处
 「反馈不是自己画的」。自绘会牵动每个调用点，是这份清单里最重的一条。
 
-## 5. 下拉刷新的指示器是默认的
-
-`ui/home/HomeScreen.kt` 用的 `PullToRefreshDefaults.Indicator`，颜色没跟主题走。
-
-## 6. 关于页整页静态
+## 4. 关于页整页静态
 
 `ui/about/AboutScreen.kt`。价值最低，可以一直放着。
 
@@ -44,6 +36,11 @@
   还得赌模型给的框准不准。
 - **思维链逐字浮出**：`AiVisionClient` 是一次性读完整个 body，没有流式，所以现在只能整段淡入。
 - **`ScrollEdgeFade` 不做淡入淡出**：有意为之，理由在它自己的注释里。
+- **下拉刷新的指示器不用改**：原先写的是「颜色没跟主题走」，核完不成立——`ui/home/HomeScreen.kt`
+  里 `PullToRefreshDefaults.Indicator(...)` 根本没传颜色，用的是 M3 默认值，而那套默认值本身就取自
+  `MaterialTheme.colorScheme`。M3 规范的组件目录里也没有 pull-to-refresh 这一项（只有 Progress /
+  Loading indicator），所以「规范要取什么值」这个问题没有答案，就不动它。（另一种想法是自绘一个跟
+  自家卡片完全一致的指示器——那是设计取舍，不是修缺陷，要做另开一条。）
 - **列表缩略图不做淡入**：做过一版（`Crossfade`，与相机预览同一档 250ms），真机上分别装两个包对比
   冷启动，**带淡入的那版反而更差**，于是整个撤掉。原因是这段等待根本看不见：768px 的图降到 48dp
   解码只要十几毫秒，与第一帧绘制几乎同时，所以占位符要么没被画出来、要么只画了一两帧；而 Crossfade
