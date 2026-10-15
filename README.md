@@ -24,7 +24,7 @@
 
 ### 界面
 
-* 使用 Material Design 3 设计，动效按 M3 的 motion 规范取值（时长、缓动、转场形态）
+* 使用 Material Design 3 设计
 * 动画恰到好处
 
 ### 其他
