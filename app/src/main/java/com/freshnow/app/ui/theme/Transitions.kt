@@ -21,7 +21,12 @@ import androidx.compose.animation.togetherWith
  *
  * 时长与缓动取自 M3 的 motion 令牌（`md.sys.motion.duration.*` 与 `md.sys.motion.easing.*`，
  * 表见 material-3 技能 references/typography-and-shape.md 的「Motion」一节，缓动值即该表的
- * cubic-bezier 定义）；弹簧取自 M3 Expressive 的 MotionScheme，两族各三档。
+ * cubic-bezier 定义）。M3 里转场仍走这套 easing + duration 系统，弹簧是组件与手势动画用的。
+ *
+ * 弹簧取自 material3 的 **standard** motion scheme（`tokens/StandardMotionTokens.kt` 的
+ * spatial / effects 两族各三档）。standard 是 material3 的默认方案（`MaterialTheme` 里那个
+ * ComposeLocal 的初值就是它，见 1.4.0 的 MaterialTheme.kt:233），expressive 方案要显式 opt-in
+ * （MaterialExpressiveTheme），本项目没用。
  */
 object FreshNowTransitions {
 
@@ -33,10 +38,16 @@ object FreshNowTransitions {
     /** `duration.medium1`：工具性转场的进入 */
     const val DURATION_MEDIUM1 = 250
 
+    /** `duration.medium2`：标准转场（页面转场取这一档） */
+    const val DURATION_MEDIUM2 = 300
+
     /** `duration.medium4`：进入转场 */
     const val DURATION_MEDIUM4 = 400
 
     // ---- M3 缓动令牌 ----
+
+    /** `easing.emphasized`：官方推荐给大多数转场 */
+    val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
     /** `easing.emphasized-decelerate`：进入屏幕 */
     val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
@@ -44,7 +55,7 @@ object FreshNowTransitions {
     /** `easing.emphasized-accelerate`：退出屏幕 */
     val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
-    // ---- 运动方案的弹簧（M3 Expressive）----
+    // ---- 运动方案的弹簧（standard motion scheme）----
 
     /**
      * M3 把弹簧归成两族：**spatial**（位置、大小、形状）与 **effects**（透明度、颜色）；
@@ -57,8 +68,9 @@ object FreshNowTransitions {
      *
      * 取值只能抄在这里：本项目 BOM（2026.02.01）解析到的是 material3 **1.4.0**，而那一版里
      * MotionScheme 仍是 internal（Kotlin 侧取不到 MaterialTheme.motionScheme），到 1.5.0-alpha29
-     * 才对外公开。两版的取值实测逐个相同（0.9 & 1400/700/300、1 & 3800/1600），所以哪天 BOM 提到
-     * 公开它的版本，把这几个函数换成 MaterialTheme.motionScheme.* 即可，不会改观感，也别另挑参数。
+     * 才对外公开（公开的是 default/fast/slow × spatial/effects 六个方法）。两版的 standard 取值
+     * 逐个相同，所以哪天 BOM 提到公开它的版本，把这六个函数换成 MaterialTheme.motionScheme.* 即可，
+     * 不会改观感，也别另挑参数。
      */
     fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 1400f)
 
@@ -69,6 +81,8 @@ object FreshNowTransitions {
     fun <T> fastEffects(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 3800f)
 
     fun <T> defaultEffects(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 1600f)
+
+    fun <T> slowEffects(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 800f)
 
 
     // ---- 拍照页的快门 ----
@@ -170,43 +184,39 @@ object FreshNowTransitions {
 }
 
 /**
- * 页面转场：前进与返回各一对，NavHost 与页内整屏切换（编辑页的表单 ↔ 裁剪）共用。
+ * 页面转场：前进与返回各一对，NavHost 与页内整屏切换（编辑页的表单 ↔ 裁剪）共用，走 M3 的
+ * **shared axis X**（有前后关系的两个整屏视图沿同一根轴平移）。
  *
- * 位移交给 [AnimatedContentTransitionScope] 自带的容器转场，而不是自己拼 `slideInHorizontally`
- * 加比例偏移：它按当前内容与目标内容的实际尺寸算偏移，语义正是 M3 的 shared axis X（整屏横移 +
- * 淡入淡出），页面宽度不同时也不必另做处理。
+ * 【两页同速，是这套转场的要点】位移交给 [AnimatedContentTransitionScope] 自带的容器转场，
+ * 它按当前内容与目标内容的实际尺寸算偏移，默认就是整屏；四条的时长与曲线取同一条 [pageSpec]。
+ * shared axis 表达的是「同一个轴上的前后两个位置」，全靠两页同步移动；给两页不同的时长
+ * （例如进场 400、退场 200）会让旧页先跑掉、新页还在后面磨，空间关系当场散掉。
  *
- * 时长与曲线用 M3 给转场的成对取值：进入 [FreshNowTransitions.DURATION_MEDIUM4] +
- * [FreshNowTransitions.EmphasizedDecelerate]，退出 [FreshNowTransitions.DURATION_SHORT4] +
- * [FreshNowTransitions.EmphasizedAccelerate]。进场减速段长、退场加速段短：两页同框的那几帧里，
- * 新页稳稳落位，旧页迅速让位。
+ * 【没有淡入淡出】也是同一个原因：位移不足整屏时两页会叠在一起，只能靠透明度区分，所以
+ * 「缩位移」与「加淡」是一对——shared axis 要做的是把位移给满、不淡。
+ *
+ * 时长取 [FreshNowTransitions.DURATION_MEDIUM2]（300ms，令牌表里标注「标准转场」），曲线取
+ * [FreshNowTransitions.Emphasized]（官方推荐给大多数转场的那条）。
  *
  * 方向：前进时新页自右侧移入、旧页向左移出；返回时两者相反。
  */
 fun AnimatedContentTransitionScope<*>.forwardEnter(): EnterTransition =
-    slideIntoContainer(SlideDirection.Left, enterSpec()) + fadeIn(enterSpec())
+    slideIntoContainer(SlideDirection.Left, pageSpec())
 
 fun AnimatedContentTransitionScope<*>.forwardExit(): ExitTransition =
-    slideOutOfContainer(SlideDirection.Left, exitSpec()) + fadeOut(exitSpec())
+    slideOutOfContainer(SlideDirection.Left, pageSpec())
 
 fun AnimatedContentTransitionScope<*>.backEnter(): EnterTransition =
-    slideIntoContainer(SlideDirection.Right, enterSpec()) + fadeIn(enterSpec())
+    slideIntoContainer(SlideDirection.Right, pageSpec())
 
 fun AnimatedContentTransitionScope<*>.backExit(): ExitTransition =
-    slideOutOfContainer(SlideDirection.Right, exitSpec()) + fadeOut(exitSpec())
+    slideOutOfContainer(SlideDirection.Right, pageSpec())
 
-/** 进入：位移与淡入同一条曲线、同一档时长，两者不会各走各的 */
-private fun <T> enterSpec(): FiniteAnimationSpec<T> =
+/** 两页共用的一条：同一条曲线、同一档时长，进场与退场才咬得上 */
+private fun <T> pageSpec(): FiniteAnimationSpec<T> =
     tween(
-        FreshNowTransitions.DURATION_MEDIUM4,
-        easing = FreshNowTransitions.EmphasizedDecelerate
-    )
-
-/** 退出：同上，取退出的那一档 */
-private fun <T> exitSpec(): FiniteAnimationSpec<T> =
-    tween(
-        FreshNowTransitions.DURATION_SHORT4,
-        easing = FreshNowTransitions.EmphasizedAccelerate
+        FreshNowTransitions.DURATION_MEDIUM2,
+        easing = FreshNowTransitions.Emphasized
     )
 
 /**

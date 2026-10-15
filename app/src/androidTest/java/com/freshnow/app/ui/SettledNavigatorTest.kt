@@ -173,10 +173,10 @@ class SettledNavigatorTest {
         const val B = "第二页"
         const val C = "第三页"
 
-        /** 页面转场的总时长：进入（400ms）比退出（200ms）长，取长的那一档 */
-        val TRANSITION_MS = FreshNowTransitions.DURATION_MEDIUM4.toLong()
+        /** 与 FreshNowTransitions 的页面转场同一档 */
+        val TRANSITION_MS = FreshNowTransitions.DURATION_MEDIUM2.toLong()
 
-        /** 转场中途：取较短那一档（退出）的一半，此时新旧两页必然同时在 */
-        val TRANSITION_HALF_MS = FreshNowTransitions.DURATION_SHORT4.toLong() / 2
+        /** 转场中途：两页同速，取一半就停在新旧两页都在场的那一段 */
+        val TRANSITION_HALF_MS = TRANSITION_MS / 2
     }
 }
