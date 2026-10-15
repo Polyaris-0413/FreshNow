@@ -1,10 +1,12 @@
 package com.freshnow.app.ui
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -20,6 +22,7 @@ import com.freshnow.app.ui.settings.SettingsScreen
 import com.freshnow.app.ui.sync.SyncScreen
 import com.freshnow.app.ui.about.AboutScreen
 import com.freshnow.app.ui.about.OpenSourceScreen
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.theme.backEnter
 import com.freshnow.app.ui.theme.backExit
 import com.freshnow.app.ui.theme.forwardEnter
@@ -50,6 +53,25 @@ object FreshNowRoute {
     fun recordEdit(id: Long) = "record/$id/edit"
 }
 
+/**
+ * 从属于某一页的子页：进这些页与从这些页返回走共享轴——横向位移本身在说「这两个页面一前一后」。
+ *
+ * 判据是「这一页是不是某个页面的下级」，而不是「从哪儿来」：同步是设置的子页，详情与编辑是主页
+ * 那一行的下级，开源声明是关于的下级。扫描、设置、关于、手动录入都是顶层去处，它们之间（以及
+ * 它们与主页之间）没有前后关系，走淡入淡出——给平行去处配横向位移，等于在说一句假话。
+ */
+private val CHILD_DESTINATIONS = setOf(
+    FreshNowRoute.RECORD_DETAIL,
+    FreshNowRoute.RECORD_EDIT,
+    FreshNowRoute.SYNC,
+    FreshNowRoute.OPEN_SOURCE
+)
+
+/** 一程的两端只要有一端是子页，这一程就是层级跳转 */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isChildJump(): Boolean =
+    initialState.destination.route in CHILD_DESTINATIONS ||
+        targetState.destination.route in CHILD_DESTINATIONS
+
 @Composable
 fun FreshNowNavHost(
     navController: NavHostController = rememberNavController()
@@ -64,10 +86,10 @@ fun FreshNowNavHost(
         // 转场期间两个页面同时处于半透明，这里垫上主题背景色，
         // 否则透出的是窗口背景（深色模式下偏亮，表现为一下白闪）
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
-        enterTransition = { forwardEnter() },
-        exitTransition = { forwardExit() },
-        popEnterTransition = { backEnter() },
-        popExitTransition = { backExit() }
+        enterTransition = { if (isChildJump()) forwardEnter() else FreshNowTransitions.fadeThroughEnter },
+        exitTransition = { if (isChildJump()) forwardExit() else FreshNowTransitions.fadeThroughExit },
+        popEnterTransition = { if (isChildJump()) backEnter() else FreshNowTransitions.fadeThroughEnter },
+        popExitTransition = { if (isChildJump()) backExit() else FreshNowTransitions.fadeThroughExit }
     ) {
         composable(FreshNowRoute.HOME) {
             HomeRoute(

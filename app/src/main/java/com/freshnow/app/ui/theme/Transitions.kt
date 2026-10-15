@@ -12,6 +12,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -23,10 +25,12 @@ import androidx.compose.animation.togetherWith
  * 表见 material-3 技能 references/typography-and-shape.md 的「Motion」一节，缓动值即该表的
  * cubic-bezier 定义）。M3 里转场仍走这套 easing + duration 系统，弹簧是组件与手势动画用的。
  *
- * 曲线按用途分三处：页面转场用 [FreshNowTransitions.Emphasized]（官方推荐给大多数转场），
+ * 曲线按用途分四处：页面转场（层级）用 [FreshNowTransitions.Emphasized]（官方推荐给大多数转场），
  * 页内状态变化用 [FreshNowTransitions.Standard]，工具性转场的进入（预览淡入）用
- * [FreshNowTransitions.StandardDecelerate]。全部显式给，不用 `tween` 的默认值——那个默认是
- * M3 里的 legacy 曲线（0.4, 0, 0.2, 1），不是推荐集。
+ * [FreshNowTransitions.StandardDecelerate]，无层级关系的页面之间则用 fade through 那一对
+ * （[FreshNowTransitions.StandardDecelerate] 进 / [FreshNowTransitions.StandardAccelerate] 出）。
+ * 全部显式给，不用 `tween` 的默认值——那个默认是 M3 里的 legacy 曲线（0.4, 0, 0.2, 1），
+ * 不是推荐集。
  *
  * 弹簧取自 material3 的 **standard** motion scheme（`tokens/StandardMotionTokens.kt` 的
  * spatial / effects 两族各三档）。standard 是 material3 的默认方案（`MaterialTheme` 里那个
@@ -65,6 +69,9 @@ object FreshNowTransitions {
 
     /** `easing.standard-decelerate`：工具性转场的进入，例如相机预览淡入 */
     val StandardDecelerate = CubicBezierEasing(0f, 0f, 0f, 1f)
+
+    /** `easing.standard-accelerate`：退出屏幕的那一档，fade through 的退场用它 */
+    val StandardAccelerate = CubicBezierEasing(0.3f, 0f, 1f, 1f)
 
     // ---- 运动方案的弹簧（standard motion scheme）----
 
@@ -163,6 +170,39 @@ object FreshNowTransitions {
         )
 
 
+    // ---- fade through（无层级关系的页面之间）----
+
+    /**
+     * fade through 的两段时长与缩放幅度。
+     *
+     * Material 的 motion system 把这个 pattern 给「**没有空间或导航关系**的两个视图」：新内容
+     * 淡入并从 92% 放大到 100%（210ms），旧内容淡出并缩到 92%（90ms），两段交叠出「先退后进」。
+     *
+     * 90 与 210 不落在 M3 的时长刻度上（刻度里最近的是 short2 的 100 与 short4 的 200），但两段
+     * 的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，所以保留 pattern 的原值。
+     * 92% 同理，是 pattern 给定的缩放幅度。
+     */
+    const val FADE_THROUGH_OUT_MS = 90
+    const val FADE_THROUGH_IN_MS = 210
+    const val FADE_THROUGH_SCALE = 0.92f
+
+    /** fade through 的进入：淡入 + 从 92% 放大 */
+    val fadeThroughEnter: EnterTransition =
+        fadeIn(tween(FADE_THROUGH_IN_MS, easing = StandardDecelerate)) +
+            scaleIn(
+                tween(FADE_THROUGH_IN_MS, easing = StandardDecelerate),
+                initialScale = FADE_THROUGH_SCALE
+            )
+
+    /** fade through 的退出：淡出 + 缩到 92% */
+    val fadeThroughExit: ExitTransition =
+        fadeOut(tween(FADE_THROUGH_OUT_MS, easing = StandardAccelerate)) +
+            scaleOut(
+                tween(FADE_THROUGH_OUT_MS, easing = StandardAccelerate),
+                targetScale = FADE_THROUGH_SCALE
+            )
+
+
     // ---- 相机预览 ----
 
     /**
@@ -215,6 +255,10 @@ object FreshNowTransitions {
  * [FreshNowTransitions.Emphasized]（官方推荐给大多数转场的那条）。
  *
  * 方向：前进时新页自右侧移入、旧页向左移出；返回时两者相反。
+ *
+ * 只给**有层级关系**的跳转用（进子页、子页返回）；两个没有前后关系的顶层页之间用
+ * [FreshNowTransitions.fadeThroughEnter] / [FreshNowTransitions.fadeThroughExit]——横向位移
+ * 本身就在说「这两个页面是一前一后」，对平行去处是句假话。
  */
 fun AnimatedContentTransitionScope<*>.forwardEnter(): EnterTransition =
     slideIntoContainer(SlideDirection.Left, pageSpec())
