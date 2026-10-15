@@ -20,7 +20,10 @@ import com.freshnow.app.ui.settings.SettingsScreen
 import com.freshnow.app.ui.sync.SyncScreen
 import com.freshnow.app.ui.about.AboutScreen
 import com.freshnow.app.ui.about.OpenSourceScreen
-import com.freshnow.app.ui.theme.FreshNowTransitions
+import com.freshnow.app.ui.theme.backEnter
+import com.freshnow.app.ui.theme.backExit
+import com.freshnow.app.ui.theme.forwardEnter
+import com.freshnow.app.ui.theme.forwardExit
 
 object FreshNowRoute {
     const val HOME = "home"
@@ -61,10 +64,10 @@ fun FreshNowNavHost(
         // 转场期间两个页面同时处于半透明，这里垫上主题背景色，
         // 否则透出的是窗口背景（深色模式下偏亮，表现为一下白闪）
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
-        enterTransition = { FreshNowTransitions.forwardEnter },
-        exitTransition = { FreshNowTransitions.forwardExit },
-        popEnterTransition = { FreshNowTransitions.backEnter },
-        popExitTransition = { FreshNowTransitions.backExit }
+        enterTransition = { forwardEnter() },
+        exitTransition = { forwardExit() },
+        popEnterTransition = { backEnter() },
+        popExitTransition = { backExit() }
     ) {
         composable(FreshNowRoute.HOME) {
             HomeRoute(

@@ -13,6 +13,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.theme.FreshNowTheme
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import com.freshnow.app.ui.theme.backEnter
+import com.freshnow.app.ui.theme.backExit
+import com.freshnow.app.ui.theme.forwardEnter
+import com.freshnow.app.ui.theme.forwardExit
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -150,10 +154,10 @@ class SettledNavigatorTest {
                     startDestination = A,
                     modifier = Modifier.fillMaxSize(),
                     // 与 FreshNowNavHost 同一套转场，判据才落在真东西上
-                    enterTransition = { FreshNowTransitions.forwardEnter },
-                    exitTransition = { FreshNowTransitions.forwardExit },
-                    popEnterTransition = { FreshNowTransitions.backEnter },
-                    popExitTransition = { FreshNowTransitions.backExit }
+                    enterTransition = { forwardEnter() },
+                    exitTransition = { forwardExit() },
+                    popEnterTransition = { backEnter() },
+                    popExitTransition = { backExit() }
                 ) {
                     composable(A) { Text(A) }
                     composable(B) { Text(B) }
@@ -169,8 +173,10 @@ class SettledNavigatorTest {
         const val B = "第二页"
         const val C = "第三页"
 
-        /** 与 FreshNowTransitions 的页面切换同一档（350ms） */
-        const val TRANSITION_MS = 350L
-        const val TRANSITION_HALF_MS = TRANSITION_MS / 2
+        /** 页面转场的总时长：进入（400ms）比退出（200ms）长，取长的那一档 */
+        val TRANSITION_MS = FreshNowTransitions.DURATION_MEDIUM4.toLong()
+
+        /** 转场中途：取较短那一档（退出）的一半，此时新旧两页必然同时在 */
+        val TRANSITION_HALF_MS = FreshNowTransitions.DURATION_SHORT4.toLong() / 2
     }
 }

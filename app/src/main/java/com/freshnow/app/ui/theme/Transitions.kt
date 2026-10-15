@@ -1,59 +1,48 @@
 package com.freshnow.app.ui.theme
 
 import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 
 /**
  * 动画设计源，界面只引用不另定义。
  *
- * 【有意偏离 M3 规范，请勿"按规范"改回去】
- * 规范对页面过渡给的是 Emphasized 曲线 + 不对称时长（进入 decelerate 400ms、
- * 退出 accelerate 200ms）。这两套都实测比较过，Emphasized 那套退场偏急、进场偏拖，
- * 观感不如现在这组，因此保留：tween 默认曲线（FastOutSlowInEasing，即 Material 的
- * standard 曲线，只是并非 Expressive 的最新推荐）+ 对称 350ms。
- * 取值与参考项目 book-story 的 ui/theme/Transitions.kt 一致。
- * 今后若要再调，请先实测对比，不要仅仅因为它"不合规范"就回退。
- *
- * 位移取容器宽度的 1/16 而非整屏：等价于 shared axis X 的轻微横移，
- * 整屏滑动在"列表 → 子页"的层级跳转里显得笨重。
- *
- * 淡化与容器颜色的约束见 FreshNowTopAppBar 的注释。
+ * 时长与缓动取自 M3 的 motion 令牌（`md.sys.motion.duration.*` 与 `md.sys.motion.easing.*`，
+ * 表见 material-3 技能 references/typography-and-shape.md 的「Motion」一节，缓动值即该表的
+ * cubic-bezier 定义）；弹簧取自 M3 Expressive 的 MotionScheme，两族各三档。
  */
 object FreshNowTransitions {
 
-    // ---- 页面切换 ----
+    // ---- M3 时长令牌 ----
 
-    private const val DURATION_MS = 350
-    private const val SLIDE_FRACTION = 16
+    /** `duration.short4`：退出转场 */
+    const val DURATION_SHORT4 = 200
 
-    /** 前进（进入子页）：新页面自右轻微移入 */
-    val forwardEnter: EnterTransition = fadeIn(tween(DURATION_MS)) +
-        slideInHorizontally(tween(DURATION_MS)) { width -> width / SLIDE_FRACTION }
+    /** `duration.medium1`：工具性转场的进入 */
+    const val DURATION_MEDIUM1 = 250
 
-    /** 前进：旧页面向左轻微移出 */
-    val forwardExit: ExitTransition = fadeOut(tween(DURATION_MS)) +
-        slideOutHorizontally(tween(DURATION_MS)) { width -> -width / SLIDE_FRACTION }
+    /** `duration.medium4`：进入转场 */
+    const val DURATION_MEDIUM4 = 400
 
-    /** 返回：新页面自左轻微移入 */
-    val backEnter: EnterTransition = fadeIn(tween(DURATION_MS)) +
-        slideInHorizontally(tween(DURATION_MS)) { width -> -width / SLIDE_FRACTION }
+    // ---- M3 缓动令牌 ----
 
-    /** 返回：旧页面向右轻微移出 */
-    val backExit: ExitTransition = fadeOut(tween(DURATION_MS)) +
-        slideOutHorizontally(tween(DURATION_MS)) { width -> width / SLIDE_FRACTION }
+    /** `easing.emphasized-decelerate`：进入屏幕 */
+    val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
+    /** `easing.emphasized-accelerate`：退出屏幕 */
+    val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
     // ---- 运动方案的弹簧（M3 Expressive）----
 
@@ -61,7 +50,7 @@ object FreshNowTransitions {
      * M3 把弹簧归成两族：**spatial**（位置、大小、形状）与 **effects**（透明度、颜色）；
      * 每族三档 fast / default / slow。**新增动画先在这六条里挑**，不要按用途另挑参数。
      *
-     * 本项目用弹簧的地方都是**接手手势**的：拖动松手后的回落、退场时照片飞回原处、双击缩放。
+     * 本项目用弹簧的地方都是**接手势**的：拖动松手后的回落、退场时照片飞回原处、双击缩放。
      * 这类运动不该用带固定时长的 tween：tween 默认曲线起手是缓入的，手指刚离开那几帧几乎不动，
      * 手上读作「顿一下」；弹簧没有固定时长，起手就跟着手指的速度走。0.9 的阻尼比允许一点点过冲，
      * 这也是它不显得拖泥带水的原因。
@@ -99,30 +88,15 @@ object FreshNowTransitions {
     // ---- 页内状态切换 ----
 
     /**
-     * 页内状态切换的时长，取 M3 时长令牌 short4（200ms）。
+     * 页内状态切换的时长，取 M3 时长令牌 [DURATION_SHORT4]（200ms）。
      *
      * 【按实测观感选的值，请勿只照着技能表改回 short3】
-     * 技能 typography-and-shape.md 的 Duration Scale 表里，short3（150ms）标的是「小转场」、
-     * short4 标的是「退出转场」，照表面意思这类页内变化该取 150ms。真机上试过 150ms，
-     * 反而不行：选中框淡入、数字滚动都是小幅度变化，时长压得太短眼睛跟不上，
-     * 观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡而不是跳变。
+     * 技能表里 short3（150ms）标的是「小转场」、short4 标的是「退出转场」，照表面意思这类页内变化
+     * 该取 150ms。真机上试过 150ms，反而不行：选中框淡入、数字滚动都是小幅度变化，时长压得太短
+     * 眼睛跟不上，观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡而不是跳变。
      * 今后若要再调，同样请先实测对比，不要仅仅因为「技能表说 short3」就回退。
      */
-    private const val STATE_CHANGE_MS = 200
-
-    /**
-     * 页内状态切换：顶栏在「列表」与「选择模式」之间换装、列表条目选中框的出现与消失、
-     * 选中计数里数字的滚动、列表里条目的出现与增删（刚存进来的淡入、被删的淡出、
-     * 其余的滑到新位置）。
-     *
-     * 时长与取舍见 STATE_CHANGE_MS。与页面切换的比例关系：一次性的整页进出屏幕用
-     * 上面的 350ms，这些只是同一页里的局部变化，取 200ms。曲线仍用 tween 默认的
-     * standard 曲线，与页面切换一致。
-     *
-     * 返回类型不写死：淡入淡出要 FiniteAnimationSpec<Float>，位移要 FiniteAnimationSpec<IntOffset>，
-     * 由调用处决定，省得同一组时长与曲线在多处各写一遍、日后改一处漏一处。
-     */
-    fun <T> stateChange(): FiniteAnimationSpec<T> = tween(STATE_CHANGE_MS)
+    fun <T> stateChange(): FiniteAnimationSpec<T> = tween(DURATION_SHORT4)
 
 
     /**
@@ -137,7 +111,7 @@ object FreshNowTransitions {
      * 它结束的时刻就是这个数。
      */
     fun <T> stateChangeDelayed(): FiniteAnimationSpec<T> =
-        tween(STATE_CHANGE_MS, delayMillis = STATE_CHANGE_MS)
+        tween(DURATION_SHORT4, delayMillis = DURATION_SHORT4)
 
     /** 页内淡入淡出换装：新旧内容各淡各的，不位移 */
     fun fadeSwap(): ContentTransform =
@@ -159,18 +133,17 @@ object FreshNowTransitions {
             sizeTransform = SizeTransform { _, _ -> stateChange() }
         )
 
+
     // ---- 相机预览 ----
 
     /**
      * 相机预览层从透明到画面的淡入。
      *
-     * 时长取 M3 时长表的 standard decelerate（250ms，「进入屏幕」那一列），曲线仍用 tween 默认的
-     * FastOutSlowInEasing（M3 的 standard 曲线，与页面切换同一条）。它与页面转场（350ms）、页内状态
-     * 切换（200ms）都不是同一件事，所以单列一档，不并进 [stateChange]。
+     * 时长取 M3 时长令牌 [DURATION_MEDIUM1]（250ms，技能表里对应「进入屏幕（工具性转场）」那一档）。
+     * 它与页面转场、页内状态切换都不是同一件事，所以单列一档，不并进 [stateChange]。
      */
-    private const val PREVIEW_FADE_IN_MS = 250
+    fun <T> previewFadeIn(): FiniteAnimationSpec<T> = tween(DURATION_MEDIUM1)
 
-    fun <T> previewFadeIn(): FiniteAnimationSpec<T> = tween(PREVIEW_FADE_IN_MS)
 
     // ---- 扫描页那枚状态胶囊 ----
 
@@ -186,8 +159,8 @@ object FreshNowTransitions {
     /**
      * 状态胶囊上同一句话在画面里至少留多久。
      *
-     * 取 600ms：比页内状态切换（[STATE_CHANGE_MS] 的 200ms）长，因为它挡的不是一次过渡好不好看，
-     * 而是两句话来回打架——请求每秒回来好几次，跟着信号换字的话一秒里能跳三次。
+     * 取 600ms：比页内状态切换（[DURATION_SHORT4] 的 200ms）长，因为它挡的不是一次过渡好不好看，
+     * 而是两句话来回打架——请求每秒回来好几次，跟着信号换字的话一秒里能翻三次。
      * 停留期内报上来的短状态由 ScanStatusDwell 直接丢掉，不排队补演。
      */
     const val STATUS_DWELL_MS = 600L
@@ -195,6 +168,46 @@ object FreshNowTransitions {
     // 值到达时**不给**底色回执（曾经有过一套 FIELD_ARRIVAL_*，已删）：同一屏里几块各闪各的，
     // 颜色太乱，而且它与 FreshNowFieldRow 里那一下淡化重复表达同一件事。别再往这个方向加。
 }
+
+/**
+ * 页面转场：前进与返回各一对，NavHost 与页内整屏切换（编辑页的表单 ↔ 裁剪）共用。
+ *
+ * 位移交给 [AnimatedContentTransitionScope] 自带的容器转场，而不是自己拼 `slideInHorizontally`
+ * 加比例偏移：它按当前内容与目标内容的实际尺寸算偏移，语义正是 M3 的 shared axis X（整屏横移 +
+ * 淡入淡出），页面宽度不同时也不必另做处理。
+ *
+ * 时长与曲线用 M3 给转场的成对取值：进入 [FreshNowTransitions.DURATION_MEDIUM4] +
+ * [FreshNowTransitions.EmphasizedDecelerate]，退出 [FreshNowTransitions.DURATION_SHORT4] +
+ * [FreshNowTransitions.EmphasizedAccelerate]。进场减速段长、退场加速段短：两页同框的那几帧里，
+ * 新页稳稳落位，旧页迅速让位。
+ *
+ * 方向：前进时新页自右侧移入、旧页向左移出；返回时两者相反。
+ */
+fun AnimatedContentTransitionScope<*>.forwardEnter(): EnterTransition =
+    slideIntoContainer(SlideDirection.Left, enterSpec()) + fadeIn(enterSpec())
+
+fun AnimatedContentTransitionScope<*>.forwardExit(): ExitTransition =
+    slideOutOfContainer(SlideDirection.Left, exitSpec()) + fadeOut(exitSpec())
+
+fun AnimatedContentTransitionScope<*>.backEnter(): EnterTransition =
+    slideIntoContainer(SlideDirection.Right, enterSpec()) + fadeIn(enterSpec())
+
+fun AnimatedContentTransitionScope<*>.backExit(): ExitTransition =
+    slideOutOfContainer(SlideDirection.Right, exitSpec()) + fadeOut(exitSpec())
+
+/** 进入：位移与淡入同一条曲线、同一档时长，两者不会各走各的 */
+private fun <T> enterSpec(): FiniteAnimationSpec<T> =
+    tween(
+        FreshNowTransitions.DURATION_MEDIUM4,
+        easing = FreshNowTransitions.EmphasizedDecelerate
+    )
+
+/** 退出：同上，取退出的那一档 */
+private fun <T> exitSpec(): FiniteAnimationSpec<T> =
+    tween(
+        FreshNowTransitions.DURATION_SHORT4,
+        easing = FreshNowTransitions.EmphasizedAccelerate
+    )
 
 /**
  * 选中计数里数字的滚动：变多往上滚、变少往下滚。方向由数量本身决定，与界面无关，

@@ -65,6 +65,10 @@ import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import com.freshnow.app.ui.theme.backEnter
+import com.freshnow.app.ui.theme.backExit
+import com.freshnow.app.ui.theme.forwardEnter
+import com.freshnow.app.ui.theme.forwardExit
 import kotlinx.coroutines.launch
 
 /**
@@ -93,7 +97,7 @@ internal sealed interface EditStep {
  * 深色模式下表现为一下黑闪（与 NavHost 同一个理由）。
  *
  * 提为 internal 是为了能在仪器化测试里直接推进动画时钟（mainClock）断言“转场中途两页都在”：
- * 真机上 350ms 的转场抢不到截图，而硬切与转场的区别恰好就在那几帧。
+ * 真机上几百毫秒的转场抢不到截图，而硬切与转场的区别恰好就在那几帧。
  */
 @Composable
 internal fun EditStepTransition(
@@ -111,10 +115,10 @@ internal fun EditStepTransition(
             transitionSpec = {
                 when {
                     targetState is EditStep.Edit ->
-                        FreshNowTransitions.backEnter togetherWith FreshNowTransitions.backExit
+                        backEnter() togetherWith backExit()
 
                     initialState is EditStep.Edit ->
-                        FreshNowTransitions.forwardEnter togetherWith FreshNowTransitions.forwardExit
+                        forwardEnter() togetherWith forwardExit()
 
                     // 裁剪与拍照不会直接互换，留个过渡免得两个整屏硬切
                     else -> FreshNowTransitions.fadeSwap()

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.theme.FreshNowTheme
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,7 +18,7 @@ import org.junit.runner.RunWith
  * 编辑页三个整屏状态之间的转场。
  *
  * 要验的是「这不是硬切」：转场中途新旧两页必须同时在（旧的还在退场、新的已经进来），而硬切的那一帧
- * 只会剩一个。真机上 350ms 的窗口抢不到截图，所以这里把动画时钟握在手里逐帧推。
+ * 只会剩一个。真机上几百毫秒的窗口抢不到截图，所以这里把动画时钟握在手里逐帧推。
  *
  * 只看节点在不在，不看是否落在屏幕内：退场中的那一页正在位移，位置本就不该被钉住。
  */
@@ -36,8 +37,8 @@ class EditStepTransitionTest {
         composeRule.onNodeWithText(EDIT).assertExists()
 
         step = EditStep.Crop(Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888))
-        // 推进半个转场
-        composeRule.mainClock.advanceTimeBy(TRANSITION_MS / 2)
+        // 推进到转场中途
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MID_MS)
         composeRule.onNodeWithText(EDIT).assertExists()
         composeRule.onNodeWithText(CROP).assertExists()
 
@@ -58,7 +59,7 @@ class EditStepTransitionTest {
         composeRule.onNodeWithText(CROP).assertExists()
 
         step = EditStep.Edit
-        composeRule.mainClock.advanceTimeBy(TRANSITION_MS / 2)
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MID_MS)
         composeRule.onNodeWithText(CROP).assertExists()
         composeRule.onNodeWithText(EDIT).assertExists()
 
@@ -86,7 +87,10 @@ class EditStepTransitionTest {
         const val EDIT = "编辑表单"
         const val CROP = "裁剪照片"
 
-        /** 与 FreshNowTransitions 的页面切换同一档（350ms） */
-        const val TRANSITION_MS = 350L
+        /** 页面转场的总时长：进入（400ms）比退出（200ms）长，取长的那一档 */
+        val TRANSITION_MS = FreshNowTransitions.DURATION_MEDIUM4.toLong()
+
+        /** 转场中途：取较短那一档（退出）的一半，此时新旧两页必然都在场 */
+        val TRANSITION_MID_MS = FreshNowTransitions.DURATION_SHORT4.toLong() / 2
     }
 }
