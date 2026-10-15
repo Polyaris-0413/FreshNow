@@ -23,6 +23,11 @@ import androidx.compose.animation.togetherWith
  * 表见 material-3 技能 references/typography-and-shape.md 的「Motion」一节，缓动值即该表的
  * cubic-bezier 定义）。M3 里转场仍走这套 easing + duration 系统，弹簧是组件与手势动画用的。
  *
+ * 曲线按用途分三处：页面转场用 [FreshNowTransitions.Emphasized]（官方推荐给大多数转场），
+ * 页内状态变化用 [FreshNowTransitions.Standard]，工具性转场的进入（预览淡入）用
+ * [FreshNowTransitions.StandardDecelerate]。全部显式给，不用 `tween` 的默认值——那个默认是
+ * M3 里的 legacy 曲线（0.4, 0, 0.2, 1），不是推荐集。
+ *
  * 弹簧取自 material3 的 **standard** motion scheme（`tokens/StandardMotionTokens.kt` 的
  * spatial / effects 两族各三档）。standard 是 material3 的默认方案（`MaterialTheme` 里那个
  * ComposeLocal 的初值就是它，见 1.4.0 的 MaterialTheme.kt:233），expressive 方案要显式 opt-in
@@ -54,6 +59,12 @@ object FreshNowTransitions {
 
     /** `easing.emphasized-accelerate`：退出屏幕 */
     val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+
+    /** `easing.standard`：页内状态变化用它（官方这条与 [Emphasized] 同值） */
+    val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    /** `easing.standard-decelerate`：工具性转场的进入，例如相机预览淡入 */
+    val StandardDecelerate = CubicBezierEasing(0f, 0f, 0f, 1f)
 
     // ---- 运动方案的弹簧（standard motion scheme）----
 
@@ -102,7 +113,10 @@ object FreshNowTransitions {
     // ---- 页内状态切换 ----
 
     /**
-     * 页内状态切换的时长，取 M3 时长令牌 [DURATION_SHORT4]（200ms）。
+     * 页内状态切换：时长取 M3 时长令牌 [DURATION_SHORT4]（200ms），缓动取 [Standard]。
+     *
+     * 曲线必须显式给：`tween` 默认的是 Compose 的 FastOutSlowInEasing，那是 M3 里的 legacy
+     * 曲线（0.4, 0, 0.2, 1），起手慢；而这类变化要的是立刻跟上状态，所以取 [Standard]。
      *
      * 【按实测观感选的值，请勿只照着技能表改回 short3】
      * 技能表里 short3（150ms）标的是「小转场」、short4 标的是「退出转场」，照表面意思这类页内变化
@@ -110,7 +124,8 @@ object FreshNowTransitions {
      * 眼睛跟不上，观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡而不是跳变。
      * 今后若要再调，同样请先实测对比，不要仅仅因为「技能表说 short3」就回退。
      */
-    fun <T> stateChange(): FiniteAnimationSpec<T> = tween(DURATION_SHORT4)
+    fun <T> stateChange(): FiniteAnimationSpec<T> =
+        tween(DURATION_SHORT4, easing = Standard)
 
 
     /**
@@ -125,7 +140,7 @@ object FreshNowTransitions {
      * 它结束的时刻就是这个数。
      */
     fun <T> stateChangeDelayed(): FiniteAnimationSpec<T> =
-        tween(DURATION_SHORT4, delayMillis = DURATION_SHORT4)
+        tween(DURATION_SHORT4, delayMillis = DURATION_SHORT4, easing = Standard)
 
     /** 页内淡入淡出换装：新旧内容各淡各的，不位移 */
     fun fadeSwap(): ContentTransform =
@@ -156,7 +171,8 @@ object FreshNowTransitions {
      * 时长取 M3 时长令牌 [DURATION_MEDIUM1]（250ms，技能表里对应「进入屏幕（工具性转场）」那一档）。
      * 它与页面转场、页内状态切换都不是同一件事，所以单列一档，不并进 [stateChange]。
      */
-    fun <T> previewFadeIn(): FiniteAnimationSpec<T> = tween(DURATION_MEDIUM1)
+    fun <T> previewFadeIn(): FiniteAnimationSpec<T> =
+        tween(DURATION_MEDIUM1, easing = StandardDecelerate)
 
 
     // ---- 扫描页那枚状态胶囊 ----
