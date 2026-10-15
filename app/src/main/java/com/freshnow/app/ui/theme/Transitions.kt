@@ -36,12 +36,21 @@ import androidx.compose.animation.togetherWith
  * spatial / effects 两族各三档）。standard 是 material3 的默认方案（`MaterialTheme` 里那个
  * ComposeLocal 的初值就是它，见 1.4.0 的 MaterialTheme.kt:233），expressive 方案要显式 opt-in
  * （MaterialExpressiveTheme），本项目没用。
+ *
+ * 【下面几条不在 M3 的任何令牌表里，是本项目自定】[DURATION_MEDIUM4] 与两条 emphasized 的
+ * 进/出曲线目前没有使用者（保留作令牌档位，别当成「必须用满」）；[SHUTTER_SQUEEZE_SCALE]、
+ * [RECOGNIZING_THRESHOLD_MS]、[STATUS_DWELL_MS] 与 [stateChangeDelayed] 的延迟属于规范未覆盖
+ * 的取值，依据分别写在各自的 KDoc 里。fade through 那两条时长的依据是 M2 的 pattern、不是
+ * M3 令牌，见该节说明。
  */
 object FreshNowTransitions {
 
     // ---- M3 时长令牌 ----
 
-    /** `duration.short4`：退出转场 */
+    /** `duration.short3`：小转场（页内的颜色、透明度这类小变化） */
+    const val DURATION_SHORT3 = 150
+
+    /** `duration.short4`：退出转场（内容进出屏幕） */
     const val DURATION_SHORT4 = 200
 
     /** `duration.medium1`：工具性转场的进入 */
@@ -50,7 +59,7 @@ object FreshNowTransitions {
     /** `duration.medium2`：标准转场（页面转场取这一档） */
     const val DURATION_MEDIUM2 = 300
 
-    /** `duration.medium4`：进入转场 */
+    /** `duration.medium4`：进入转场（当前没有使用者，保留作令牌档位） */
     const val DURATION_MEDIUM4 = 400
 
     // ---- M3 缓动令牌 ----
@@ -58,10 +67,10 @@ object FreshNowTransitions {
     /** `easing.emphasized`：官方推荐给大多数转场 */
     val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
-    /** `easing.emphasized-decelerate`：进入屏幕 */
+    /** `easing.emphasized-decelerate`：进入屏幕（当前没有使用者，保留作令牌档位） */
     val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
-    /** `easing.emphasized-accelerate`：退出屏幕 */
+    /** `easing.emphasized-accelerate`：退出屏幕（当前没有使用者，保留作令牌档位） */
     val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
     /** `easing.standard`：页内状态变化用它（官方这条与 [Emphasized] 同值） */
@@ -113,6 +122,11 @@ object FreshNowTransitions {
      *
      * 这一下是「我拍到了」的回执，不是「请等待」：帧一直流着，从按下到结果只有几十毫秒，
      * 给它配等待话术等于把一段看不见的等待变成看得见的（见 ShutterSqueeze 的说明）。
+     *
+     * 【这条是自定，M3 里没有对应的数】M3 的按下反馈走的是**形状与尺寸令牌**，不是缩放比例：
+     * 按钮按下时容器从 full 圆角变 CornerSmall（BaselineButtonTokens.PressedContainerShape），
+     * 拖动手柄按下有单独的 pressedSize（DragHandleSizes）。取景框不是组件，套不上那套令牌，
+     * 这里用整体缩放表达同一件事。
      */
     const val SHUTTER_SQUEEZE_SCALE = 0.97f
 
@@ -125,14 +139,26 @@ object FreshNowTransitions {
      * 曲线必须显式给：`tween` 默认的是 Compose 的 FastOutSlowInEasing，那是 M3 里的 legacy
      * 曲线（0.4, 0, 0.2, 1），起手慢；而这类变化要的是立刻跟上状态，所以取 [Standard]。
      *
-     * 【按实测观感选的值，请勿只照着技能表改回 short3】
-     * 技能表里 short3（150ms）标的是「小转场」、short4 标的是「退出转场」，照表面意思这类页内变化
-     * 该取 150ms。真机上试过 150ms，反而不行：选中框淡入、数字滚动都是小幅度变化，时长压得太短
-     * 眼睛跟不上，观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡而不是跳变。
+     * 【这一档为什么是 200 而不是 150】技能表里 short3（150ms）标的是「小转场」、short4 标的是
+     * 「退出转场」。真机上试过把这里改成 150ms，反而不行：选中框淡入、数字滚动都是小幅度变化，
+     * 时长压得太短眼睛跟不上，观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡
+     * 而不是跳变。所以「看着像小变化但需要看清」的那些留在这一档，纯颜色过渡另走 [smallChange]。
      * 今后若要再调，同样请先实测对比，不要仅仅因为「技能表说 short3」就回退。
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT4, easing = Standard)
+
+
+    /**
+     * 页内的小变化：时长取 M3 时长令牌 [DURATION_SHORT3]（150ms），缓动同样用 [Standard]。
+     *
+     * 与 [stateChange] 的分工按 M3 给档位的标注来：short3 标的是「小转场」、short4 标的是
+     * 「退出转场」。纯颜色过渡（手电筒的底色与前景色、扫描页底部两个按钮的可用/禁用色）不涉及
+     * 内容进出，属于前者，取 150ms 更利落；条目的出现与消失、空态、状态胶囊、文案换装这些是
+     * 内容在进出，归 [stateChange]。
+     */
+    fun <T> smallChange(): FiniteAnimationSpec<T> =
+        tween(DURATION_SHORT3, easing = Standard)
 
 
     /**
@@ -145,6 +171,9 @@ object FreshNowTransitions {
      *
      * 延迟取同一档时长而不是另取一个数：要等的那件事（条目淡出）就是用 [stateChange] 演的，
      * 它结束的时刻就是这个数。
+     *
+     * 「可以有延迟」这件事在 M2 的 Choreography 里有（给一组 incoming 元素加短延迟），但那里
+     * 没给具体毫秒；M3 根本没有延迟这一档。所以这个数是自定：由「等它演完」推出来。
      */
     fun <T> stateChangeDelayed(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT4, delayMillis = DURATION_SHORT4, easing = Standard)
@@ -175,12 +204,15 @@ object FreshNowTransitions {
     /**
      * fade through 的两段时长与缩放幅度。
      *
-     * Material 的 motion system 把这个 pattern 给「**没有空间或导航关系**的两个视图」：新内容
-     * 淡入并从 92% 放大到 100%（210ms），旧内容淡出并缩到 92%（90ms），两段交叠出「先退后进」。
+     * Material 的 motion system 把这个 pattern 给「**没有空间或导航关系**的两个视图」。92% 的
+     * 缩放有官方原文：m2.material.io/design/motion/the-motion-system.html 的 fade through 一节
+     * 写的是 incoming "scaling in overall size from 92% to 100%"；两段时长（90 / 210，合 300ms）
+     * 是同一个 pattern 的分段，M3 的令牌表只给「总档」、没有分段值。
      *
      * 90 与 210 不落在 M3 的时长刻度上（刻度里最近的是 short2 的 100 与 short4 的 200），但两段
-     * 的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，所以保留 pattern 的原值。
-     * 92% 同理，是 pattern 给定的缩放幅度。
+     * 的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，所以保留 pattern 的原文。
+     * 也就是说：这两条的依据是 M2 的 pattern，不是 M3 令牌；若哪天要求全部落回 M3 令牌刻度，
+     * 只能写成 100 / 200，交叠比例随之从 0.3/0.7 变成 1/3 与 2/3。
      */
     const val FADE_THROUGH_OUT_MS = 90
     const val FADE_THROUGH_IN_MS = 210
@@ -223,6 +255,10 @@ object FreshNowTransitions {
      * 取 1 秒：低于它的话，这句话刚浮出来就被下一帧的结果顶掉了，落在眼里的正好是一次闪烁，
      * 而它要挡的就是这种闪烁。1 秒也是「这一趟明显比平常慢」的分界——平常一趟就是几百毫秒
      * 到一两秒（见 AiVisionClient 的超时）。
+     *
+     * 这个 1 秒不是 M3 的令牌（M3 的加载指示器规范没给「多久之后才出现」）；对得上的是主流体验
+     * 研究里那条：Nielsen 的响应时间阈值把 1 秒当作「还能留在心流里」的上界，低于 1 秒的等待
+     * 不该出现加载指示器——出现了也来不及被看见。
      */
     const val RECOGNIZING_THRESHOLD_MS = 1_000L
 
@@ -232,6 +268,8 @@ object FreshNowTransitions {
      * 取 600ms：比页内状态切换（[DURATION_SHORT4] 的 200ms）长，因为它挡的不是一次过渡好不好看，
      * 而是两句话来回打架——请求每秒回来好几次，跟着信号换字的话一秒里能翻三次。
      * 停留期内报上来的短状态由 ScanStatusDwell 直接丢掉，不排队补演。
+     *
+     * 规范里没有「一句话至少留多久」这一档（M3 只给动画时长，不给文案停留），这是自定值。
      */
     const val STATUS_DWELL_MS = 600L
 

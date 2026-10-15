@@ -51,9 +51,11 @@ internal fun ScanStatusChip(status: ScanStatus, modifier: Modifier = Modifier) {
                 is ScanStatus.Found -> stringResource(R.string.scan_status_found, current.count)
                 else -> stringResource(R.string.scan_status_recognizing)
             }
+            // 文案长度会变（「正在识别…」↔「找到 N 项」），胶囊宽度跟着变：用带 SizeTransform
+            // 的那个，尺寸变化跟同一档时长走，而不是 Compose 默认的 spring
             AnimatedContent(
                 targetState = text,
-                transitionSpec = { FreshNowTransitions.fadeSwap() },
+                transitionSpec = { FreshNowTransitions.fadeSwapAnimatedSize() },
                 label = "scanStatus"
             ) { current ->
                 Text(

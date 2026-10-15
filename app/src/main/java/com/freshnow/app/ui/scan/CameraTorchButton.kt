@@ -35,7 +35,7 @@ fun CameraTorchButton(
         } else {
             MaterialTheme.colorScheme.secondaryContainer
         },
-        animationSpec = FreshNowTransitions.stateChange(),
+        animationSpec = FreshNowTransitions.smallChange(),
         label = "flashlightContainerColor"
     )
     val contentColor by animateColorAsState(
@@ -44,7 +44,7 @@ fun CameraTorchButton(
         } else {
             MaterialTheme.colorScheme.primary
         },
-        animationSpec = FreshNowTransitions.stateChange(),
+        animationSpec = FreshNowTransitions.smallChange(),
         label = "flashlightContentColor"
     )
     FilledIconToggleButton(

@@ -294,7 +294,7 @@ internal fun ScanActionBar(
         val clearColors = ButtonDefaults.textButtonColors()
         val clearContentColor by animateColorAsState(
             targetValue = if (enabled) clearColors.contentColor else clearColors.disabledContentColor,
-            animationSpec = FreshNowTransitions.stateChange(),
+            animationSpec = FreshNowTransitions.smallChange(),
             label = "clearContentColor"
         )
         TextButton(
@@ -311,12 +311,12 @@ internal fun ScanActionBar(
         val saveColors = ButtonDefaults.buttonColors()
         val saveContainerColor by animateColorAsState(
             targetValue = if (enabled) saveColors.containerColor else saveColors.disabledContainerColor,
-            animationSpec = FreshNowTransitions.stateChange(),
+            animationSpec = FreshNowTransitions.smallChange(),
             label = "saveContainerColor"
         )
         val saveContentColor by animateColorAsState(
             targetValue = if (enabled) saveColors.contentColor else saveColors.disabledContentColor,
-            animationSpec = FreshNowTransitions.stateChange(),
+            animationSpec = FreshNowTransitions.smallChange(),
             label = "saveContentColor"
         )
         Button(

@@ -238,6 +238,9 @@ fun PhotoViewer(
 /** 日志标签：复现手势异常时用 adb logcat -s PhotoViewer 抓 */
 private const val TAG = "PhotoViewer"
 
+// 下面三个是手势参数，M3 没有规定：M3 里没有「看图」这个组件，也没有双击缩放倍率、下拉退出
+// 距离的档位（把下面三个数换成别的也一样能跑，它们没有规范值可对）。各自的取法见注释。
+
 /** 看图能放到的最大倍率。比裁剪页高，看图的一个用途是看清标签上的小字 */
 private const val MAX_VIEW_ZOOM = 6f
 
