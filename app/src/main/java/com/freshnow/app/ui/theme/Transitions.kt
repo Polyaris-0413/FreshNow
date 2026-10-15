@@ -123,7 +123,8 @@ object FreshNowTransitions {
      * 这一下是「我拍到了」的回执，不是「请等待」：帧一直流着，从按下到结果只有几十毫秒，
      * 给它配等待话术等于把一段看不见的等待变成看得见的（见 ShutterSqueeze 的说明）。
      *
-     * 【这条是自定，M3 里没有对应的数】M3 的按下反馈走的是**形状与尺寸令牌**，不是缩放比例：
+     * 【规范缺席：M3 没有这一项，主流也没有公认值，本项目自定】M3 的按下反馈走的是
+     * **形状与尺寸令牌**，不是缩放比例：
      * 按钮按下时容器从 full 圆角变 CornerSmall（BaselineButtonTokens.PressedContainerShape），
      * 拖动手柄按下有单独的 pressedSize（DragHandleSizes）。取景框不是组件，套不上那套令牌，
      * 这里用整体缩放表达同一件事。
@@ -156,6 +157,9 @@ object FreshNowTransitions {
      * 「退出转场」。纯颜色过渡（手电筒的底色与前景色、扫描页底部两个按钮的可用/禁用色）不涉及
      * 内容进出，属于前者，取 150ms 更利落；条目的出现与消失、空态、状态胶囊、文案换装这些是
      * 内容在进出，归 [stateChange]。
+     *
+     * 【「颜色过渡算小转场」是本项目的归类，不是规范写的】M3 只说 short3 用于小转场，没列举
+     * 哪些变化算小转场。改这条归类不违反规范，只要时长仍落在短组里。
      */
     fun <T> smallChange(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT3, easing = Standard)
@@ -172,8 +176,8 @@ object FreshNowTransitions {
      * 延迟取同一档时长而不是另取一个数：要等的那件事（条目淡出）就是用 [stateChange] 演的，
      * 它结束的时刻就是这个数。
      *
-     * 「可以有延迟」这件事在 M2 的 Choreography 里有（给一组 incoming 元素加短延迟），但那里
-     * 没给具体毫秒；M3 根本没有延迟这一档。所以这个数是自定：由「等它演完」推出来。
+     * 【规范缺席：M3 没有延迟这一档，主流也只有原则没有数值，本项目自定】M2 的 Choreography
+     * 里说可以给一组 incoming 元素加「短延迟」，但没给毫秒。所以这个数由「等它演完」推出来。
      */
     fun <T> stateChangeDelayed(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT4, delayMillis = DURATION_SHORT4, easing = Standard)
@@ -269,7 +273,8 @@ object FreshNowTransitions {
      * 而是两句话来回打架——请求每秒回来好几次，跟着信号换字的话一秒里能翻三次。
      * 停留期内报上来的短状态由 ScanStatusDwell 直接丢掉，不排队补演。
      *
-     * 规范里没有「一句话至少留多久」这一档（M3 只给动画时长，不给文案停留），这是自定值。
+     * 【规范缺席：M3 只给动画时长、不给文案停留，主流也没有公认值，本项目自定】能对的只有
+     * 「防闪烁」这条惯例：一句话至少要留过一帧的若干倍，免得同一位置来回改字。
      */
     const val STATUS_DWELL_MS = 600L
 
@@ -297,6 +302,11 @@ object FreshNowTransitions {
  * 只给**有层级关系**的跳转用（进子页、子页返回）；两个没有前后关系的顶层页之间用
  * [FreshNowTransitions.fadeThroughEnter] / [FreshNowTransitions.fadeThroughExit]——横向位移
  * 本身就在说「这两个页面是一前一后」，对平行去处是句假话。
+ *
+ * 【时长与位移是本项目的选择，不是规范要求】M3 没有给 shared axis 规定时长，也没规定位移量：
+ * 300ms 是在令牌刻度里挑的一档（medium2 标「标准转场」，250/300/350/400 都自圆其说），整屏位移
+ * 是 Compose 容器转场的默认值。改这两项都不违反规范，前提是两页仍同速、且位移与「要不要加淡」
+ * 保持配套（位移不满整屏就会叠住，那时必须靠淡来区分）。
  */
 fun AnimatedContentTransitionScope<*>.forwardEnter(): EnterTransition =
     slideIntoContainer(SlideDirection.Left, pageSpec())

@@ -3,11 +3,12 @@ package com.freshnow.app.ui.detail
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
@@ -18,7 +19,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.data.ScanImageStore
 import com.freshnow.app.data.local.FreshNowDatabase
 import com.freshnow.app.data.local.ScanRecord
-import androidx.test.espresso.Espresso
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -39,7 +39,7 @@ import java.io.File
 class RecordDetailPhotoTest {
 
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private val application =
         InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
@@ -72,9 +72,12 @@ class RecordDetailPhotoTest {
         composeRule.onNodeWithText(VIEWER_TITLE).assertIsDisplayed()
         saveScreenshot("detail-photo-viewer.png")
 
-        // 用系统返回（本页的 BackHandler）：详情页现在常驻，「返回」这个描述在屏幕上会同时
-        // 命中详情页与看图页两个节点，按描述点会撞上"匹配到多个"
-        Espresso.pressBack()
+        // 直接触发 BackHandler，不走系统返回键：targetSdk 37 上系统返回会先跑 predictive back 那段
+        // 预测动画，动画期间窗口一直在请求布局，Espresso 等不到「窗口稳定」就抛
+        // RootViewWithoutFocusException（这个用例先前就偶发挂在这里）。
+        composeRule.runOnUiThread {
+            composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
 
         composeRule.onNodeWithText(VIEWER_TITLE).assertDoesNotExist()
         composeRule.onNodeWithText("编辑").assertIsDisplayed()

@@ -169,7 +169,9 @@ class BaselineProfileGenerator {
         const val ABOUT = "关于"
         const val LEGAL = "法律信息"
         const val OPEN_SOURCE = "开源声明"
-        const val OPEN_SOURCE_ITEM = "book-story"
+
+        // 开源声明页清单的最后一行：等到它就说明整页已经进来（那一页没有别的结构骨架可等）
+        const val OPEN_SOURCE_ITEM = "Android CameraX"
         const val LEAVE_SCAN = "离开扫描页？"
         const val DISCARD = "不保存"
 

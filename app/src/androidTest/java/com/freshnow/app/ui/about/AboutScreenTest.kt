@@ -100,8 +100,7 @@ class AboutScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("book-story").assertIsDisplayed()
-        composeRule.onNodeWithText("GNU General Public License v3.0").assertExists()
+        composeRule.onNodeWithText("Kotlin / kotlinx.coroutines").assertIsDisplayed()
         // 页面只列清单，不铺许可全文（副本由仓库的 LICENSE 承担）：全文里有独有句，清单里没有
         composeRule.onAllNodesWithText("Version 2.0, January 2004", substring = true)
             .assertCountEquals(0)

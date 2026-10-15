@@ -24,7 +24,7 @@
 
 ### 界面
 
-* 使用 Material Design 3 设计
+* 使用 Material Design 3 设计，动效按 M3 的 motion 规范取值（时长、缓动、转场形态）
 * 动画恰到好处
 
 ### 其他
@@ -53,10 +53,3 @@
 ## 开源许可
 
 本项目基于 [GPL-3.0](https://github.com/Polyaris-0413/FreshNow/blob/main/LICENSE) 发布
-
-部分代码来自以下项目
-
-* [Book's Story](https://github.com/Acclorite/book-story)
-
-在此致敬 是你们的付出<br />
-才让 FreshNow 拥有了得以站在巨人肩膀上的机会 🫡

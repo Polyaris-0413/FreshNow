@@ -24,9 +24,9 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 /**
  * 用到的开源项目，点一行去项目主页。项目名与许可名都是专有名词，不进 strings.xml。
  *
- * 页面这里只列清单，不铺许可全文：GPL-3.0 第 4 条要的是「随程序附一份副本」，副本的载体是
- * 分发物（本应用仓库的 LICENSE），并没说要在界面上逐字显示；界面那条（第 0 条）要的是告诉
- * 用户「怎么看这份副本」，而每一行点开就是该项目的仓库与许可原文。
+ * 列的是第三方依赖，给 Apache-2.0 那批做署名——该协议要求分发时保留版权与许可声明，惯例就是
+ * 这样列出来。页面只列清单、不铺许可全文：全文的载体是分发物（本仓库的 LICENSE），摊在手机上
+ * 要滚很久，也挤掉了这一页本身要传达的信息。
  */
 private data class OpenSourceProject(
     val name: String,
@@ -35,7 +35,6 @@ private data class OpenSourceProject(
 )
 
 private const val APACHE = "Apache License 2.0"
-private const val GPL = "GNU General Public License v3.0"
 
 private val PROJECTS = listOf(
     OpenSourceProject("Kotlin / kotlinx.coroutines", APACHE, "https://kotlinlang.org"),
@@ -54,19 +53,18 @@ private val PROJECTS = listOf(
         "Android CameraX",
         APACHE,
         "https://developer.android.com/media/camera/camerax"
-    ),
-    OpenSourceProject("book-story", GPL, "https://github.com/Acclorite/book-story")
+    )
 )
 
 /**
  * 开源声明：列出用到的开源项目。
  *
  * 这份清单是给那几个 Apache-2.0 依赖用的——该协议要求分发时保留它们的版权与署名，惯例就是
- * 这样列出来。book-story 是 GPL-3.0，它那边的义务不在这里：改过的声明与日期写在仓库的
- * README/源码头（第 5a、5b 条），界面上那一份法律声明在关于页（第 0 条）。
+ * 这样列出来。没有用 OSS licenses 那类插件自动生成：它们只在构建时按 POM 出清单，版式与分组
+ * 由不了这一页（这一页还要跟着 strings.xml 走）。
  *
- * 没有用 OSS licenses 那类插件自动生成：它们靠依赖的 POM 出清单，覆盖不到「抄进来的源码」——
- * 本项目确实用到了 book-story 的源码，它必须由人来写清楚。
+ * 早先这里还有一行界面动效的参考项目（GPL-3.0）。那几条页面转场已按 M3 的 motion 规范重写
+ * （shared axis 与 fade through，取值出自 M3 令牌表），项目里不再有它的代码，那行署名也随之撤掉。
  */
 @Composable
 fun OpenSourceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
