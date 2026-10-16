@@ -133,13 +133,6 @@ internal fun ImageCropScreen(
                     }
                 }
             }
-
-            // 手势没有可见的把手，说明一句比让用户自己试出来省事
-            Text(
-                text = stringResource(R.string.photo_crop_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

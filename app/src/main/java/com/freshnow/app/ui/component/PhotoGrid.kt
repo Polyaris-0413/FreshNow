@@ -98,6 +98,8 @@ internal fun PhotoGrid(
     val showAdd = items.size < MAX_RECORD_IMAGES
     val cellCount = items.size + if (showAdd) 1 else 0
     if (cellCount == 0) return
+    // 拖动期间列表不会增删，所以格数在这一次组合里是个定值（拿它去算目标格）
+    val itemCount = items.size
 
     // 正在拖的是哪一格，以及它跟手的位移。这两个只在拖动期间有值
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
@@ -142,36 +144,48 @@ internal fun PhotoGrid(
                                 scaleY = DRAGGING_SCALE
                             }
                         }
-                        .pointerInput(item.key, items.size) {
+                        // 拖动期间由协程自己维护「现在拖的是第几位」：itemsIndexed 给的 index 是
+                        // 组合那一刻的值，而换位之后列表已经变了。手势协程是长期活着的（key 不变就
+                        // 不重启），继续用旧下标去算就会算在一个已经不属于它的位置上——
+                        // 表现就是「拖过去之后再也拖不回来」
+                        .pointerInput(item.key) {
+                            var currentIndex = index
+                            var travelled = Offset.Zero
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
-                                    draggingIndex = index
+                                    currentIndex = index
+                                    travelled = Offset.Zero
                                     dragOffset = Offset.Zero
+                                    draggingIndex = index
                                 },
                                 onDrag = { change, amount ->
                                     // 消费掉：不消费的话，表单会跟着一起滚
                                     change.consume()
-                                    dragOffset += amount
-                                    val target = gridTargetIndex(index, dragOffset, stepPx, items.size)
-                                    if (target != index) {
-                                        onMove(index, target)
-                                        // 换过位之后这一格已经在新的格子上，跟手位移要把这两格之间
-                                        // 的那段扣掉，否则图会从手指下跳走（「松手硬切」就是这么来的）
-                                        dragOffset -= gridDelta(index, target, stepPx)
+                                    travelled += amount
+                                    dragOffset = travelled
+                                    val target = gridTargetIndex(currentIndex, travelled, stepPx, itemCount)
+                                    if (target != currentIndex) {
+                                        onMove(currentIndex, target)
+                                        // 换位之后这一格已经落在新的格子上，跟手位移要把这两格之间
+                                        // 那一段扣掉，否则图会从手指下跳走
+                                        travelled -= gridDelta(currentIndex, target, stepPx)
+                                        currentIndex = target
                                         draggingIndex = target
                                     }
                                 },
                                 onDragEnd = {
-                                    draggingIndex = null
-                                    // 松手之后弹回格子正中，不是直接归零：直接归零就是一次硬切
-                                    val travelled = dragOffset
+                                    // 弹回格子正中。**动画跑完才结束「被拿着」的状态**：
+                                    // 先清掉的话 translation 会立即归零，图就闪到位置上，
+                                    // 而那个回弹动画根本没人再读——「松手硬切」就是这么来的
+                                    val settle = travelled
                                     scope.launch {
                                         animate(
                                             initialValue = 0f,
                                             targetValue = 1f,
                                             animationSpec = FreshNowTransitions.fastSpatial()
-                                        ) { value, _ -> dragOffset = travelled * (1f - value) }
+                                        ) { value, _ -> dragOffset = settle * (1f - value) }
                                         dragOffset = Offset.Zero
+                                        draggingIndex = null
                                     }
                                 },
                                 onDragCancel = {
