@@ -131,6 +131,31 @@ object FreshNowTransitions {
      */
     const val SHUTTER_SQUEEZE_SCALE = 0.97f
 
+    // ---- 手势参数 ----
+
+    /**
+     * 看图（[com.freshnow.app.ui.component.PhotoViewer]）的三个手势参数。
+     *
+     * 【规范缺席：M3 没有「看图」这个组件，社区也没有公认值，本项目自定】
+     * 它们既不对应 M3 令牌、也不对应行业惯例，换成别的照样能跑。
+     */
+    /** 捻合放大的上限：比裁剪那套高——裁剪是构图，看图的用途之一是看清标签上的小字 */
+    const val VIEW_MAX_ZOOM = 6f
+
+    /** 双击放大到的倍率：够看清一行小字，又不至于一眼看不出看的是哪儿 */
+    const val VIEW_DOUBLE_TAP_ZOOM = 2.5f
+
+    /** 拖多远（占视窗短边的比例）算「要退出」 */
+    const val VIEW_DISMISS_THRESHOLD_RATIO = 0.18f
+
+    /**
+     * 压在图片上的浮层（详情页那枚页码，以后的角标也一样）的底色不透明度。
+     *
+     * 【规范缺席：M3 没有「压在图片上的浮层」这一档，本项目自定】取到「看得出底下有图、
+     * 上面的字又读得清」为止；纯色底会把照片盖掉一块。
+     */
+    const val OVER_IMAGE_SCRIM_ALPHA = 0.32f
+
 
     // ---- 页内状态切换 ----
 

@@ -50,6 +50,8 @@ import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
+import com.freshnow.app.ui.component.StepDirection
+import com.freshnow.app.ui.component.StepTransition
 import com.freshnow.app.ui.component.RemovePhotoSheet
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
@@ -58,15 +60,9 @@ import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.ImageCropScreen
 import com.freshnow.app.ui.theme.FreshNowSize
-import com.freshnow.app.ui.theme.backEnter
-import com.freshnow.app.ui.theme.backExit
-import com.freshnow.app.ui.theme.forwardEnter
-import com.freshnow.app.ui.theme.forwardExit
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.AnimatedVisibility
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,8 +109,8 @@ fun ScanScreen(
         if (!permission.granted) permission.request()
     }
 
-    // 扫描页的整屏步骤（与编辑页同一套）：扫描态、编辑态、裁剪、拍照。四种都是一整屏、
-    // 平级替换，所以它们走同一套方向明确的过渡；硬切会把项目里已有的页面转场丢掉
+    // 扫描页的整屏步骤：扫描态、编辑态、裁剪、拍照。四种都是一整屏、平级替换，
+    // 所以它们与编辑页共用同一套方向明确的过渡（见 [StepTransition]）
     val step: ScanStep = when {
         uiState.cropSource != null -> ScanStep.Crop
         showCamera -> ScanStep.Capture
@@ -122,28 +118,20 @@ fun ScanScreen(
         else -> ScanStep.Scanning
     }
 
-    Box(
+    StepTransition(
+        step = step,
+        direction = { from, to ->
+            when {
+                // 回到扫描态、或从裁剪/拍照退回表单：都是「回到上一级」
+                to is ScanStep.Scanning -> StepDirection.BACK
+                from is ScanStep.Crop || from is ScanStep.Capture -> StepDirection.BACK
+                // 其余都是往下一级：翻一面接着编、进裁剪、进拍照
+                else -> StepDirection.FORWARD
+            }
+        },
+        label = "scanStep",
         modifier = modifier
-            .fillMaxSize()
-            // 退场那帧两页同时在、各自半透明地叠着，底下不垫主题背景色的话会透出窗口背景，
-            // 深色模式下表现为一下黑闪（与编辑页、NavHost 同一个理由）
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        AnimatedContent(
-            targetState = step,
-            transitionSpec = {
-                when {
-                    // 回到扫描态、或从裁剪/拍照退回表单：都是「回到上一级」
-                    targetState is ScanStep.Scanning -> backEnter() togetherWith backExit()
-                    initialState is ScanStep.Crop || initialState is ScanStep.Capture ->
-                        backEnter() togetherWith backExit()
-
-                    // 其余都是往下一级：翻一面接着编、进裁剪、进拍照
-                    else -> forwardEnter() togetherWith forwardExit()
-                }
-            },
-            label = "scanStep"
-        ) { current ->
+    ) { current ->
             when (current) {
                 // 相册选来的图是任意比例，必须先裁成方的
                 ScanStep.Crop -> {
@@ -190,7 +178,6 @@ fun ScanScreen(
                             uiState = uiState,
                             onFieldChange = viewModel::onFieldChange,
                             onRemovePhoto = { removingPhotoIndex = it },
-                            onMovePhoto = viewModel::onPhotoMoved,
                             onAddPhoto = { showImageSources = true },
                             onContinueScanning = viewModel::backToScanning,
                             onSave = { viewModel.save { onBack() } },
@@ -264,7 +251,6 @@ fun ScanScreen(
                 actionBar()
             }
         }
-            }
         }
     }
 
@@ -421,7 +407,6 @@ internal fun ScanEditStage(
     uiState: ScanUiState,
     onFieldChange: (RecordField, String) -> Unit,
     onRemovePhoto: (Int) -> Unit,
-    onMovePhoto: (from: Int, to: Int) -> Unit,
     onAddPhoto: () -> Unit,
     onContinueScanning: () -> Unit,
     onSave: () -> Unit,
@@ -437,7 +422,6 @@ internal fun ScanEditStage(
             derivedExpiry = uiState.expiry,
             onFieldChange = onFieldChange,
             onRemovePhoto = onRemovePhoto,
-            onMovePhoto = onMovePhoto,
             onAddPhoto = onAddPhoto,
             modifier = Modifier
                 .weight(1f)

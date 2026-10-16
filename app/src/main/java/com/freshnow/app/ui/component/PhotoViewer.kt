@@ -101,7 +101,7 @@ fun PhotoViewer(
         // 拖多远算「要退出」：取视窗短边的比例，不写死 dp（换机型、分屏都不用改）；
         // 用位移长度而不是只看纵向，所以四个方向一个标准
         val dismissThreshold =
-            min(viewport.width, viewport.height) * DISMISS_THRESHOLD_RATIO
+            min(viewport.width, viewport.height) * FreshNowTransitions.VIEW_DISMISS_THRESHOLD_RATIO
 
         // 复现「图卡在屏幕边缘」时要看的是退出那一刻的状态，所以进出这一页都打一份快照
         DisposableEffect(Unit) {
@@ -114,7 +114,7 @@ fun PhotoViewer(
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
             // 手指一动就接管：正在演的动画再往下演，就会和手指抢缩放值
             gestureAnimation?.cancel()
-            zoom = (zoom * zoomChange).coerceIn(1f, MAX_VIEW_ZOOM)
+            zoom = (zoom * zoomChange).coerceIn(1f, FreshNowTransitions.VIEW_MAX_ZOOM)
             offset = clampViewerOffset(offset + panChange, image, viewport, zoom)
         }
 
@@ -262,7 +262,7 @@ fun PhotoViewer(
                         onDoubleTap = { tap ->
                             if (dismissing) return@detectTapGestures
                             Log.d(TAG, "双击 落点=(${tap.x.toInt()},${tap.y.toInt()}) zoom=$zoom")
-                            animateZoomTo(if (zoom > 1f) 1f else DOUBLE_TAP_ZOOM, tap)
+                            animateZoomTo(if (zoom > 1f) 1f else FreshNowTransitions.VIEW_DOUBLE_TAP_ZOOM, tap)
                         }
                     )
                 }
@@ -279,13 +279,8 @@ private const val TAG = "PhotoViewer"
 // 各自的取法见注释。
 
 /** 看图能放到的最大倍率。比裁剪页高，看图的一个用途是看清标签上的小字 */
-private const val MAX_VIEW_ZOOM = 6f
 
-/** 双击放大到的倍率：够看清一行小字，又不至于一眼看不出看的是哪儿 */
-private const val DOUBLE_TAP_ZOOM = 2.5f
 
-/** 拖多远（占视窗短边的比例）算「要退出」 */
-private const val DISMISS_THRESHOLD_RATIO = 0.18f
 
 
 /** 照片按 [ContentScale.Fit] 铺进视窗后的尺寸。视窗还没量出来时为 [Size.Zero] */

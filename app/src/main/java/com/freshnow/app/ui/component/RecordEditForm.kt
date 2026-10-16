@@ -64,7 +64,6 @@ internal fun RecordEditForm(
     derivedExpiry: ExpiryOutcome,
     onFieldChange: (RecordField, String) -> Unit,
     onRemovePhoto: (Int) -> Unit,
-    onMovePhoto: (from: Int, to: Int) -> Unit,
     onAddPhoto: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -82,7 +81,6 @@ internal fun RecordEditForm(
         PhotoGrid(
             items = photos,
             onRemove = onRemovePhoto,
-            onMove = onMovePhoto,
             onAdd = onAddPhoto
         )
         EditField(

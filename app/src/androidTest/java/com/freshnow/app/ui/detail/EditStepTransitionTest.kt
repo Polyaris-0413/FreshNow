@@ -8,6 +8,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.freshnow.app.ui.component.StepDirection
+import com.freshnow.app.ui.component.StepTransition
 import com.freshnow.app.ui.theme.FreshNowTheme
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import org.junit.Rule
@@ -76,7 +78,18 @@ class EditStepTransitionTest {
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
             FreshNowTheme() {
-                EditStepTransition(step = step()) { current ->
+                // 与编辑页里用的是同一套方向判据（见 RecordEditScreen）：回到表单是退回方向
+                StepTransition(
+                    step = step(),
+                    direction = { from, to ->
+                        when {
+                            to is EditStep.Edit -> StepDirection.BACK
+                            from is EditStep.Edit -> StepDirection.FORWARD
+                            else -> StepDirection.SIDE
+                        }
+                    },
+                    label = "editStep"
+                ) { current ->
                     Text(text = if (current is EditStep.Crop) CROP else EDIT)
                 }
             }

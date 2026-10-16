@@ -207,7 +207,6 @@ class RecordEditFormTest {
                         }
                     },
                     onRemovePhoto = {},
-                    onMovePhoto = { _, _ -> },
                     onAddPhoto = {}
                 )
             }
@@ -275,7 +274,6 @@ class RecordEditFormTest {
                         }
                     },
                     onRemovePhoto = onRemovePhoto,
-                    onMovePhoto = { _, _ -> },
                     onAddPhoto = onAddPhoto
                 )
             }

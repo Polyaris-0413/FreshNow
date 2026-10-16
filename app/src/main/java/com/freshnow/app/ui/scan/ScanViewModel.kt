@@ -252,22 +252,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 长按拖动换位置：把第 [from] 张挪到第 [to] 位。
-     *
-     * 列表顺序就是展示顺序（第一位是代表图），所以换位置也就是换“封面”。
-     */
-    fun onPhotoMoved(from: Int, to: Int) {
-        _uiState.update { state ->
-            if (from !in state.photos.indices || to !in state.photos.indices || from == to) {
-                state
-            } else {
-                state.copy(photos = state.photos.toMutableList().apply { add(to, removeAt(from)) })
-            }
-        }
-    }
-
-
-    /**
      * 相册选来的图：解码后停在草稿里等着裁剪（与编辑页同一套，见 [ImageCropScreen]）。
      * 读不出来时什么都不动——一次读图失败不该把已经加好的照片抹掉。
      */

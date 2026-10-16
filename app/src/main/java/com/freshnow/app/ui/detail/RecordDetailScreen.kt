@@ -199,8 +199,7 @@ private fun RecordDetailContent(
                         // 一张都没有时是占位图，且点不开看图页（那里没图可看）
                         ScanPhoto(image = null, modifier = photoModifier)
                     } else {
-                        // 主图自己做横向翻页：照片本来就该能左右滑着看，而滑动是跟手的——
-                        // 换成箭头或缩略图来切换都是硬切（用户反馈）
+                        // 主图自己做横向翻页：照片本来就该能左右滑着看，而滑动是跟手的
                         HorizontalPager(
                             state = pagerState,
                             // 一页一张。页与页之间留一格缝：滑到两张中间时看得出这是两张
@@ -233,7 +232,10 @@ private fun RecordDetailContent(
                                 .padding(FreshNowSpacing.xs)
                                 .clip(MaterialTheme.shapes.small)
                                 .background(
-                                    MaterialTheme.colorScheme.scrim.copy(alpha = PAGE_BADGE_SCRIM_ALPHA)
+                                    // 压在图片上的浮层底色：M3 没这一档，取值在设计源里
+                                    MaterialTheme.colorScheme.scrim.copy(
+                                        alpha = FreshNowTransitions.OVER_IMAGE_SCRIM_ALPHA
+                                    )
                                 )
                                 .padding(
                                     horizontal = FreshNowSpacing.xs,
@@ -257,11 +259,3 @@ private fun RecordDetailContent(
     }
 }
 
-
-/**
- * 压在照片上的页码底的不透明度。
- *
- * M3 没有给「压在图片上的浮层」这一档，取到「看得出底下有图、页码又读得清」为止；
- * 纯色底会把照片盖掉一块。
- */
-private const val PAGE_BADGE_SCRIM_ALPHA = 0.32f

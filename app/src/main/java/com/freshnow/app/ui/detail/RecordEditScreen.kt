@@ -52,6 +52,8 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
+import com.freshnow.app.ui.component.StepDirection
+import com.freshnow.app.ui.component.StepTransition
 import com.freshnow.app.ui.component.RemovePhotoSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.PhotoGrid
@@ -86,50 +88,6 @@ internal sealed interface EditStep {
     data object Capture : EditStep
 }
 
-/**
- * 三个整屏状态之间的转场。
- *
- * 用 AnimatedContent 而不是一整块 if/return：裁剪页、拍照页都是“进去过再退回”的整屏，硬切会
- * 丢掉项目里已有一套的页面转场（见 FreshNowTransitions）。方向按“是不是回到表单”定：回到表单
- * 是返回方向，从表单进整屏是前进方向。
- *
- * 退场那帧两页同时在，各自半透明地叠着，所以底下要垫一层主题背景色：不垫就会透出窗口背景，
- * 深色模式下表现为一下黑闪（与 NavHost 同一个理由）。
- *
- * 提为 internal 是为了能在仪器化测试里直接推进动画时钟（mainClock）断言“转场中途两页都在”：
- * 真机上几百毫秒的转场抢不到截图，而硬切与转场的区别恰好就在那几帧。
- */
-@Composable
-internal fun EditStepTransition(
-    step: EditStep,
-    modifier: Modifier = Modifier,
-    content: @Composable (EditStep) -> Unit
-) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        AnimatedContent(
-            targetState = step,
-            transitionSpec = {
-                when {
-                    targetState is EditStep.Edit ->
-                        backEnter() togetherWith backExit()
-
-                    initialState is EditStep.Edit ->
-                        forwardEnter() togetherWith forwardExit()
-
-                    // 裁剪与拍照不会直接互换，留个过渡免得两个整屏硬切
-                    else -> FreshNowTransitions.fadeSwap()
-                }
-            },
-            label = "editStep"
-        ) { current ->
-            content(current)
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,7 +136,20 @@ fun RecordEditScreen(
     val step: EditStep = cropSource?.let { EditStep.Crop(it) }
         ?: if (showCamera) EditStep.Capture else EditStep.Edit
 
-    EditStepTransition(step = step, modifier = modifier) { current ->
+    // 三个整屏步骤之间的转场（见 [StepTransition]）：回到表单是退回方向，从表单出去是前进方向，
+    // 而裁剪与拍照之间留一段淡入淡出——它们不会直接互换，但也不该硬切
+    StepTransition(
+        step = step,
+        direction = { from, to ->
+            when {
+                to is EditStep.Edit -> StepDirection.BACK
+                from is EditStep.Edit -> StepDirection.FORWARD
+                else -> StepDirection.SIDE
+            }
+        },
+        label = "editStep",
+        modifier = modifier
+    ) { current ->
         when (current) {
             is EditStep.Crop -> {
                 // 系统返回键在整屏状态里要先关它；不拦的话会一路退回详情页，
@@ -210,7 +181,6 @@ fun RecordEditScreen(
                 onBack = onBack,
                 onSave = viewModel::save,
                 onRemovePhoto = { removingPhotoIndex = it },
-                onMovePhoto = viewModel::onPhotoMoved,
                 onAddPhoto = { showImageSources = true },
                 viewModel = viewModel
             )
@@ -256,7 +226,6 @@ private fun EditForm(
     onBack: () -> Unit,
     onSave: ((imageSaved: Boolean) -> Unit) -> Unit,
     onRemovePhoto: (Int) -> Unit,
-    onMovePhoto: (from: Int, to: Int) -> Unit,
     onAddPhoto: () -> Unit,
     viewModel: RecordEditViewModel
 ) {
@@ -331,7 +300,6 @@ private fun EditForm(
                 derivedExpiry = uiState.derivedExpiry,
                 onFieldChange = viewModel::onFieldChange,
                 onRemovePhoto = onRemovePhoto,
-                onMovePhoto = onMovePhoto,
                 onAddPhoto = onAddPhoto,
                 modifier = Modifier
                     .fillMaxSize()

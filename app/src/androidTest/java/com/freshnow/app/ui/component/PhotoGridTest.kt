@@ -1,15 +1,11 @@
 package com.freshnow.app.ui.component
 
-import android.graphics.Bitmap
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.theme.FreshNowTheme
@@ -57,7 +53,7 @@ class PhotoGridTest {
         composeRule.onAllNodesWithContentDescription(REMOVE).assertCountEquals(0)
     }
 
-    /** 点 ✕ 报的是那一格的序号（0 起），不是别的格 */
+    /** 点某一格报的是那一格的序号（0 起），不是别的格 */
     @Test
     fun removeReportsTheTappedIndex() {
         var removed = -1
@@ -68,48 +64,16 @@ class PhotoGridTest {
 
         composeRule.onAllNodesWithContentDescription(REMOVE)[1].performClick()
 
-        assertEquals("第二格的 ✕ 要报回下标 1", 1, removed)
-    }
-
-    /**
-     * 长按拖动换位：把第二张拖到第一格上，松手时提交的是「1 → 0」。
-     *
-     * 拖动期间列表不动（换位在松手那一刻一次提交），所以这一条也顺带钉住了「拖过去的路上
-     * 不会来回闪」——那种闪正是因为列表在拖动中就被改了。
-     */
-    @Test
-    fun draggingSubmitsTheNewOrderOnRelease() {
-        var moved: Pair<Int, Int>? = null
-        setContent(
-            items = (1..2).map { PhotoGridItem(key = "k$it", image = null) },
-            onMove = { from, to -> moved = from to to }
-        )
-
-        val second = composeRule.onAllNodesWithContentDescription(REMOVE)[1]
-        val bounds = second.getBoundsInRoot()
-        val cell = bounds.right - bounds.left
-        second.performTouchInput {
-            // 长按拖动要用 down + 等过阈值 + move + up 拼：longClick() 自己就把手指抱起了，
-            // 之后再 moveBy 会报「没有进行中的手势」
-            down(center)
-            advanceEventTime(600)
-            // 往左挪一格多一点：一格宽加一条缝
-            moveBy(Offset(-(cell.toPx() + 8.dp.toPx()), 0f))
-            up()
-        }
-        composeRule.waitForIdle()
-
-        assertEquals("第二张应当被移到第一格", 1 to 0, moved)
+        assertEquals("第二格要报回下标 1", 1, removed)
     }
 
     private fun setContent(
         items: List<PhotoGridItem>,
-        onRemove: (Int) -> Unit = {},
-        onMove: (Int, Int) -> Unit = { _, _ -> }
+        onRemove: (Int) -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme {
-                PhotoGrid(items = items, onRemove = onRemove, onMove = onMove, onAdd = {})
+                PhotoGrid(items = items, onRemove = onRemove, onAdd = {})
             }
         }
     }
