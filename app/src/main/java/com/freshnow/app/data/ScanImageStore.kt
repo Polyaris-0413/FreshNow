@@ -47,8 +47,15 @@ class ScanImageStore(private val directory: File) {
         }.getOrNull()
     }
 
+    /**
+     * 按名字取照片文件。
+     *
+     * 名字必须长得像内容散列（见 [contentName]）：它会与目录拼成路径，而这个名字可能来自对端
+     * 或旧数据，不校验就等于允许 `../` 这类名字读到照片目录之外的文件。不合法一律当作「没有这张图」
+     * ——与文件真的不在是同一种结果。
+     */
     fun find(name: String): File? = name
-        .takeIf { it.isNotBlank() }
+        .takeIf { NAME_PATTERN.matches(it) }
         ?.let { File(directory, it) }
         ?.takeIf { it.isFile }
 
@@ -75,6 +82,12 @@ class ScanImageStore(private val directory: File) {
          * 不是数据损坏），而名字短一半，目录列表与人眼看日志时都好认。
          */
         const val NAME_BYTES = 16
+
+        /**
+         * 合法的照片名：内容散列的十六进制（[NAME_BYTES] 字节写成双倍字符数）加上文件后缀。
+         * 由这两个常量拼出来而不是写死，改任何一个都不会让校验与写入分家。
+         */
+        val NAME_PATTERN = Regex("^[0-9a-f]{${NAME_BYTES * 2}}${Regex.escape(FILE_SUFFIX)}$")
 
         fun contentName(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256")

@@ -410,7 +410,7 @@ private class TestDevice(label: String) {
                 shelfLife = "12个月",
                 savedAt = System.currentTimeMillis()
             ),
-            photo?.let { ImageChange.Replace(it) } ?: ImageChange.Keep
+            photo?.let { ImageChange.Update(kept = emptyList(), added = listOf(it)) } ?: ImageChange.Keep
         )
     }
 

@@ -78,7 +78,7 @@ class ScanRecordRepositoryEditSignalTest {
     fun savingARecordReportsAnEdit() = runBlocking {
         val edits = watchEdits()
 
-        repository.save(ScanResult(productName = "纯牛奶"), frame = null)
+        repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = emptyList())
 
         assertEquals("扫描存下来的那条要报到", 1, drain(edits))
     }
@@ -105,7 +105,7 @@ class ScanRecordRepositoryEditSignalTest {
 
     @Test
     fun deletingRecordsReportsAnEdit() = runBlocking {
-        repository.save(ScanResult(productName = "纯牛奶"), frame = null)
+        repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = emptyList())
 
         val edits = watchEdits()
         repository.delete(listOf(onlyRecord().id))

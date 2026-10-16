@@ -192,7 +192,7 @@ internal class SyncServer(
             if (record == null || record.deletedAt != 0L) {
                 return@get call.respond(HttpStatusCode.NotFound)
             }
-            val bytes = records.imageBytes(record)
+            val bytes = records.imageBytes(record.imageName)
                 ?: return@get call.respond(HttpStatusCode.NotFound)
             call.respondBytes(
                 SyncCrypto.seal(peer.key(), bytes),

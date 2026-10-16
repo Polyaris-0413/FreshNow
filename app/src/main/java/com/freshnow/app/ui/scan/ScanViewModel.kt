@@ -189,7 +189,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
         val frame = latestFrame
         viewModelScope.launch {
-            onSaved(recordRepository.save(record, frame))
+            onSaved(recordRepository.save(record, location = "", frames = listOfNotNull(frame)))
         }
         clearRecord()
     }

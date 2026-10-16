@@ -68,7 +68,10 @@ class ScanRecordRepositoryImageTest {
         val saved = insertWithPhoto()
         val oldName = saved.imageName
 
-        val replaced = repository.update(saved, ImageChange.Replace(NEW_PHOTO))
+        val replaced = repository.update(
+            saved,
+            ImageChange.Update(kept = emptyList(), added = listOf(NEW_PHOTO))
+        )
 
         val updated = requireNotNull(repository.find(saved.id))
         assertTrue("换照片不该失败", replaced)
@@ -88,7 +91,7 @@ class ScanRecordRepositoryImageTest {
         val alsoShared = insertWithPhoto()
         assertEquals("同一张照片在磁盘上只有一份", shared.imageName, alsoShared.imageName)
 
-        repository.update(shared, ImageChange.Replace(NEW_PHOTO))
+        repository.update(shared, ImageChange.Update(kept = emptyList(), added = listOf(NEW_PHOTO)))
 
         assertNotNull("另一条记录还在用这张图，文件必须留着", store.find(alsoShared.imageName))
     }
@@ -99,7 +102,10 @@ class ScanRecordRepositoryImageTest {
         val saved = insertWithPhoto(withPhoto = false)
         assertEquals("", saved.imageName)
 
-        val replaced = repository.update(saved, ImageChange.Replace(NEW_PHOTO))
+        val replaced = repository.update(
+            saved,
+            ImageChange.Update(kept = emptyList(), added = listOf(NEW_PHOTO))
+        )
 
         val updated = requireNotNull(repository.find(saved.id))
         assertTrue(replaced)
@@ -111,7 +117,7 @@ class ScanRecordRepositoryImageTest {
     fun remove_clearsTheName() = runBlocking {
         val saved = insertWithPhoto()
 
-        repository.update(saved, ImageChange.Remove)
+        repository.update(saved, ImageChange.Update(kept = emptyList()))
 
         val updated = requireNotNull(repository.find(saved.id))
         assertEquals("", updated.imageName)
@@ -137,7 +143,7 @@ class ScanRecordRepositoryImageTest {
     fun reconcileImages_dropsOnlyUnreferencedPhotos() = runBlocking {
         val kept = insertWithPhoto()
         val dropped = insertWithPhoto()
-        repository.update(dropped, ImageChange.Remove)
+        repository.update(dropped, ImageChange.Update(kept = emptyList()))
         val orphan = requireNotNull(store.write(ORPHAN_PHOTO))
 
         repository.reconcileImages()
@@ -172,7 +178,10 @@ class ScanRecordRepositoryImageTest {
             identity
         )
         try {
-            val replaced = blockedRepository.update(saved, ImageChange.Replace(NEW_PHOTO))
+            val replaced = blockedRepository.update(
+                saved,
+                ImageChange.Update(kept = emptyList(), added = listOf(NEW_PHOTO))
+            )
 
             val updated = requireNotNull(repository.find(saved.id))
             assertFalse("写盘失败要如实报回来", replaced)
@@ -182,6 +191,64 @@ class ScanRecordRepositoryImageTest {
         } finally {
             blocked.delete()
         }
+    }
+
+    /** 一次写入挂上多张：两张都要在磁盘上，顺序就是传进来的顺序 */
+    @Test
+    fun update_keepsSeveralImagesInOrder() = runBlocking {
+        val saved = insertWithPhoto(withPhoto = false)
+
+        val written = repository.update(
+            saved,
+            ImageChange.Update(kept = emptyList(), added = listOf(PHOTO, NEW_PHOTO))
+        )
+
+        val updated = requireNotNull(repository.find(saved.id))
+        assertTrue("两张都该挂上", written)
+        assertEquals("两张都要挂上", 2, updated.imageNames.size)
+        // 名字按内容算，拿同样的字节再写一次就是同一个名字，所以这里能直接比
+        assertEquals("顺序就是给进来的顺序", store.write(PHOTO), updated.imageNames[0])
+        assertEquals("第二张是 NEW_PHOTO", store.write(NEW_PHOTO), updated.imageNames[1])
+        updated.imageNames.forEach { assertNotNull("每一张都要真的在磁盘上：$it", store.find(it)) }
+    }
+
+    /** 三条里减去中间那条，另外两张的名字与顺序一个都不能动 */
+    @Test
+    fun update_droppingOneKeepsTheOthers() = runBlocking {
+        val saved = insertWithPhoto(withPhoto = false)
+        repository.update(
+            saved,
+            ImageChange.Update(emptyList(), listOf(PHOTO, NEW_PHOTO, ORPHAN_PHOTO))
+        )
+        val names = requireNotNull(repository.find(saved.id)).imageNames
+        assertEquals("先要真的挂上三条", 3, names.size)
+
+        repository.update(
+            requireNotNull(repository.find(saved.id)),
+            ImageChange.Update(kept = listOf(names[0], names[2]))
+        )
+
+        val updated = requireNotNull(repository.find(saved.id))
+        assertEquals("只剩首尾两张，顺序不变", listOf(names[0], names[2]), updated.imageNames)
+    }
+
+    /**
+     * 一条记录的三张图，每一张都算「还有人要」。清理只按代表图判的话（写成 mapNotNull 取第一张），
+     * 后两张会被当成孤儿当场删掉，而记录还指着它们。
+     */
+    @Test
+    fun reconcileImages_keepsEveryImageOfARecord() = runBlocking {
+        val saved = insertWithPhoto(withPhoto = false)
+        repository.update(
+            saved,
+            ImageChange.Update(emptyList(), listOf(PHOTO, NEW_PHOTO, ORPHAN_PHOTO))
+        )
+
+        repository.reconcileImages()
+
+        val updated = requireNotNull(repository.find(saved.id))
+        assertEquals("三张都还在名下", 3, updated.imageNames.size)
+        updated.imageNames.forEach { assertNotNull("这一张还有人要：$it", store.find(it)) }
     }
 
     /** 插一条记录。照片按应用自己的写法落盘，于是这里测的是「编辑时换照片」那一段 */

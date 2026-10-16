@@ -60,7 +60,7 @@ class ScanSaveTest {
 
     @Test
     fun save_returnsTheNewRecordsId_soTheFormCanBeOpenedOnIt() = runBlocking {
-        val id = repository.save(ScanResult(productName = "纯牛奶"), PHOTO)
+        val id = repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = listOf(PHOTO))
 
         val saved = requireNotNull(repository.find(id))
         assertTrue("交回的 id 要是真记录的主键", id > 0)
@@ -70,7 +70,7 @@ class ScanSaveTest {
     /** 照片与文字是同一次写入。补填位置那一步在它之后，所以照片不靠那一步 */
     @Test
     fun save_writesThePhotoInTheSameWrite() = runBlocking {
-        val id = repository.save(ScanResult(productName = "纯牛奶"), PHOTO)
+        val id = repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = listOf(PHOTO))
 
         val saved = requireNotNull(repository.find(id))
         assertNotNull("照片要真的在磁盘上", store.find(saved.imageName))
@@ -79,7 +79,7 @@ class ScanSaveTest {
     /** 位置由表单补填，保存这一刻还没有它；这里钉住它不会从别处被填成什么 */
     @Test
     fun save_leavesLocationEmpty() = runBlocking {
-        val id = repository.save(ScanResult(productName = "纯牛奶"), PHOTO)
+        val id = repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = listOf(PHOTO))
 
         assertEquals("", requireNotNull(repository.find(id)).location)
     }

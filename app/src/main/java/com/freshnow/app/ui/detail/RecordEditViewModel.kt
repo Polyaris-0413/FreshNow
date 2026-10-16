@@ -257,7 +257,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 it.copy(
                     image = preview,
                     cropSource = null,
-                    imageChange = ImageChange.Replace(replaced)
+                    imageChange = ImageChange.Update(kept = emptyList(), added = listOf(replaced))
                 )
             }
         }
@@ -277,7 +277,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 return@launch
             }
             _uiState.update {
-                it.copy(image = preview, imageChange = ImageChange.Replace(jpeg))
+                it.copy(image = preview, imageChange = ImageChange.Update(kept = emptyList(), added = listOf(jpeg)))
             }
         }
     }
@@ -286,7 +286,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
      * 移除照片。只改草稿：库里那张仍在原处（保存时才连文件一起删），所以取消编辑等于没删过。
      */
     fun onImageRemoved() {
-        _uiState.update { it.copy(image = null, imageChange = ImageChange.Remove) }
+        _uiState.update { it.copy(image = null, imageChange = ImageChange.Update(kept = emptyList())) }
     }
 
     fun closeImageReadFailed() {

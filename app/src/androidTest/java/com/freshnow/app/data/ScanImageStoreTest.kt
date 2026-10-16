@@ -45,6 +45,23 @@ class ScanImageStoreTest {
         assertNull(store.find("not-exist.jpg"))
     }
 
+    /**
+     * 名字会被拼进路径。对端与旧数据都可能给出怪名字，而 `../` 拼出来的路径已经跑到照片目录
+     * 之外——那是「取一张不存在的图」变成「读别人的文件」的分界线。合法的名字只有内容散列那一种形状。
+     */
+    @Test
+    fun find_rejectsNamesThatAreNotContentHashes() {
+        listOf("../secret.jpg", "a/b.jpg", "..\\secret.jpg", "abc.jpg", "note.txt").forEach { name ->
+            assertNull("这样的名字不能被当成照片：$name", store.find(name))
+        }
+    }
+
+    /** 形状合法但文件真的不在：照样是 null，不是抛异常 */
+    @Test
+    fun find_wellFormedNameWithoutFile_returnsNull() {
+        assertNull(store.find("0123456789abcdef0123456789abcdef.jpg"))
+    }
+
     @Test
     fun delete_removesFileFromDisk() {
         runBlocking {
