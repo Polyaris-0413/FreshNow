@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -76,6 +77,8 @@ fun MenuBottomSheet(
  * [selected] 是「单选里的当前项」：非 null 表示这是一叠可选项，选中那一项的文字换成 primary；
  * 传 null（默认）表示这只是一个动作（关于、设置、移除照片）。
  *
+ * [shape] 默认取卡片自己的形状；同一组的几块拼在一起时由调用处传拼接形状（见 [splicedShape]）。
+ *
  * 选项用 selectable 而不是 clickable：读屏软件才会把它念成「两项里的第几项、选没选中」，
  * 单选该有的语义就在这里。不另加对勾图标：面板里选项本来就不多，换个颜色已经够读。
  *
@@ -86,10 +89,12 @@ fun MenuSheetItem(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    selected: Boolean? = null
+    selected: Boolean? = null,
+    shape: Shape = CardDefaults.shape
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         )

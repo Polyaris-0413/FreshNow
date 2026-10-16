@@ -345,15 +345,12 @@ private fun AiBasicConfigEditor(
         modifier = modifier
             .fillMaxWidth()
             .imePadding()
+            // 顶端这份内边距原来由标题占着；标题拿掉之后不留的话，第一个输入框会贴在拖柄下面
+            .padding(top = FreshNowSpacing.sm)
             .padding(horizontal = FreshNowSpacing.sm)
             .padding(bottom = FreshNowSpacing.sm),
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        Text(
-            text = stringResource(R.string.ai_settings_basic_group_title),
-            style = MaterialTheme.typography.titleMedium
-        )
-
         // 三个输入项与欢迎页的配置步骤是同一份（见 AiBasicConfigForm）：字段与必填规则不分叉
         AiBasicConfigForm(
             draft = draft,
@@ -397,15 +394,12 @@ private fun ExtraRequestEditor(
         modifier = modifier
             .fillMaxWidth()
             .imePadding()
+            // 同上：顶端那份内边距原来由标题占着
+            .padding(top = FreshNowSpacing.sm)
             .padding(horizontal = FreshNowSpacing.sm)
             .padding(bottom = FreshNowSpacing.sm),
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        Text(
-            text = stringResource(R.string.ai_settings_extra_title),
-            style = MaterialTheme.typography.titleMedium
-        )
-
         OutlinedTextField(
             value = uiState.extraJson,
             onValueChange = onValueChange,

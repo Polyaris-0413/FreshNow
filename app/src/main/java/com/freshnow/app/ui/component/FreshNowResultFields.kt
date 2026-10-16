@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -29,8 +27,10 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
  * 扫描页只回执模型读到的东西，而位置永远不是模型读到的（见 ScanRecord.location）。
  *
  * 日期组三块拼接展示：首尾两块朝向页面外的一侧取大圆角、朝向中间的一侧取小圆角，中间一块四角都用小圆角。
- * 外圈取规范给卡片类容器的 medium，与页面上其他圆角容器保持一致；内圈取最小档 extraSmall，
- * 让拼接的「外圆内方」更清晰。圆角只引用形状令牌，不另定义数值。
+ * 外圈取规范给卡片类容器的 medium（与页面上其他圆角容器保持一致），内圈取最小档 extraSmall——
+ * 两者差着三档，拼接的「外圆内方」才读得出来。块之间的缝取 [FreshNowSpacing.xxxs]：那是 M3 分段
+ * 列表给同组填充块之间留的缝宽（见该 token），比组与组之间的间距小得多，两块才读成一组。
+ * 圆角只引用形状令牌，不另定义数值。
  *
  * 过期日期优先用标签上的印刷值，没有印刷值才由程序按生产日期 + 保质期推算。
  */
@@ -59,7 +59,7 @@ fun FreshNowResultFields(
 
         // 顺序按推算顺序排：生产日期 + 保质期 是标签上印的两项，过期日期是二者算出来的结论，故排在最后，
         // 使「生产 + 保质期 → 过期」的顺序可以直接核对
-        Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)) {
+        Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)) {
             FieldSegment(shape = splicedShape(top = outerCorner, bottom = innerCorner)) {
                 FreshNowFieldRow(
                     label = stringResource(R.string.scan_production_date),
@@ -100,7 +100,7 @@ private fun ProductNameBlock(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)
     ) {
         FieldSegment(
             shape = if (location == null) outerCorner else splicedShape(top = outerCorner, bottom = innerCorner)
@@ -122,16 +122,6 @@ private fun ProductNameBlock(
         }
     }
 }
-
-/**
- * 上下各取一档形状令牌，拼成一个四角圆角矩形
- */
-private fun splicedShape(top: CornerBasedShape, bottom: CornerBasedShape) = RoundedCornerShape(
-    topStart = top.topStart,
-    topEnd = top.topEnd,
-    bottomStart = bottom.bottomStart,
-    bottomEnd = bottom.bottomEnd
-)
 
 /**
  * 拼接中的单块：填充色与 M3 填充容器一致，左右内边距由容器给出，行本身只负责上下内边距

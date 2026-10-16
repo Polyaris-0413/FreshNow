@@ -9,24 +9,18 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -34,7 +28,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,7 +44,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
@@ -63,6 +55,7 @@ import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanPhoto
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
+import com.freshnow.app.ui.component.splicedShape
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSize
@@ -353,29 +346,27 @@ private fun ChangePhotoSheet(
     onRemove: () -> Unit
 ) {
     MenuBottomSheet(sheetState = sheetState, onDismissRequest = onDismissRequest) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        // 两个来源上下拼成一组（上：拍照，下：相册），与结果字段那一组同一套拼法：外圆内方、
+        // 中间只留一条 2dp 的缝。
+        //
+        // 原来它们是并排两个动作、中间一条竖分隔线。改掉的理由是规范里那句「用分隔线分组，而不是
+        // 分开单个项」：拍照与相册本来就是同一组的平级动作；而竖分隔线的官方用例是大屏上把正文
+        // 与媒体并排分开，与这里不是一回事。拼成一块之后，「这两个是一组」靠形状就说清楚了。
+        val outerCorner = MaterialTheme.shapes.medium
+        val innerCorner = MaterialTheme.shapes.extraSmall
+        Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)) {
+            MenuSheetItem(
+                text = stringResource(R.string.action_take_photo),
+                onClick = onTakePhoto,
+                shape = splicedShape(top = outerCorner, bottom = innerCorner)
             )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-            ) {
-                PhotoSourceAction(
-                    text = stringResource(R.string.record_image_source_gallery),
-                    onClick = onPickFromGallery,
-                    modifier = Modifier.weight(1f)
-                )
-                VerticalDivider(modifier = Modifier.fillMaxHeight())
-                PhotoSourceAction(
-                    text = stringResource(R.string.action_take_photo),
-                    onClick = onTakePhoto,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            MenuSheetItem(
+                text = stringResource(R.string.record_image_source_gallery),
+                onClick = onPickFromGallery,
+                shape = splicedShape(top = innerCorner, bottom = outerCorner)
+            )
         }
+        // 「不要了」不属于上面那一组：它是另一件事，所以自己一块、四角都取卡片自己的形状
         if (hasImage) {
             MenuSheetItem(
                 text = stringResource(R.string.record_image_remove),
@@ -383,22 +374,6 @@ private fun ChangePhotoSheet(
             )
         }
     }
-}
-
-/**
- * 拼接块里的一格。字阶与居中方式与 MenuSheetItem 一致（bodyLarge + 居中），
- * 两块并排只是共用一张卡片而已。
- */
-@Composable
-private fun PhotoSourceAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(vertical = FreshNowSpacing.sm),
-        style = MaterialTheme.typography.bodyLarge,
-        textAlign = TextAlign.Center
-    )
 }
 
 /**
