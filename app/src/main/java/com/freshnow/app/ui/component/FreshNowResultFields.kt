@@ -23,6 +23,11 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
  * 品名不与日期组相连（两块之间的间距大于日期组内部的间距），但块内排法与日期三项一致，
  * 都是标签在左、值在右；只有值的字阶用 titleMedium 略作强调，因为品名是这组结果的主语。
  *
+ * [location] 非 null 时（详情页）品名与位置拼成一组：品名回答「这是什么」，位置回答「它在哪」，
+ * 两句是一件事，所以挨在一起；而日期那三块是一条推算链（生产日期 + 保质期 → 过期日期），
+ * 位置插在它们中间会把链子打断。为 null 时（扫描页）只画品名一块，四角都取大圆角——
+ * 扫描页只回执模型读到的东西，而位置永远不是模型读到的（见 ScanRecord.location）。
+ *
  * 日期组三块拼接展示：首尾两块朝向页面外的一侧取大圆角、朝向中间的一侧取小圆角，中间一块四角都用小圆角。
  * 外圈取规范给卡片类容器的 medium，与页面上其他圆角容器保持一致；内圈取最小档 extraSmall，
  * 让拼接的「外圆内方」更清晰。圆角只引用形状令牌，不另定义数值。
@@ -35,6 +40,7 @@ fun FreshNowResultFields(
     productionDate: String,
     expiry: ExpiryOutcome,
     shelfLife: String,
+    location: String? = null,
     modifier: Modifier = Modifier
 ) {
     val expiryText = when (expiry) {
@@ -49,7 +55,7 @@ fun FreshNowResultFields(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        ProductNameBlock(productName)
+        ProductNameBlock(productName, location)
 
         // 顺序按推算顺序排：生产日期 + 保质期 是标签上印的两项，过期日期是二者算出来的结论，故排在最后，
         // 使「生产 + 保质期 → 过期」的顺序可以直接核对
@@ -77,16 +83,43 @@ fun FreshNowResultFields(
 }
 
 /**
- * 品名块：单独一张卡片，四角都取规范给卡片类容器的 medium
+ * 品名块（以及跟着它的位置块）。[location] 为 null 时只有品名一块，四角都取规范给卡片类容器的 medium；
+ * 非 null 时两块拼成一组，朝外的一侧取大圆角、相接的一侧取小圆角。
+ *
+ * 位置空着时值写「未填」而不是共用 [scanValueText] 的「未知」：那个词在本应用里是「这一项没读到」，
+ * 而位置从来不是读到的——写到它头上的「未知」会让人以为模型没识别出来。
  */
 @Composable
-private fun ProductNameBlock(productName: String, modifier: Modifier = Modifier) {
-    FieldSegment(shape = MaterialTheme.shapes.medium, modifier = modifier) {
-        FreshNowFieldRow(
-            label = stringResource(R.string.scan_product_name),
-            value = productName,
-            valueStyle = MaterialTheme.typography.titleMedium
-        )
+private fun ProductNameBlock(
+    productName: String,
+    location: String?,
+    modifier: Modifier = Modifier
+) {
+    val outerCorner = MaterialTheme.shapes.medium
+    val innerCorner = MaterialTheme.shapes.extraSmall
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxs)
+    ) {
+        FieldSegment(
+            shape = if (location == null) outerCorner else splicedShape(top = outerCorner, bottom = innerCorner)
+        ) {
+            FreshNowFieldRow(
+                label = stringResource(R.string.scan_product_name),
+                value = productName,
+                valueStyle = MaterialTheme.typography.titleMedium
+            )
+        }
+
+        if (location != null) {
+            FieldSegment(shape = splicedShape(top = innerCorner, bottom = outerCorner)) {
+                FreshNowFieldRow(
+                    label = stringResource(R.string.record_location),
+                    value = location.ifBlank { stringResource(R.string.record_location_unset) }
+                )
+            }
+        }
     }
 }
 

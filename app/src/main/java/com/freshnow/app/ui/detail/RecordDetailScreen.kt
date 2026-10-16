@@ -166,7 +166,8 @@ private fun RecordDetailContent(
                     productName = record.productName,
                     productionDate = record.productionDate,
                     expiry = uiState.expiry,
-                    shelfLife = record.shelfLife
+                    shelfLife = record.shelfLife,
+                    location = record.location
                 )
             }
         }
