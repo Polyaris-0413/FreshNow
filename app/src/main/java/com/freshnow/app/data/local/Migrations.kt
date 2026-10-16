@@ -69,3 +69,43 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE `scan_records` ADD COLUMN `location` TEXT NOT NULL DEFAULT ''")
     }
 }
+
+/**
+ * v5 → v6：照片从一根名字变成一串名字。
+ *
+ * 与 3 → 4 一样重建表：这一次列既改名（imageName → imageNames）又改类型（一列包住一串名字），
+ * 而 4 → 5 那段注释说的「带 DEFAULT 的列会与实体比对不上」在这里同样成立——重建才能让表结构
+ * 完全由实体说了算。老记录那张图搬成列表里的第一张，它本来就是这条记录的代表图。
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `scan_records_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`productName` TEXT NOT NULL, " +
+                "`productionDate` TEXT NOT NULL, " +
+                "`expiryDate` TEXT NOT NULL, " +
+                "`shelfLife` TEXT NOT NULL, " +
+                "`location` TEXT NOT NULL, " +
+                "`imageNames` TEXT NOT NULL, " +
+                "`savedAt` INTEGER NOT NULL, " +
+                "`syncId` TEXT NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "`updatedBy` TEXT NOT NULL, " +
+                "`deletedAt` INTEGER NOT NULL)"
+        )
+        db.execSQL(
+            "INSERT INTO `scan_records_new` (" +
+                "`id`, `productName`, `productionDate`, `expiryDate`, `shelfLife`, `location`, " +
+                "`imageNames`, `savedAt`, `syncId`, `updatedAt`, `updatedBy`, `deletedAt`) " +
+                "SELECT `id`, `productName`, `productionDate`, `expiryDate`, `shelfLife`, `location`, " +
+                "`imageName`, `savedAt`, `syncId`, `updatedAt`, `updatedBy`, `deletedAt` FROM `scan_records`"
+        )
+        db.execSQL("DROP TABLE `scan_records`")
+        db.execSQL("ALTER TABLE `scan_records_new` RENAME TO `scan_records`")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_scan_records_syncId` " +
+                "ON `scan_records` (`syncId`)"
+        )
+    }
+}

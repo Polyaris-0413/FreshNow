@@ -171,7 +171,7 @@ class RecordDetailPhotoTest {
                     productionDate = "2026-10-01",
                     expiryDate = "2026-12-01",
                     shelfLife = "2个月",
-                    imageName = imageName.orEmpty(),
+                    imageNames = listOfNotNull(imageName),
                     savedAt = System.currentTimeMillis()
                 )
             )

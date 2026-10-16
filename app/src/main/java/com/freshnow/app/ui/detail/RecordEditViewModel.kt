@@ -323,7 +323,6 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                             productionDate = fields.productionDate,
                             expiryDate = fields.expiryDate,
                             shelfLife = fields.shelfLife,
-                            imageName = "",
                             savedAt = System.currentTimeMillis()
                         ),
                         current.imageChange

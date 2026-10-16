@@ -86,7 +86,6 @@ class SortOrderTest {
             productionDate = productionDate,
             expiryDate = printedExpiry,
             shelfLife = shelfLife,
-            imageName = "",
             savedAt = savedAt
         ),
         expiry = ExpiryCalculator.resolve(printedExpiry, productionDate, shelfLife),

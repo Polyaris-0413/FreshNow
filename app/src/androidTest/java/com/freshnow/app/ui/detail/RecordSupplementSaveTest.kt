@@ -125,7 +125,7 @@ class RecordSupplementSaveTest {
                 expiryDate = "2026-12-31",
                 shelfLife = "12个月",
                 location = location,
-                imageName = "seeded.jpg",
+                imageNames = listOf("seeded.jpg"),
                 savedAt = 1L,
                 syncId = UUID.randomUUID().toString(),
                 updatedAt = 1L,

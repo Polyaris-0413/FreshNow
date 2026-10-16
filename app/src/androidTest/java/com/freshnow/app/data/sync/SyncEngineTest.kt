@@ -408,7 +408,6 @@ private class TestDevice(label: String) {
                 productionDate = "2026-01-01",
                 expiryDate = "2026-12-31",
                 shelfLife = "12个月",
-                imageName = "",
                 savedAt = System.currentTimeMillis()
             ),
             photo?.let { ImageChange.Replace(it) } ?: ImageChange.Keep

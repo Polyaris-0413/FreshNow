@@ -122,6 +122,53 @@ class ScanRecordMigrationTest {
         }
     }
 
+    /**
+     * 老记录那一张图要变成列表里的第一张：它是这条记录的代表图，丢了界面就少一张照片。
+     *
+     * 这一次重建了表（列既改名又改类型），所以结构校验同时回答那个问题：新表结构与实体对不对得上。
+     */
+    @Test
+    fun migrate5To6_movesTheSingleImageIntoTheList() {
+        helper.createDatabase(TEST_DATABASE, 5).use { database ->
+            database.execSQL(
+                "INSERT INTO `scan_records` " +
+                    "(`productName`, `productionDate`, `expiryDate`, `shelfLife`, `location`, `imageName`, " +
+                    "`savedAt`, `syncId`, `updatedAt`, `updatedBy`, `deletedAt`) " +
+                    "VALUES ('纯牛奶', '2026-01-01', '2026-12-31', '12个月', '冰箱', 'old.jpg', " +
+                    "111, 'sid-5-1', 111, 'dev-a', 0)"
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DATABASE, 6, true, MIGRATION_5_6)
+
+        migrated.query("SELECT `productName`, `location`, `imageNames` FROM `scan_records`").use { cursor ->
+            assertTrue("老记录不能被迁移弄丢", cursor.moveToFirst())
+            assertEquals("纯牛奶", cursor.getString(0))
+            assertEquals("位置要原样留着", "冰箱", cursor.getString(1))
+            assertEquals("那张图要成为列表里的第一张", "old.jpg", cursor.getString(2))
+        }
+    }
+
+    /** 本来就没图的记录要落成空文本——那是空列表，不是一根空名字 */
+    @Test
+    fun migrate5To6_leavesRecordsWithoutImageEmpty() {
+        helper.createDatabase(TEST_DATABASE, 5).use { database ->
+            database.execSQL(
+                "INSERT INTO `scan_records` " +
+                    "(`productName`, `productionDate`, `expiryDate`, `shelfLife`, `location`, `imageName`, " +
+                    "`savedAt`, `syncId`, `updatedAt`, `updatedBy`, `deletedAt`) " +
+                    "VALUES ('没有图', '', '', '', '', '', 222, 'sid-5-2', 222, 'dev-a', 0)"
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DATABASE, 6, true, MIGRATION_5_6)
+
+        migrated.query("SELECT `imageNames` FROM `scan_records`").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("没有图就是空列表", "", cursor.getString(0))
+        }
+    }
+
     private companion object {
         /**
          * 测试专用的库名。共用一个名字时，上一个用例留下的文件会让 createDatabase 直接抛异常，

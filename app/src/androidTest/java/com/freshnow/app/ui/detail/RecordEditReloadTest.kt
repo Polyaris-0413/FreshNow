@@ -45,7 +45,6 @@ class RecordEditReloadTest {
                     productionDate = "2026-10-01",
                     expiryDate = "2026-12-01",
                     shelfLife = "2个月",
-                    imageName = "",
                     savedAt = System.currentTimeMillis()
                 )
             )

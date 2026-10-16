@@ -40,8 +40,14 @@ data class ScanRecord(
      * 只能由用户自己写，所以它不在 [com.freshnow.app.data.ScanResult] 那一套里。空串表示还没填。
      */
     val location: String = "",
-    /** 扫描照片的文件名，空串表示这条记录没有图片 */
-    val imageName: String,
+    /**
+     * 这条记录的照片文件名，**顺序即展示顺序，第一位是代表图**（列表缩略图、详情页主图都用它）。
+     * 空列表表示这条记录没有图片。
+     *
+     * 名字是内容散列（见 ScanImageStore），所以同一张照片被两条记录引用时磁盘上只有一份，
+     * 也因此不能在某一处直接删文件——没人引用是由「所有记录的名字集合」推出来的。
+     */
+    val imageNames: List<String> = emptyList(),
     val savedAt: Long,
     /**
      * 跨设备身份。默认空串只为让构造点少写一行——**写入路径必须经 Repository 落一个真值**，
@@ -54,7 +60,18 @@ data class ScanRecord(
     val updatedBy: String = "",
     /** 墓碑。非 0 即已删除，值就是删除时刻（同时也是参与 LWW 比较的时刻） */
     val deletedAt: Long = 0
-)
+) {
+
+    /**
+     * 代表图的名字，没有图片时空串。
+     *
+     * 给还没改到多图语义的读取点用（同步载荷里那个给旧版本看的兼容键、界面上的「有没有图」判断）；
+     * 碰到了多张的地方一律直接用 [imageNames]，不要用它。
+     *
+     * 写成成员而不是顶层扩展属性：扩展属性每处使用都要 import，而它只是这条记录的一个视图。
+     */
+    val imageName: String get() = imageNames.firstOrNull().orEmpty()
+}
 
 /**
  * LWW 的判据：本条是不是比 [other] 新。时刻大的赢，时刻相同就比设备号。

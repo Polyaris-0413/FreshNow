@@ -65,7 +65,6 @@ class RecordDetailActionsTest {
                 expiryDate = "2026-12-31",
                 shelfLife = "12个月",
                 location = "冰箱冷藏室",
-                imageName = "",
                 savedAt = 1L,
                 syncId = UUID.randomUUID().toString(),
                 updatedAt = 1L,

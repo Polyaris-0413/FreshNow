@@ -237,7 +237,7 @@ class ScanRecordDaoTest {
         productionDate = "",
         expiryDate = "",
         shelfLife = "",
-        imageName = imageName,
+        imageNames = listOfNotNull(imageName.takeIf { it.isNotEmpty() }),
         savedAt = 0,
         // 唯一索引不允许两条空 syncId：测试数据也要像真记录一样带着身份进场
         syncId = "sync-$name"

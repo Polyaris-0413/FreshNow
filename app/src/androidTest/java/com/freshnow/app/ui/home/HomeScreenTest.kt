@@ -904,7 +904,6 @@ class HomeScreenTest {
             productionDate = "",
             expiryDate = printedExpiry,
             shelfLife = shelfLife,
-            imageName = "",
             savedAt = 0
         ),
         expiry = ExpiryCalculator.resolve(printedExpiry, "", shelfLife),

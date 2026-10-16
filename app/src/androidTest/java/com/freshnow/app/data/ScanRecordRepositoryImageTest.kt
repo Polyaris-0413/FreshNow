@@ -192,7 +192,7 @@ class ScanRecordRepositoryImageTest {
                 productionDate = "2026-01-01",
                 expiryDate = "",
                 shelfLife = "1个月",
-                imageName = if (withPhoto) store.write(PHOTO).orEmpty() else "",
+                imageNames = if (withPhoto) listOfNotNull(store.write(PHOTO)) else emptyList(),
                 savedAt = 222L,
                 syncId = UUID.randomUUID().toString()
             )

@@ -78,13 +78,13 @@ class ScanRecordRepository(
             }
 
             ImageChange.Remove -> {
-                dao.update(stamped.copy(imageName = ""))
+                dao.update(stamped.copy(imageNames = emptyList()))
                 true
             }
 
             is ImageChange.Replace -> {
                 val replaced = replaceImage(image.bytes) { newName ->
-                    dao.update(stamped.copy(imageName = newName))
+                    dao.update(stamped.copy(imageNames = listOf(newName)))
                 }
                 // 图没写成功：行照样按新字段落盘，照片保持原样
                 if (!replaced) dao.update(stamped)
@@ -109,16 +109,16 @@ class ScanRecordRepository(
         val photoReplaced = when (image) {
             // 新记录本来就没有照片，Keep 与 Remove 在这里是同一件事
             ImageChange.Keep, ImageChange.Remove -> {
-                dao.insert(fresh.copy(imageName = ""))
+                dao.insert(fresh.copy(imageNames = emptyList()))
                 true
             }
 
             is ImageChange.Replace -> {
                 val replaced = replaceImage(image.bytes) { newName ->
-                    dao.insert(fresh.copy(imageName = newName))
+                    dao.insert(fresh.copy(imageNames = listOf(newName)))
                 }
                 // 图没写成功：记录照样落库，只是没有图片
-                if (!replaced) dao.insert(fresh.copy(imageName = ""))
+                if (!replaced) dao.insert(fresh.copy(imageNames = emptyList()))
                 replaced
             }
         }
@@ -141,7 +141,7 @@ class ScanRecordRepository(
                 shelfLife = result.shelfLife,
                 // 扫描这一步问不到位置（标签上不印它），留在表单里填；这里显式写空是给读代码的人看的
                 location = "",
-                imageName = frame?.let { imageStore.write(it) }.orEmpty(),
+                imageNames = listOfNotNull(frame?.let { imageStore.write(it) }),
                 savedAt = now,
                 syncId = UUID.randomUUID().toString(),
                 updatedAt = now,
@@ -218,7 +218,7 @@ class ScanRecordRepository(
      */
     suspend fun attachImage(syncId: String, bytes: ByteArray) {
         val name = imageStore.write(bytes) ?: return
-        dao.updateImageName(syncId, name)
+        dao.appendImageName(syncId, name)
     }
 
     /**
@@ -242,7 +242,9 @@ class ScanRecordRepository(
      * 锁在伴生对象上而不是实例上：每个 ViewModel 各建一个 Repository，实例锁拦不住另一个实例。
      */
     suspend fun reconcileImages() = imageLock.withLock {
-        val referenced = dao.findAllImageNames().toSet()
+        // 名字来自全表：只查这一列的旧写法在 Room 里没法解出「一串名字」这种嵌套返回类型，
+        // 而记录只有几百条、整份状态本来就要发给对端（见 SyncProtocol），多读几列不成为问题
+        val referenced = dao.findAll().flatMap { it.imageNames }.toSet()
         imageStore.listAll().filterNot { it in referenced }.forEach { imageStore.delete(it) }
     }
 

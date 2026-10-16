@@ -746,7 +746,6 @@ private fun previewRecords(): List<HomeRecordItem> = listOf(
         productionDate = "2025-01-01",
         expiryDate = "",
         shelfLife = "18个月",
-        imageName = "",
         savedAt = 0
     ),
     ScanRecord(
@@ -755,7 +754,6 @@ private fun previewRecords(): List<HomeRecordItem> = listOf(
         productionDate = "2024-01-01",
         expiryDate = "",
         shelfLife = "保质期见喷码",
-        imageName = "",
         savedAt = 0
     ),
     ScanRecord(
@@ -764,7 +762,6 @@ private fun previewRecords(): List<HomeRecordItem> = listOf(
         productionDate = "",
         expiryDate = "2025-06-01",
         shelfLife = "",
-        imageName = "",
         savedAt = 0
     )
 ).map { record ->

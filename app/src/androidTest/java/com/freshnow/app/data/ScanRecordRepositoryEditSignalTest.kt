@@ -91,7 +91,6 @@ class ScanRecordRepositoryEditSignalTest {
                 productionDate = "",
                 expiryDate = "",
                 shelfLife = "",
-                imageName = "",
                 savedAt = 1L
             ),
             ImageChange.Keep
@@ -167,7 +166,6 @@ class ScanRecordRepositoryEditSignalTest {
         productionDate = "",
         expiryDate = "",
         shelfLife = "",
-        imageName = "",
         savedAt = 1L,
         syncId = syncId,
         updatedAt = 1L,

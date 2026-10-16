@@ -64,15 +64,24 @@ interface ScanRecordDao {
     suspend fun hardDelete(ids: List<Long>)
 
     /**
-     * 只改照片文件名。同步收到对端照片后回填本地缓存用，必须只动这一列：
+     * 只改照片名字这一列。同步收到对端照片后回填本地缓存用，必须只动这一列：
      * 走 [update] 会把整行盖回去，把 [updatedAt] 一起改掉就等于凭空造出一次「本机改了这条」，
      * 而用户只是让这张图显示出来而已。
      */
-    @Query("UPDATE scan_records SET imageName = :name WHERE syncId = :syncId")
-    suspend fun updateImageName(syncId: String, name: String)
+    @Query("UPDATE scan_records SET imageNames = :names WHERE syncId = :syncId")
+    suspend fun updateImageNames(syncId: String, names: List<String>)
 
-    @Query("SELECT imageName FROM scan_records WHERE imageName != ''")
-    suspend fun findAllImageNames(): List<String>
+    /**
+     * 把一张照片接在记录的照片列表末尾。名字已在列表里就什么都不做：同一张图被重复收到是常事
+     * （对端每次同步都把它的整份状态发过来），而内容寻址下同名必然同图，重复追加只会让列表无限长。
+     */
+    @Transaction
+    suspend fun appendImageName(syncId: String, name: String) {
+        if (name.isEmpty()) return
+        val existing = findBySyncId(syncId) ?: return
+        if (name in existing.imageNames) return
+        updateImageNames(syncId, existing.imageNames + name)
+    }
 
     /**
      * 清掉过期的墓碑。照片不在这里删：行删了以后还要拿全文比对才知道哪张图没人要了，
