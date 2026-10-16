@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.freshnow.app.R
 import com.freshnow.app.ui.detail.RecordDetailScreen
 import com.freshnow.app.ui.detail.RecordEditScreen
+import com.freshnow.app.ui.detail.RecordSupplementScreen
 import com.freshnow.app.ui.home.HomeRoute
 import com.freshnow.app.ui.scan.ScanScreen
 import com.freshnow.app.ui.settings.SettingsScreen
@@ -47,10 +48,13 @@ object FreshNowRoute {
     const val RECORD_ID_ARG = "recordId"
     const val RECORD_DETAIL = "record/{$RECORD_ID_ARG}"
     const val RECORD_EDIT = "record/{$RECORD_ID_ARG}/edit"
+    const val RECORD_SUPPLEMENT = "record/{$RECORD_ID_ARG}/supplement"
 
     fun recordDetail(id: Long) = "record/$id"
 
     fun recordEdit(id: Long) = "record/$id/edit"
+
+    fun recordSupplement(id: Long) = "record/$id/supplement"
 }
 
 /**
@@ -67,6 +71,7 @@ object FreshNowRoute {
 private val CHILD_DESTINATIONS = setOf(
     FreshNowRoute.RECORD_DETAIL,
     FreshNowRoute.RECORD_EDIT,
+    FreshNowRoute.RECORD_SUPPLEMENT,
     FreshNowRoute.SYNC,
     FreshNowRoute.OPEN_SOURCE
 )
@@ -116,10 +121,9 @@ fun FreshNowNavHost(
                 onBack = { navigator.navigateUp() },
                 // 压栈而不是切换目的地：从设置回来仍落在扫描页，相机与累加记录都还在
                 onNavigateToSettings = { navigator.navigate(FreshNowRoute.SETTINGS) },
-                // 这条路不一样：保存之后这一程扫描就结束了，所以把扫描页从栈上撤掉。
-                // 留着它的话，在表单里填完位置退回来会落在一张空的扫描页上，还得再按一次返回
+                // 同样压栈：补完信息退回来落回扫描页，接着扫下一条
                 onNavigateToSupplement = { id ->
-                    navigator.navigate(FreshNowRoute.recordEdit(id), popUpTo = FreshNowRoute.SCAN)
+                    navigator.navigate(FreshNowRoute.recordSupplement(id))
                 }
             )
         }
@@ -132,6 +136,18 @@ fun FreshNowNavHost(
                 recordId = recordId,
                 onBack = { navigator.navigateUp() },
                 onNavigateToEdit = { navigator.navigate(FreshNowRoute.recordEdit(recordId)) }
+            )
+        }
+        composable(
+            route = FreshNowRoute.RECORD_SUPPLEMENT,
+            arguments = listOf(navArgument(FreshNowRoute.RECORD_ID_ARG) { type = NavType.LongType })
+        ) { entry ->
+            RecordSupplementScreen(
+                recordId = entry.arguments?.getLong(FreshNowRoute.RECORD_ID_ARG) ?: 0L,
+                // 返回是「还没填完，回去接着扫」：扫描页还在栈上，退回去接着扫下一条
+                onBack = { navigator.navigateUp() },
+                // 保存是「这条记录的事办完了」：直接退回列表，不在扫描页上停一下
+                onSaved = { navigator.backTo(FreshNowRoute.HOME) }
             )
         }
         composable(

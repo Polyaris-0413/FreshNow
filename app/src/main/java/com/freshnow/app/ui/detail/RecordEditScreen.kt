@@ -7,6 +7,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,16 +22,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,8 +45,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -56,13 +56,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.ScanPhoto
+import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
+import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.theme.backEnter
@@ -297,21 +300,35 @@ private fun EditForm(
             return@FreshNowSubPage
         }
 
-        RecordEditForm(
-            uiState = uiState,
-            onProductNameChange = viewModel::onProductNameChange,
-            onLocationChange = viewModel::onLocationChange,
-            onProductionDateChange = viewModel::onProductionDateChange,
-            onExpiryDateChange = viewModel::onExpiryDateChange,
-            onShelfLifeChange = viewModel::onShelfLifeChange,
-            onChangePhoto = onChangePhoto,
+        // 表单比一屏长（照片就占掉半屏，再加五项），必有一项落在折叠线以下。
+        // 底边用渐隐而不是硬边：这一页没有滚动条（锁在 material3 1.4，没有滚动条组件），
+        // 而渐隐说的正是缺的那句话——「下面还有」。见 ScrollEdgeFade。
+        // 键盘顶上来时 Box 整体变矮（imePadding 在这一层），于是渐隐不会跑到键盘背后
+        val formScroll = rememberScrollState()
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(FreshNowSpacing.sm)
-        )
+        ) {
+            RecordEditForm(
+                uiState = uiState,
+                onProductNameChange = viewModel::onProductNameChange,
+                onLocationChange = viewModel::onLocationChange,
+                onProductionDateChange = viewModel::onProductionDateChange,
+                onExpiryDateChange = viewModel::onExpiryDateChange,
+                onShelfLifeChange = viewModel::onShelfLifeChange,
+                onChangePhoto = onChangePhoto,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(formScroll)
+                    .padding(FreshNowSpacing.sm)
+            )
+            ScrollEdgeFade(
+                visible = formScroll.canScrollForward,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 }
 
@@ -416,14 +433,48 @@ internal fun RecordEditForm(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        // 描边卡片包着照片：它就是一个可编辑项，与其他几个文本框同一层意思。
-        // 不给「点按更换」这类文案：表单里没有哪个字段需要写一句「点我输入」。
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            ScanPhoto(
-                image = uiState.image,
-                onClick = onChangePhoto,
-                onClickLabel = stringResource(R.string.record_image_change)
+        // 照片那一栏：一枚缩略图加一句「更换照片」，整行可点。
+        //
+        // 原来这里是占满宽度的一张大卡片（方形照片约 380dp，半个屏幕还多），再加上五项文字，
+        // 这一页就超过了可视区，必有一项被推到折叠线以下。照片在这一页只需回答「这条记录配的是
+        // 哪张图」与「怎么换掉」；拍得好不好由详情页那张大图负责（那里点开还能看全屏）。
+        // 卡片的轮廓留着，它仍然是一个可编辑项（与几个文本框同一层意思），只是不再占半屏。
+        //
+        // 圆角与描边跟同屏那几个输入框对齐：这一页主要是输入框，一块圆角、描边颜色都与它们不同的
+        // 卡片摆在里面就是一处杂音。
+        //
+        // 圆角直接引输入框自己的形状来源；颜色取 outline——这是 M3 给 outlined text field 定的那个
+        // 颜色角色（OutlinedTextFieldTokens.OutlineColor → ColorSchemeKeyTokens.Outline），
+        // 不是输入框里图标与标签用的 onSurfaceVariant；宽度见 FreshNowSize.fieldOutlineWidth。
+        OutlinedCard(
+            onClick = onChangePhoto,
+            modifier = Modifier.fillMaxWidth(),
+            shape = OutlinedTextFieldDefaults.shape,
+            border = BorderStroke(
+                FreshNowSize.fieldOutlineWidth,
+                MaterialTheme.colorScheme.outline
             )
+        ) {
+            Row(
+                modifier = Modifier.padding(FreshNowSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ScanPhoto(
+                    image = uiState.image,
+                    modifier = Modifier.size(FreshNowSize.thumbnail),
+                    // 框是 48dp 方，图也得填满它（源图已裁成方形，这一下实际上不会裁掉内容）
+                    contentScale = ContentScale.Crop,
+                    // 圆角跟着外面那块框走：48dp 的方块配 medium（12dp）会把整个角都圆掉；
+                    // 占位图标也换小一档：48dp 的图标在这 48dp 的格子里会顶满（见 ScanPhoto）
+                    shape = MaterialTheme.shapes.extraSmall,
+                    placeholderIconSize = FreshNowSize.smallIcon
+                )
+                Text(
+                    text = stringResource(R.string.record_image_change),
+                    modifier = Modifier.padding(start = FreshNowSpacing.sm),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
         EditField(
             value = uiState.productName,
@@ -431,12 +482,16 @@ internal fun RecordEditForm(
             label = stringResource(R.string.scan_product_name)
         )
         // 排在名称之后：名称说的是「这是什么」，位置说的是「它在哪」，两句是一件事；
-        // 而下面三项是一条推算链（生产日期 + 保质期 → 过期日期），插在它们中间会把链子打断
-        EditField(
-            value = uiState.location,
-            onValueChange = onLocationChange,
-            label = stringResource(R.string.record_location)
-        )
+        // 而下面三项是一条推算链（生产日期 + 保质期 → 过期日期），位置插在它们中间会把链子打断。
+        // 详情页上也是这个次序，两处对齐。
+        // 开关关着时不画这一栏（见 RecordEditUiState.supplementEnabled）
+        if (uiState.supplementEnabled) {
+            EditField(
+                value = uiState.location,
+                onValueChange = onLocationChange,
+                label = stringResource(R.string.record_location)
+            )
+        }
         EditField(
             value = uiState.productionDate,
             onValueChange = onProductionDateChange,
@@ -466,57 +521,9 @@ internal fun RecordEditForm(
 }
 
 /**
- * 一个字段。[error] 是「这个写法认不出」，[hint] 是该字段自己的说明，两者共用同一个槽位
- * （规范：until the error is fixed, the error replaces the helper text）。
- *
- * 错误要等字段失焦才报，但已经写错的旧值一打开就报（见 [RecordEditForm]）。
- *
- * 输入法的「完成」也要算一次结束：本字段之后没有可跳的下一项，按「完成」只会收起键盘、
- * 不失焦，于是敲完一个认不出的值盯着屏幕看，什么都不会出现——那看起来就像这个字段不校验。
+ * 一个字段的输入框。两处表单（编辑记录、补充信息）共用同一个，见
+ * [com.freshnow.app.ui.component.EditField]。
  */
-@Composable
-private fun EditField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    error: String? = null,
-    hint: String? = null,
-    imeAction: ImeAction = ImeAction.Next
-) {
-    val focusManager = LocalFocusManager.current
-    var leftField by remember { mutableStateOf(false) }
-    // 初值取「进来时就已写错」：这种值不是用户刚敲的，不说的话保存为什么灰着就没法解释
-    var reported by remember { mutableStateOf(error != null) }
-
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .onFocusChanged { focus ->
-                if (focus.isFocused) {
-                    leftField = true
-                } else if (leftField) {
-                    reported = true
-                }
-            },
-        label = { Text(text = label) },
-        isError = reported && error != null,
-        supportingText = when {
-            reported && error != null -> {
-                { Text(text = error) }
-            }
-            hint != null -> {
-                { Text(text = hint) }
-            }
-            else -> null
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = imeAction),
-        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
-    )
-}
 
 /** 过期日期留空时的说明：算得出就给日期，算不出就如实说推不出（哪个字段错了由那个字段自己报） */
 @Composable

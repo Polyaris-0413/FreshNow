@@ -16,6 +16,15 @@ object FreshNowSize {
     val icon = 48.dp
 
     /**
+     * 小格子里那一枚图标。
+     *
+     * M3 的图标就是 24dp（图标按钮也是在 48dp 的触控区里摆一枚 24dp 图标），而 [icon] 那一档
+     * 48dp 是给整屏空态用的。[thumbnail] 那样 48dp 的方块里摆 48dp 的图标会顶满整格，看着挤，
+     * 所以小格子取这一档。主页列表那枚缩略图无图时画的也是 24dp（它靠 Icon 的默认值拿到）。
+     */
+    val smallIcon = 24.dp
+
+    /**
      * 滚动区底边渐隐带的高度。
      *
      * M3 没有这一档取值（渐隐不是 M3 组件，是 Google 自己一直用的手法），这是自定值：
@@ -24,6 +33,15 @@ object FreshNowSize {
      * 渐隐带高度，改动其一必然误伤另一处。
      */
     val scrollEdgeFade = 24.dp
+
+    /**
+     * 输入框描边的宽度。
+     *
+     * M3 的 outlined text field 用的就是 1dp（TextField 那组 token 里的 outline width），
+     * 项目没有另设值。写进设计源是因为别处要跟输入框同款描边（编辑页「更换照片」那一块），
+     * 而 M3 没有公开这一档宽度，只能在这里落一个数——要改就两处一起改。
+     */
+    val fieldOutlineWidth = 1.dp
 
     /**
      * 列表选中态的描边宽度。

@@ -130,24 +130,27 @@ class SettledNavigatorTest {
     }
 
     /**
-     * 带 popUpTo 的那一支：来路那一页要真的从返回栈上撤掉。
+     * backTo：退回 [route] 那一页，中间那几页要真的撤掉。
      *
-     * 【为什么盯它】扫描页的「下一步」走的是这一支。撤不掉不是显错，而是补填完退回来时落在一张
-     * 空的扫描页上——得再按一次返回才回得去，而屏幕上没有任何东西解释那一下。
+     * 【为什么盯它】补充信息页的「保存」走这一支。撤不掉的话，保存完会先落在扫描页上——
+     * 而那一页在这一程里已经用完了，多停一下会让人以为还得再退一次。
      */
     @Test
-    fun navigateWithPopUpTo_dropsThePageItCameFrom() {
+    fun backTo_dropsThePagesInBetween() {
         setContent()
 
         composeRule.runOnUiThread { navigator.navigate(B) }
         composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
-        composeRule.runOnUiThread { navigator.navigate(C, popUpTo = B) }
+        composeRule.runOnUiThread { navigator.navigate(C) }
         composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
 
-        composeRule.onNodeWithText(C).assertExists()
+        composeRule.runOnUiThread { navigator.backTo(A) }
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
+
+        composeRule.onNodeWithText(A).assertExists()
         assertEquals(
-            "B 应当从栈上撤掉：栈里是 导航图 + 起点 + C",
-            listOf(null, A, C),
+            "B 与 C 都要撤掉：栈里是 导航图 + 起点",
+            listOf(null, A),
             navController.currentBackStack.value.map { it.destination.route }
         )
     }

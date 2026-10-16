@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -14,12 +15,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
  * 编辑表单：五项都在、改动能传出去、写错了怎么报、过期日期的来源交代清楚。
+ *
+ * 位置也在这张表单里（补充信息页也有一份，两处改的是同一条记录）：详情页只有「编辑」一个入口，
+ * 位置若只归补充信息页，从那儿就再也改不了。
  *
  * 只摆表单本体（不含读库与落盘）：走真的 RecordEditScreen 要连数据库一起测进来，
  * 而这里要盯的是三件事——「留空即跟随推算」「写错了在失焦之后才报」「打开就写错的旧值当场报」。
@@ -38,6 +43,31 @@ class RecordEditFormTest {
         listOf("名称", "位置", "生产日期", "保质期", "过期日期").forEach { label ->
             composeRule.onNodeWithText(label).assertIsDisplayed()
         }
+    }
+
+    /**
+     * 「补充信息」开关关着时位置那一栏不出现：那时没人能给这一项赋值（扫描那一步也不会去补充页），
+     * 还把它摆出来给人看，就是一栏填不了的东西
+     */
+    @Test
+    fun locationIsHiddenWhenSupplementIsOff() {
+        setContent(uiState = EMPTY.copy(supplementEnabled = false))
+
+        composeRule.onNodeWithText("位置").assertDoesNotExist()
+        composeRule.onNodeWithText("名称").assertIsDisplayed()
+    }
+
+    /** 位置排在名称下面，与详情页一致：名称说这是什么、位置说它在哪，两句是一件事 */
+    @Test
+    fun locationSitsRightBelowTheName() {
+        setContent()
+
+        val nameTop = composeRule.onNodeWithText("名称").getBoundsInRoot().top
+        val locationTop = composeRule.onNodeWithText("位置").getBoundsInRoot().top
+        val productionTop = composeRule.onNodeWithText("生产日期").getBoundsInRoot().top
+
+        assertTrue("位置应当在名称之下：name=$nameTop location=$locationTop", locationTop > nameTop)
+        assertTrue("位置应当在生产日期之上：location=$locationTop production=$productionTop", locationTop < productionTop)
     }
 
     /**
@@ -100,7 +130,7 @@ class RecordEditFormTest {
         assertEquals(listOf("牛奶"), changed)
     }
 
-    /** 位置同样是可改的：它是本页唯一一项模型读不到的字段，全靠这里写进去 */
+    /** 位置同样能改：详情页只有「编辑」一个入口，靠这里改 */
     @Test
     fun typingLocationReportsNewValue() {
         val changed = mutableListOf<String>()
@@ -223,6 +253,6 @@ class RecordEditFormTest {
     private companion object {
         /** 三个字段写错时共用的那一句，见 strings.xml */
         const val UNRECOGNIZED = "认不出这个写法"
-        val EMPTY = RecordEditUiState(loaded = true, found = true)
+        val EMPTY = RecordEditUiState(loaded = true, found = true, supplementEnabled = true)
     }
 }

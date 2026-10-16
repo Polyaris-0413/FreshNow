@@ -167,7 +167,9 @@ private fun RecordDetailContent(
                     productionDate = record.productionDate,
                     expiry = uiState.expiry,
                     shelfLife = record.shelfLife,
-                    location = record.location
+                    // 开关关着时传 null 而不是空串：那一行的含义是「还没填」，而关着的时候
+                    // 这一项根本不存在，不该占一行
+                    location = if (uiState.supplementEnabled) record.location else null
                 )
             }
         }

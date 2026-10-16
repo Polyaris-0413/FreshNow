@@ -17,12 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowTransitions
@@ -42,15 +44,28 @@ import com.freshnow.app.ui.theme.FreshNowTransitions
  * [onClick] 非 null 时整块可点（编辑页用它换照片）：点击区就在照片本身，与文本框点哪里都能改
  * 是同一套操作习惯；[onClickLabel] 必须给，读屏软件会把这块读成一个只有内容描述、没有动作的
  * 图片，不说明点了会怎样。水波纹挂在下述 clip 之后才能被圆角裁开。
+ *
+ * [contentScale] 默认按宽度铺满：详情页上它不是一块定高的东西，图多高就占多高。放进定尺寸的
+ * 框里时要传 [ContentScale.Crop]——那时宽高都由框说了算，不裁就只能溢出，而溢出的那一半会被
+ * clip 切掉、只留顶上一条（编辑页那枚 48dp 缩略图就是这么用的）。
+ *
+ * [shape] 默认取卡片类容器的 medium：详情页上这整块就是页面里的一个容器。放进小尺寸的地方要换更
+ * 小的一档——圆角是绝对値，48dp 的方块配 12dp 圆角看上去整个角都圆掉了；编辑页那枚缩略图取
+ * extraSmall，跟它所在的那块框同一个圆角。
+ *
+ * [placeholderIconSize] 默认取 [FreshNowSize.icon]（48dp，整屏空态那一档）。小格子要显式换小：
+ * 48dp 的图标摆进 48dp 的方块里会顶满整格，淡化时看上去就像一巴掌扇进去（见 [FreshNowSize.smallIcon]）。
  */
 @Composable
 fun ScanPhoto(
     image: Bitmap?,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    onClickLabel: String? = null
+    onClickLabel: String? = null,
+    contentScale: ContentScale = ContentScale.FillWidth,
+    shape: Shape = MaterialTheme.shapes.medium,
+    placeholderIconSize: Dp = FreshNowSize.icon
 ) {
-    val shape = MaterialTheme.shapes.medium
     // contentDescription 要在 clickable 之前取：下面那段 lambda 不是 composable，里面取不了资源
     val missingLabel = stringResource(R.string.record_image_missing)
     val photoModifier = modifier
@@ -93,7 +108,7 @@ fun ScanPhoto(
                 Icon(
                     painter = painterResource(R.drawable.ic_no_image),
                     contentDescription = null,
-                    modifier = Modifier.size(FreshNowSize.icon),
+                    modifier = Modifier.size(placeholderIconSize),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -102,7 +117,7 @@ fun ScanPhoto(
                 bitmap = remember(current) { current.asImageBitmap() },
                 contentDescription = stringResource(R.string.record_image),
                 modifier = photoModifier,
-                contentScale = ContentScale.FillWidth
+                contentScale = contentScale
             )
         }
     }

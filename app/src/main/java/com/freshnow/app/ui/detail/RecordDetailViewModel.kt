@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -22,6 +24,11 @@ data class RecordDetailUiState(
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     /** 记录里的照片，没有图片或文件读不出来时为 null，界面用占位图代替 */
     val image: Bitmap? = null,
+    /**
+     * 「补充信息」开关开着没有。关着时位置那一行不画：没人能给这一项赋值
+     * （扫描那一步也不会去补充页），还把它摆出来给人看，就是一栏填不了的东西
+     */
+    val supplementEnabled: Boolean = false,
     /** 是否已完成一次读取，用于区分"加载中"与"记录不存在" */
     val loaded: Boolean = false
 )
@@ -29,6 +36,7 @@ data class RecordDetailUiState(
 class RecordDetailViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
+    private val behaviorRepository = BehaviorSettingsRepository(application)
     private val coordinator = SyncCoordinator.getInstance(application)
 
     private val _uiState = MutableStateFlow(RecordDetailUiState())
@@ -36,6 +44,9 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
 
     fun load(id: Long) {
         viewModelScope.launch {
+            // 设置读一次就够了：本页没有去设置的路径（设置是主页那一行的下级），
+            // 站着这一页的期间它不会变
+            val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
             // 订阅而不是查一次：编辑页保存后回到本页，值要跟着变
             var decodedName: String? = null
             var decodedImage: Bitmap? = null
@@ -69,6 +80,7 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
                         )
                     } ?: ExpiryOutcome.InsufficientInput,
                     image = decodedImage,
+                    supplementEnabled = supplementEnabled,
                     loaded = true
                 )
             }

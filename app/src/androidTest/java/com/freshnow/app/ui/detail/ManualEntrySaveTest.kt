@@ -55,7 +55,6 @@ class ManualEntrySaveTest {
         viewModel.startNew()
         awaitLoaded(viewModel)
         viewModel.onProductNameChange(PRODUCT_NAME)
-        viewModel.onLocationChange(LOCATION)
         // 写法故意不用标准写法，验的是落库前会规整
         viewModel.onExpiryDateChange("2026/12/1")
 
@@ -67,7 +66,7 @@ class ManualEntrySaveTest {
             .single { it.productName == PRODUCT_NAME }
 
         assertEquals("2026-12-01", saved.expiryDate)
-        assertEquals("位置要跟着一起存下去", LOCATION, saved.location)
+        assertEquals("手填的新记录还没有位置，那是补充信息页的事", "", saved.location)
         assertTrue("保存时间应当是保存那一刻，不是 0", saved.savedAt > 0)
         assertEquals("没有照片时这一项不该报失败", true, imageSaved)
     }
@@ -104,6 +103,5 @@ class ManualEntrySaveTest {
 
     private companion object {
         const val PRODUCT_NAME = "手动录入用例-纯牛奶"
-        const val LOCATION = "冰箱冷藏室"
     }
 }

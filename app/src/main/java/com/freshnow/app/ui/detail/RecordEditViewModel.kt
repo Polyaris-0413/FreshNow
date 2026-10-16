@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ImageChange
@@ -21,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,10 +44,15 @@ data class RecordEditUiState(
     val isNew: Boolean = false,
     val productName: String = "",
     /**
-     * 位置。它是本页唯一一项不由模型读入、只能由用户写的字段，也是扫描页从不显示的一项
-     * （见 ScanRecord.location）。它没有「认不出的写法」这一说，所以不参与任何校验
+     * 位置。本页唯一一项不由模型读入、只能由用户写的字段（见 [ScanRecord.location]），
+     * 它没有「认不出的写法」这一说，所以不参与校验
      */
     val location: String = "",
+    /**
+     * 「补充信息」开关开着没有。关着时位置那一栏不出现：没人能给这一项赋值（扫描那一步
+     * 也不会去补充页），还把它摆出来给人看，就是一栏填不了的东西
+     */
+    val supplementEnabled: Boolean = false,
     val productionDate: String = "",
     val expiryDate: String = "",
     val shelfLife: String = "",
@@ -107,7 +114,7 @@ private fun RecordEditUiState.storedFields() = StoredFields(
 )
 
 /**
- * 改一条记录的文字字段与照片，或者手填一条还没有的新记录（手动录入，见 [RecordEditViewModel.startNew]）。
+ * 改一条记录的文字字段、位置与照片，或者手填一条还没有的新记录（手动录入，见 [RecordEditViewModel.startNew]）。
  *
  * 四项放在同一份草稿里一起改、一起存：过期日期可能是标签印刷的值，也可能是由生产日期与保质期
  * 推算出来的派生值，这条联动必须在同一屏里看得见——逐个字段就地改会把它藏起来（见 ExpiryCalculator）。
@@ -118,6 +125,7 @@ private fun RecordEditUiState.storedFields() = StoredFields(
 class RecordEditViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
+    private val behaviorRepository = BehaviorSettingsRepository(application)
 
     private val _uiState = MutableStateFlow(RecordEditUiState())
     val uiState: StateFlow<RecordEditUiState> = _uiState.asStateFlow()
@@ -142,16 +150,20 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         loadedId = id
         startedNew = false
         viewModelScope.launch {
+            // 先读设置再读库：两样都拿到了才让界面渲染，否则位置那一栏会晚一帧冒出来、
+            // 把下面几个字段当场往下顶一下
+            val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
             val record = repository.find(id)
             loaded = record
             if (record == null) {
-                _uiState.value = RecordEditUiState(loaded = true, found = false)
+                _uiState.value = RecordEditUiState(loaded = true, found = false, supplementEnabled = supplementEnabled)
                 return@launch
             }
             val image = withContext(Dispatchers.IO) { decodeScanImageFile(record) }
             _uiState.value = RecordEditUiState(
                 loaded = true,
                 found = true,
+                supplementEnabled = supplementEnabled,
                 productName = record.productName,
                 location = record.location,
                 productionDate = record.productionDate,
@@ -181,7 +193,15 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         startedNew = true
         loadedId = null
         loaded = null
-        _uiState.value = RecordEditUiState(loaded = true, found = true, isNew = true)
+        viewModelScope.launch {
+            val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
+            _uiState.value = RecordEditUiState(
+                loaded = true,
+                found = true,
+                isNew = true,
+                supplementEnabled = supplementEnabled
+            )
+        }
     }
 
     fun onProductionDateChange(value: String) {
@@ -311,6 +331,9 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                     // 记录已经读不到了（比如在别处被删掉）就没有可存的东西，当作照片也没问题，直接退出
                     record == null -> true
 
+                    // 只改自己这一类字段：位置归「补充信息」页，这里 copy 时不提它，它就不会被清掉
+                    // 本页单稿里也带着位置（进来时从库里读到的），所以保存会把它原样写回去：
+                    // 在补充信息页刚填的位置不会被这里清掉。两页都是先读整条记录、只写自己单稿里那几个字段
                     else -> repository.update(
                         record.copy(
                             productName = fields.productName,
