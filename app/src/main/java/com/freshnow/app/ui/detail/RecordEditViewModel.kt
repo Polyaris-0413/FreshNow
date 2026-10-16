@@ -15,8 +15,13 @@ import com.freshnow.app.data.ScanValueFormat
 import com.freshnow.app.data.anyFieldFilled
 import com.freshnow.app.data.decodePickedImage
 import com.freshnow.app.data.decodeScanImage
+import com.freshnow.app.data.isUnrecognizableDate
+import com.freshnow.app.data.isUnrecognizableShelfLife
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.toSquareJpegBytes
+import com.freshnow.app.ui.component.EditPhoto
+import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.ui.component.RecordFormFields
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,25 +42,6 @@ import kotlinx.coroutines.withContext
  * （非 null 即裁剪页正在显示）。新加的图只停在草稿里，点保存才落盘，这样取消编辑不会在磁盘上
  * 留下没人引用的图。
  */
-/**
- * 草稿里的一张照片。
- *
- * 两种身份靠前两个字段分：有 [name] 的是库里已经那一张（保存时按名字留下），有 [bytes] 的是刚加
- * 进来、还没落盘的。两者不会同时有——照片名由内容算出来，只有写盘那一刻才知道。
- *
- * [bitmap] 是这一屏要用它显示的那张图：库里那张解码得来，新加的从字节解；解不出来时为 null，
- * 格子用占位图顶上。
- *
- * [id] 是草稿内的身份，给界面在增删时认住同一格用：[name] 与 [bytes] 都会在保存那一刻才定下来，
- * 只能拿它当 key。
- */
-data class EditPhoto(
-    val id: Long,
-    val name: String = "",
-    val bytes: ByteArray? = null,
-    val bitmap: Bitmap? = null
-)
-
 data class RecordEditUiState(
     val loaded: Boolean = false,
     val found: Boolean = false,
@@ -94,6 +80,18 @@ data class RecordEditUiState(
     val imageReadFailed: Boolean = false,
     /** 正在写库。写盘不是瞬时的，这段时间里再点一次保存就会多弹一层返回栈（见 save） */
     val saving: Boolean = false
+)
+
+/** 交给共用表单的那几项（见 [com.freshnow.app.ui.component.RecordEditForm]）*/
+internal fun RecordEditUiState.toFormFields() = RecordFormFields(
+    productName = productName,
+    location = location,
+    productionDate = productionDate,
+    expiryDate = expiryDate,
+    shelfLife = shelfLife,
+    productionDateInvalid = productionDateInvalid,
+    shelfLifeInvalid = shelfLifeInvalid,
+    expiryDateInvalid = expiryDateInvalid
 )
 
 /**
@@ -219,6 +217,17 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
 
     fun onProductNameChange(value: String) {
         _uiState.update { it.copy(productName = value) }
+    }
+
+    /** 表单报回来的是「哪一项 + 新值」，在这里分派到各自的写入方法 */
+    fun onFieldChange(field: RecordField, value: String) {
+        when (field) {
+            RecordField.PRODUCT_NAME -> onProductNameChange(value)
+            RecordField.LOCATION -> onLocationChange(value)
+            RecordField.PRODUCTION_DATE -> onProductionDateChange(value)
+            RecordField.EXPIRY_DATE -> onExpiryDateChange(value)
+            RecordField.SHELF_LIFE -> onShelfLifeChange(value)
+        }
     }
 
     fun onLocationChange(value: String) {
@@ -431,27 +440,12 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         )
     }
 
-    /** 按裁剪框切下一块。坐标已经由 [cropWindow] 夹进图内 */
-    private fun Bitmap.croppedTo(window: CropWindow): Bitmap {
-        val side = window.side.coerceAtMost(minOf(width, height))
-        val left = window.left.coerceIn(0, width - side)
-        val top = window.top.coerceIn(0, height - side)
-        if (side == width && side == height && left == 0 && top == 0) return this
-        return Bitmap.createBitmap(this, left, top, side, side)
-    }
-
     /** 认得出/认不出交给 [ScanValueFormat]：与模型入库、推算用的是同一套规则，不另写一份 */
     private fun RecordEditUiState.revalidate() = copy(
         productionDateInvalid = isUnrecognizableDate(productionDate),
         shelfLifeInvalid = isUnrecognizableShelfLife(shelfLife),
         expiryDateInvalid = isUnrecognizableDate(expiryDate)
     ).recomputeDerived()
-
-    private fun isUnrecognizableDate(raw: String): Boolean =
-        raw.isNotBlank() && ScanValueFormat.parseDate(raw.trim()) == null
-
-    private fun isUnrecognizableShelfLife(raw: String): Boolean =
-        raw.isNotBlank() && ScanValueFormat.parseShelfLife(raw.trim()) == null
 
     private fun RecordEditUiState.recomputeDerived() = copy(
         derivedExpiry = ExpiryCalculator.resolve(

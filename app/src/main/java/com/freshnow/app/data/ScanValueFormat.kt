@@ -166,3 +166,17 @@ object ScanValueFormat {
         )
     }.getOrNull()
 }
+
+/**
+ * 这个日期写法认不认得出。空白不算错：模型没读到、用户还没填都是正常的，
+ * 而「写了东西但认不出」要挡住保存（见两处记录表单的 canSave）。
+ *
+ * 与解析共用同一份规则（[ScanValueFormat]），不另写一份：两份判据分家之后，
+ * 会出现「界面上报认得、保存时却算不出日期」这种自相矛盾。
+ */
+internal fun isUnrecognizableDate(raw: String): Boolean =
+    raw.isNotBlank() && ScanValueFormat.parseDate(raw.trim()) == null
+
+/** 同上，保质期那一项 */
+internal fun isUnrecognizableShelfLife(raw: String): Boolean =
+    raw.isNotBlank() && ScanValueFormat.parseShelfLife(raw.trim()) == null

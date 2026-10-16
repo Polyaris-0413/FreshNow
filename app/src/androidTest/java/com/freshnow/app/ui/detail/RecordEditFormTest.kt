@@ -15,6 +15,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.ui.component.EditPhoto
+import com.freshnow.app.ui.component.PhotoGridItem
+import com.freshnow.app.ui.component.RecordEditForm
+import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.ui.component.RecordFormFields
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -210,22 +215,22 @@ class RecordEditFormTest {
      */
     @Test
     fun invalidValueReportsOnlyAfterLeavingTheField() {
+        var fields by mutableStateOf(RecordFormFields())
         composeRule.setContent {
-            var uiState by mutableStateOf(EMPTY)
             FreshNowTheme() {
                 RecordEditForm(
-                    uiState = uiState,
-                    onProductNameChange = {},
-                    onLocationChange = {},
+                    fields = fields,
+                    photos = emptyList(),
+                    derivedExpiry = ExpiryOutcome.InsufficientInput,
                     // 上层是 ViewModel 的 revalidate，这里直接摆它算出来的结果
-                    onProductionDateChange = { value ->
-                        uiState = uiState.copy(
-                            productionDate = value,
-                            productionDateInvalid = value.isNotBlank()
-                        )
+                    onFieldChange = { field, value ->
+                        if (field == RecordField.PRODUCTION_DATE) {
+                            fields = fields.copy(
+                                productionDate = value,
+                                productionDateInvalid = value.isNotBlank()
+                            )
+                        }
                     },
-                    onExpiryDateChange = {},
-                    onShelfLifeChange = {},
                     onOpenPhoto = {},
                     onRemovePhoto = {},
                     onAddPhoto = {}
@@ -275,12 +280,27 @@ class RecordEditFormTest {
         composeRule.setContent {
             FreshNowTheme() {
                 RecordEditForm(
-                    uiState = uiState,
-                    onProductNameChange = onProductNameChange,
-                    onLocationChange = onLocationChange,
-                    onProductionDateChange = {},
-                    onExpiryDateChange = {},
-                    onShelfLifeChange = {},
+                    fields = RecordFormFields(
+                        productName = uiState.productName,
+                        location = uiState.location,
+                        productionDate = uiState.productionDate,
+                        expiryDate = uiState.expiryDate,
+                        shelfLife = uiState.shelfLife,
+                        productionDateInvalid = uiState.productionDateInvalid,
+                        shelfLifeInvalid = uiState.shelfLifeInvalid,
+                        expiryDateInvalid = uiState.expiryDateInvalid
+                    ),
+                    photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
+                    derivedExpiry = uiState.derivedExpiry,
+                    showLocation = uiState.supplementEnabled,
+                    // 表单现在只报「哪一项 + 新值」，这里按测试关心的那一项分派出去
+                    onFieldChange = { field, value ->
+                        when (field) {
+                            RecordField.PRODUCT_NAME -> onProductNameChange(value)
+                            RecordField.LOCATION -> onLocationChange(value)
+                            else -> Unit
+                        }
+                    },
                     onOpenPhoto = onOpenPhoto,
                     onRemovePhoto = onRemovePhoto,
                     onAddPhoto = onAddPhoto

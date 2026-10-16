@@ -39,16 +39,31 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.rememberCoroutineScope
 import com.freshnow.app.R
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.ScrollEdgeFade
+import com.freshnow.app.ui.component.PhotoGridItem
+import com.freshnow.app.ui.component.PhotoViewer
+import com.freshnow.app.ui.component.RecordEditForm
+import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.ui.detail.CropWindow
+import com.freshnow.app.ui.detail.ImageCropScreen
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
+import androidx.compose.animation.AnimatedVisibility
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
@@ -62,23 +77,23 @@ fun ScanScreen(
     val permission = rememberCameraPermissionState()
 
     var showSaveDialog by remember { mutableStateOf(false) }
+    // 加照片这条路与编辑页同一套（见 PhotoSourceSheet）：面板挑来源，相册走选择器再裁剪，
+    // 拍照走那个整屏的拍照页
+    var showImageSources by remember { mutableStateOf(false) }
+    val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showCamera by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> if (uri != null) viewModel.onImagePicked(uri) }
     // 手电筒是相机的状态而不是页面数据，不进 ViewModel；但换版式或旋转会重建 Activity，
     // 灯要跟着用户的意图重新亮起，所以用 rememberSaveable
     var torchOn by rememberSaveable { mutableStateOf(false) }
     val hasResult = uiState.record.hasAnyValue
 
-    // 离开提示里那颗「保存」：那一问问的是「要不要带着结果走」，回答是走，所以存完就退，
-    // 不再多一步——在那里接着填位置只会让人以为退不出去了
+    // 离开提示里那颗「保存」：那一问问的是「要不要带着结果走」，回答是走，所以存完就退
     fun saveAndLeave() {
         viewModel.save { onBack() }
-    }
-
-    // 底部那颗按钮：开关打开时它是「下一步」，存住之后进这条记录的表单，
-    // 把那几项只有用户知道的字段（位置）填上；关着时与上面同一条路
-    fun saveAndContinue() {
-        viewModel.save { id ->
-            if (uiState.supplementAfterSave) onNavigateToSupplement(id) else onBack()
-        }
     }
 
     // 有结果时先问一句再走，避免扫到的结果被静默丢掉；没有结果就直接退。
@@ -90,11 +105,55 @@ fun ScanScreen(
         if (!permission.granted) permission.request()
     }
 
+    // 裁剪是整屏的一步（与编辑页同一套）：相册选来的图是任意比例，必须先裁成方的
+    val cropSource = uiState.cropSource
+    if (cropSource != null) {
+        BackHandler { viewModel.cancelCrop() }
+        ImageCropScreen(
+            image = cropSource,
+            onCancel = viewModel::cancelCrop,
+            onConfirm = viewModel::applyCrop,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    // 拍照是整屏的一步（与编辑页同一套）：相机给的字节已经是正方形 JPEG，不必再过裁剪页
+    if (showCamera) {
+        BackHandler { showCamera = false }
+        PhotoCaptureScreen(
+            onCancel = { showCamera = false },
+            onCaptured = { jpeg ->
+                showCamera = false
+                viewModel.onPhotoCaptured(jpeg)
+            },
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
     FreshNowSubPage(
         title = stringResource(R.string.scan),
         onBack = { if (hasResult) showSaveDialog = true else onBack() },
         modifier = modifier
     ) { innerPadding ->
+        // 编辑态：相机收起来（见 ScanStage），露出的就是记录表单与九宫格。扫描态那一套原样在下
+        if (uiState.stage == ScanStage.EDITING) {
+            ScanEditStage(
+                uiState = uiState,
+                onFieldChange = viewModel::onFieldChange,
+                onOpenPhoto = viewModel::onPhotoOpened,
+                onRemovePhoto = viewModel::onPhotoRemoved,
+                onAddPhoto = { showImageSources = true },
+                onContinueScanning = viewModel::backToScanning,
+                onSave = { viewModel.save { onBack() } },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(FreshNowSpacing.sm)
+            )
+            return@FreshNowSubPage
+        }
         // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
         val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
             CameraBox(
@@ -114,9 +173,8 @@ fun ScanScreen(
         val actionBar: @Composable () -> Unit = {
             ScanActionBar(
                 enabled = hasResult,
-                supplementAfterSave = uiState.supplementAfterSave,
                 onClear = viewModel::clearRecord,
-                onSave = { saveAndContinue() }
+                onNextStep = viewModel::nextStep
             )
         }
 
@@ -157,6 +215,45 @@ fun ScanScreen(
             }
             actionBar()
         }
+    }
+
+    // 看图：这一页内的一次状态切换（与编辑页同一套）。扫描页的草稿里可能有位图还没解出来的格子，
+    // 所以只看被点的那一张，不做翻页
+    val viewingPhoto = uiState.viewingPhotoIndex?.let { index -> uiState.photos.getOrNull(index)?.bitmap }
+    BackHandler(enabled = viewingPhoto != null) { viewModel.closePhotoViewer() }
+    AnimatedVisibility(visible = viewingPhoto != null) {
+        if (viewingPhoto != null) {
+            FreshNowSubPage(
+                title = stringResource(R.string.record_image),
+                onBack = viewModel::closePhotoViewer
+            ) { innerPadding ->
+                PhotoViewer(
+                    images = listOfNotNull(viewingPhoto),
+                    startIndex = 0,
+                    onDismiss = viewModel::closePhotoViewer,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                )
+            }
+        }
+    }
+
+    if (showImageSources) {
+        PhotoSourceSheet(
+            sheetState = imageSheetState,
+            onDismissRequest = { showImageSources = false },
+            onPickFromGallery = {
+                showImageSources = false
+                galleryLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onTakePhoto = {
+                showImageSources = false
+                showCamera = true
+            }
+        )
     }
 
     if (showSaveDialog) {
@@ -269,6 +366,58 @@ internal fun ServiceUnavailableDialog(
 }
 
 /**
+ * 编辑态：记录表单加底部两格（继续扫描 / 保存）。
+ *
+ * 表单与编辑记录页共用同一个（见 [RecordEditForm]）：两处各写一份的话，「过期日期留空即跟随推算」
+ * 这类规则会从一个分支漏掉。
+ *
+ * 「继续扫描」与「保存」分居两端：前者是退回去接着扫（草稿不动），后者才是落库回主页。
+ * 没有「取消」——它与「继续扫描」是同一件事，两个同义的按钮并排只会让人猜它们差在哪。
+ */
+@Composable
+internal fun ScanEditStage(
+    uiState: ScanUiState,
+    onFieldChange: (RecordField, String) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onRemovePhoto: (Int) -> Unit,
+    onAddPhoto: () -> Unit,
+    onContinueScanning: () -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+    ) {
+        RecordEditForm(
+            fields = uiState.formFields,
+            photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
+            derivedExpiry = uiState.expiry,
+            onFieldChange = onFieldChange,
+            onOpenPhoto = onOpenPhoto,
+            onRemovePhoto = onRemovePhoto,
+            onAddPhoto = onAddPhoto,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onContinueScanning) {
+                Text(text = stringResource(R.string.scan_continue))
+            }
+            Button(onClick = onSave, enabled = uiState.canSave) {
+                Text(text = stringResource(R.string.action_save))
+            }
+        }
+    }
+}
+
+/**
  * 底部操作区：清空与保存。
  *
  * 放在底部而非顶栏：这两个是屏幕级上下文操作，M3 给这类操作的位置就是底部，顶栏留给返回这类
@@ -280,11 +429,10 @@ internal fun ServiceUnavailableDialog(
  * 描边那块的形状与文字比例尤其失衡。
  *
  * 无内容时置灰而不隐藏：隐藏会让它在第一条识别结果到达的瞬间凭空出现、把上方内容顶一下。
- * 保存是主操作（填充按钮）、清空是次操作（文字按钮），与设置页的取消/保存同一套主次关系。
+ * 翻面是主操作（填充按钮）、清空是次操作（文字按钮），与设置页的取消/保存同一套主次关系。
  *
- * [supplementAfterSave] 打开时那颗按钮叫「下一步」而不是「保存」：那时按下去只是把这一步存住，
- * 接着还要进表单填位置，而写着「保存」会让人以为这一步已经完了。这一步存不住是不行的（照片就在
- * 这一次写入里落盘），所以按钮只能说「还有下一步」，不能说「还没存」。
+ * 那颗主按钮叫「下一步」而不是「保存」：按下去只是翻面接着编（见 [ScanStage]），
+ * 真正落库是编辑态里那颗「保存」。写成「保存」会让人以为这一步已经完了。
  *
  * 两个按钮的「可点 / 不可点」不是用户点出来的，而是识别结果到了自己翻过来的：两端颜色硬切的话，
  * 屏幕上会有一处颜色「啪」地变掉。所以颜色自己插值，并把同一个值喂给默认态与不可点态两个槽
@@ -297,9 +445,8 @@ internal fun ServiceUnavailableDialog(
 @Composable
 internal fun ScanActionBar(
     enabled: Boolean,
-    supplementAfterSave: Boolean,
     onClear: () -> Unit,
-    onSave: () -> Unit,
+    onNextStep: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -336,7 +483,7 @@ internal fun ScanActionBar(
             label = "saveContentColor"
         )
         Button(
-            onClick = onSave,
+            onClick = onNextStep,
             enabled = enabled,
             colors = ButtonDefaults.buttonColors(
                 containerColor = saveContainerColor,
@@ -346,9 +493,7 @@ internal fun ScanActionBar(
             )
         ) {
             Text(
-                text = stringResource(
-                    if (supplementAfterSave) R.string.scan_next_step else R.string.action_save
-                )
+                text = stringResource(R.string.scan_next_step)
             )
         }
     }

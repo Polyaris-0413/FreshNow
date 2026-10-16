@@ -51,11 +51,12 @@ import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
-import com.freshnow.app.ui.component.MenuBottomSheet
+import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.PhotoGrid
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.PhotoViewer
+import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.splicedShape
@@ -238,7 +239,7 @@ fun RecordEditScreen(
     }
 
     if (showImageSources) {
-        ChangePhotoSheet(
+        PhotoSourceSheet(
             sheetState = imageSheetState,
             onDismissRequest = { showImageSources = false },
             onPickFromGallery = {
@@ -334,12 +335,11 @@ private fun EditForm(
                 .imePadding()
         ) {
             RecordEditForm(
-                uiState = uiState,
-                onProductNameChange = viewModel::onProductNameChange,
-                onLocationChange = viewModel::onLocationChange,
-                onProductionDateChange = viewModel::onProductionDateChange,
-                onExpiryDateChange = viewModel::onExpiryDateChange,
-                onShelfLifeChange = viewModel::onShelfLifeChange,
+                fields = uiState.toFormFields(),
+                photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
+                derivedExpiry = uiState.derivedExpiry,
+                showLocation = uiState.supplementEnabled,
+                onFieldChange = viewModel::onFieldChange,
                 onOpenPhoto = onOpenPhoto,
                 onRemovePhoto = onRemovePhoto,
                 onAddPhoto = onAddPhoto,
@@ -356,151 +356,3 @@ private fun EditForm(
     }
 }
 
-/**
- * 添加照片：从哪来。
- *
- * 就是一叠居中卡片（见 MenuBottomSheet），与主页顶栏「更多选项」展开后同一副外观：这里是
- * 挑一个动作，不是一列设置项，M3 的 ListItem 长成「左图右文的一行行」是给后者的。
- *
- * 「从相册选择」与「拍照」拼成一块：两者是同一层级的两个来路，并排各占一半比上下叠成两张卡片
- * 更读得出它们是一组；中间一条 outlineVariant 分隔线把两块分干净（M3 的 connected buttons
- * 就是这么拼的）。
- *
- * 不再带「移除照片」那一项：照片多了之后，删哪一张由九宫格上那一格的 ✕ 回答，
- * 而这里只能说「移除照片」——究竟是哪一张并不清楚。
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ChangePhotoSheet(
-    sheetState: SheetState,
-    onDismissRequest: () -> Unit,
-    onPickFromGallery: () -> Unit,
-    onTakePhoto: () -> Unit
-) {
-    MenuBottomSheet(sheetState = sheetState, onDismissRequest = onDismissRequest) {
-        // 两个来源上下拼成一组（上：拍照，下：相册），与结果字段那一组同一套拼法：外圆内方、
-        // 中间只留一条 2dp 的缝。
-        //
-        // 原来它们是并排两个动作、中间一条竖分隔线。改掉的理由是规范里那句「用分隔线分组，而不是
-        // 分开单个项」：拍照与相册本来就是同一组的平级动作；而竖分隔线的官方用例是大屏上把正文
-        // 与媒体并排分开，与这里不是一回事。拼成一块之后，「这两个是一组」靠形状就说清楚了。
-        val outerCorner = MaterialTheme.shapes.medium
-        val innerCorner = MaterialTheme.shapes.extraSmall
-        Column(verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)) {
-            MenuSheetItem(
-                text = stringResource(R.string.action_take_photo),
-                onClick = onTakePhoto,
-                shape = splicedShape(top = outerCorner, bottom = innerCorner)
-            )
-            MenuSheetItem(
-                text = stringResource(R.string.record_image_source_gallery),
-                onClick = onPickFromGallery,
-                shape = splicedShape(top = innerCorner, bottom = outerCorner)
-            )
-        }
-    }
-}
-
-/**
- * 编辑表单本体，不含读库与落盘：便于按定值直接断言字段、照片与推算提示（见 RecordEditFormTest）。
- *
- * 照片排在最上面，与详情页的顺序一致；它是这条记录的一个字段，所以与四个文本字段同属一份草稿、
- * 同一次保存。
- *
- * 表单里一律是文本框，不挂日期选择器：这里改的是「模型读错的地方」，存量值可能是任意写法
- * （`2026.10.01`、`2026年10月`、空串），而选择器只能产出标准日期，一确认就会把原值覆盖掉。
- *
- * 错误文案的时机按 Material 的 Errors 模式：*"Show error text only after user interaction with a
- * field"*——所以只在字段失焦之后才报，不跟着敲键闪红（日期是一字符一字符敲的，中途总是认不出）。
- * 打开页面时就已经写错的旧值例外：它不是用户刚敲的，而且不说的话保存被禁用会变得没理由。
- *
- * 过期日期下面是它的来源说明：留空表示跟随推算，所以把推算结果显示在同一屏里；填了值就是标签
- * 印刷值，以它为准，不再显示推算——一屏之内就把「谁说了算」交代清楚。两者天然不会同时出现：
- * 推算说明只在留空时给，而错误文案只在非空且认不出时给。
- */
-@Composable
-internal fun RecordEditForm(
-    uiState: RecordEditUiState,
-    onProductNameChange: (String) -> Unit,
-    onLocationChange: (String) -> Unit,
-    onProductionDateChange: (String) -> Unit,
-    onExpiryDateChange: (String) -> Unit,
-    onShelfLifeChange: (String) -> Unit,
-    onOpenPhoto: (Int) -> Unit,
-    onRemovePhoto: (Int) -> Unit,
-    onAddPhoto: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-    ) {
-        // 照片那一栏：九宫格，末尾一格是「+」，每格右上角是「✕」。
-        //
-        // 从「一枚缩略图 + 更换照片」换成九宫格：一条记录现在能配多张（上限九张），而这一栏要回答
-        // 的是「这条记录有哪几张、还能加几张」；一排缩略图放到第五张就得横着滑，看不见自己存了多少。
-        //
-        // 不再包一层卡片轮廓：格子自己就是可编辑项的边界（虚线那一格说的正是「还能加」），
-        // 再套一层描边框等于把「这里可以动」这个意思说两遍。
-        PhotoGrid(
-            items = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
-            onOpen = onOpenPhoto,
-            onRemove = onRemovePhoto,
-            onAdd = onAddPhoto
-        )
-        EditField(
-            value = uiState.productName,
-            onValueChange = onProductNameChange,
-            label = stringResource(R.string.scan_product_name)
-        )
-        // 排在名称之后：名称说的是「这是什么」，位置说的是「它在哪」，两句是一件事；
-        // 而下面三项是一条推算链（生产日期 + 保质期 → 过期日期），位置插在它们中间会把链子打断。
-        // 详情页上也是这个次序，两处对齐。
-        // 开关关着时不画这一栏（见 RecordEditUiState.supplementEnabled）
-        if (uiState.supplementEnabled) {
-            EditField(
-                value = uiState.location,
-                onValueChange = onLocationChange,
-                label = stringResource(R.string.record_location)
-            )
-        }
-        EditField(
-            value = uiState.productionDate,
-            onValueChange = onProductionDateChange,
-            label = stringResource(R.string.scan_production_date),
-            error = if (uiState.productionDateInvalid) stringResource(R.string.record_edit_error_unrecognized) else null
-        )
-        EditField(
-            value = uiState.shelfLife,
-            onValueChange = onShelfLifeChange,
-            label = stringResource(R.string.scan_shelf_life),
-            error = if (uiState.shelfLifeInvalid) stringResource(R.string.record_edit_error_unrecognized) else null
-        )
-        EditField(
-            value = uiState.expiryDate,
-            onValueChange = onExpiryDateChange,
-            label = stringResource(R.string.scan_expiry_date),
-            error = if (uiState.expiryDateInvalid) stringResource(R.string.record_edit_error_unrecognized) else null,
-            hint = if (uiState.expiryDate.isBlank()) {
-                derivedExpiryHint(uiState.derivedExpiry)
-            } else {
-                null
-            },
-            // 本项之后没有可跳的下一项，输入法的动作键收在「完成」
-            imeAction = ImeAction.Done
-        )
-    }
-}
-
-/**
- * 一个字段的输入框。两处表单（编辑记录、补充信息）共用同一个，见
- * [com.freshnow.app.ui.component.EditField]。
- */
-
-/** 过期日期留空时的说明：算得出就给日期，算不出就如实说推不出（哪个字段错了由那个字段自己报） */
-@Composable
-private fun derivedExpiryHint(derived: ExpiryOutcome): String = when (derived) {
-    is ExpiryOutcome.Resolved -> stringResource(R.string.record_edit_expiry_hint, derived.date)
-    ExpiryOutcome.InsufficientInput, ExpiryOutcome.UnparseableShelfLife ->
-        stringResource(R.string.record_edit_expiry_hint_pending)
-}

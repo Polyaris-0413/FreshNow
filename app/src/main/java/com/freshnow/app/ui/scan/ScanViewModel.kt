@@ -1,20 +1,29 @@
 package com.freshnow.app.ui.scan
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.AiVisionClient
-import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.ScanResult
+import com.freshnow.app.data.decodePickedImage
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.data.mergeObservation
+import com.freshnow.app.data.toSquareJpegBytes
+import com.freshnow.app.ui.component.EditPhoto
+import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.ui.detail.CropWindow
+import com.freshnow.app.ui.detail.croppedTo
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +33,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -42,11 +52,16 @@ data class ScanUiState(
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     val reasoning: String = "",
     val showReasoning: Boolean = false,
-    /**
-     * 底部那颗按钮这一按下去是不是还要接着填位置（见 BehaviorSettings.supplementAfterSave）。
-     * 初值取默认值而不等设置读回来：先按「还要接着填」写，读回来的真值不一样再改口
-     */
-    val supplementAfterSave: Boolean = true,
+    /** 这一页现在在哪一态（见 [ScanStage]）*/
+    val stage: ScanStage = ScanStage.SCANNING,
+    /** 位置：只服务用户自己知道的那一项（见 [com.freshnow.app.data.local.ScanRecord.location]）*/
+    val location: String = "",
+    /** 编辑态的照片草稿；第一张是按下「下一步」那一刻的画面（见设计文档 D5）*/
+    val photos: List<EditPhoto> = emptyList(),
+    /** 正在看大图的那一张（下标）；null 表示看图页没开 */
+    val viewingPhotoIndex: Int? = null,
+    /** 相册选来、等着裁剪的原图；非 null 即裁剪页正在显示 */
+    val cropSource: Bitmap? = null,
     /** 取景框里那枚状态胶囊该说什么，见 [ScanStatus] */
     val status: ScanStatus = ScanStatus.Hidden,
     /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
@@ -56,7 +71,6 @@ data class ScanUiState(
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepository = AiSettingsRepository(application)
-    private val behaviorRepository = BehaviorSettingsRepository(application)
     private val recordRepository = ScanRecordRepository(application)
     private val client = AiVisionClient()
 
@@ -78,6 +92,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /** 那句「正在识别…」的计时器；请求回来就把这榟事作废 */
     private var statusJob: Job? = null
 
+    /** 编辑态草稿照片的 id 发到哪儿了。只在草稿内部流转 */
+    private var nextPhotoId = 0L
+
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
 
@@ -88,12 +105,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(showReasoning = settings.showReasoning) }
             }
         }
-        // 同上：在设置里改「保存后接着填」后回到本页，那颗按钮的文案当场跟着变
-        viewModelScope.launch {
-            behaviorRepository.behaviorSettings.collect { settings ->
-                _uiState.update { it.copy(supplementAfterSave = settings.supplementAfterSave) }
-            }
-        }
     }
 
     /**
@@ -102,6 +113,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     fun canAcceptFrame(): Boolean = !busy.get()
 
     fun submitFrame(jpeg: ByteArray) {
+        // 编辑态不往模型送帧：用户正在改的那份草稿不该被新一帧盖掉，网络也就不必白跑
+        if (_uiState.value.stage == ScanStage.EDITING) return
         if (!busy.compareAndSet(false, true)) return
         latestFrame = jpeg
         Log.d(TAG, "提交一帧，${jpeg.size} 字节")
@@ -184,14 +197,116 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      * 一个字段都没读到就不写、也不回调——与「清空 / 保存」置灰用的是同一条判据。
      */
     fun save(onSaved: (Long) -> Unit) {
-        val record = _uiState.value.record
-        if (!record.hasAnyValue) return
+        val state = _uiState.value
+        if (!state.record.hasAnyValue) return
 
-        val frame = latestFrame
+        val frames = state.photos.mapNotNull { it.bytes }
         viewModelScope.launch {
-            onSaved(recordRepository.save(record, location = "", frames = listOfNotNull(frame)))
+            onSaved(recordRepository.save(state.storedResult(), state.location, frames))
         }
         clearRecord()
+    }
+
+    /**
+     * 翻面：把此刻的画面接在草稿末尾（见设计文档 D5）。
+     *
+     * 每一次翻面都接一张，而不是只在第一次：折回去对准要补的那一面、再翻面，就是「补拍」——
+     * 不必为这一个动作再引一个拍照页。同一张图重复按只会在草稿里出现两格，落库时按内容名去重。
+     */
+    fun nextStep() {
+        val frame = latestFrame
+        _uiState.update { it.startEditing() }
+        if (frame == null) return
+        viewModelScope.launch {
+            val bitmap = withContext(Dispatchers.Default) {
+                BitmapFactory.decodeByteArray(frame, 0, frame.size)
+            }
+            _uiState.update { state ->
+                state.copy(photos = state.photos + EditPhoto(id = nextPhotoId++, bytes = frame, bitmap = bitmap))
+            }
+        }
+    }
+
+    /** 折回扫描态：相机重新展开，草稿里的字与照片都留着（见设计文档 D3）*/
+    fun backToScanning() {
+        _uiState.update { it.backToScanning() }
+    }
+
+    /** 编辑态里改一项。表单报回来的是「哪一项 + 新值」*/
+    fun onFieldChange(field: RecordField, value: String) {
+        _uiState.update { it.onFieldChange(field, value) }
+    }
+
+    /** 移除草稿里的某一张。只动草稿：落盘时它自然不在名字列表里 */
+    fun onPhotoRemoved(index: Int) {
+        _uiState.update { state ->
+            if (index !in state.photos.indices) {
+                state
+            } else {
+                state.copy(photos = state.photos.filterIndexed { i, _ -> i != index })
+            }
+        }
+    }
+
+    fun onPhotoOpened(index: Int) {
+        _uiState.update { if (index in it.photos.indices) it.copy(viewingPhotoIndex = index) else it }
+    }
+
+    fun closePhotoViewer() {
+        _uiState.update { it.copy(viewingPhotoIndex = null) }
+    }
+
+    /**
+     * 相册选来的图：解码后停在草稿里等着裁剪（与编辑页同一套，见 [ImageCropScreen]）。
+     * 读不出来时什么都不动——一次读图失败不该把已经加好的照片抹掉。
+     */
+    fun onImagePicked(uri: Uri) {
+        viewModelScope.launch {
+            val decoded = withContext(Dispatchers.IO) {
+                decodePickedImage(getApplication<Application>().contentResolver, uri)
+            }
+            _uiState.update { if (decoded == null) it else it.copy(cropSource = decoded) }
+        }
+    }
+
+    fun cancelCrop() {
+        _uiState.update { it.copy(cropSource = null) }
+    }
+
+    /** 裁剪页确认：按摆好的框裁方、编码，接在草稿末尾等保存 */
+    internal fun applyCrop(window: CropWindow) {
+        val source = _uiState.value.cropSource ?: return
+        viewModelScope.launch {
+            val bytes = withContext(Dispatchers.Default) { source.croppedTo(window).toSquareJpegBytes() }
+            val preview = bytes?.let { data ->
+                withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(data, 0, data.size) }
+            }
+            _uiState.update { state ->
+                if (bytes == null || preview == null) {
+                    state.copy(cropSource = null)
+                } else {
+                    state.copy(
+                        cropSource = null,
+                        photos = state.photos + EditPhoto(id = nextPhotoId++, bytes = bytes, bitmap = preview)
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * 拍到的照片。相机给的字节已经是正方形 JPEG（与扫描抓帧同一套规格，见 ScanImageCodec），
+     * 所以不必过裁剪页。
+     */
+    fun onPhotoCaptured(jpeg: ByteArray) {
+        viewModelScope.launch {
+            val preview = withContext(Dispatchers.Default) {
+                BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+            }
+            _uiState.update { state ->
+                state.copy(photos = state.photos + EditPhoto(id = nextPhotoId++, bytes = jpeg, bitmap = preview))
+            }
+        }
     }
 
     /**
@@ -231,20 +346,20 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun clearRecord() {
         latestFrame = null
-        _uiState.update { it.withRecord(ScanResult()).copy(reasoning = "", status = ScanStatus.Hidden) }
+        _uiState.update {
+            it.withRecord(ScanResult()).copy(
+                reasoning = "",
+                status = ScanStatus.Hidden,
+                stage = ScanStage.SCANNING,
+                location = "",
+                photos = emptyList(),
+                viewingPhotoIndex = null,
+                cropSource = null
+            )
+        }
         // 不走停留：四个字段已经当场变成「未知」，胶囊若还被上一句拦着就跟眼前对不上了
         statusDwell.reset(ScanStatus.Hidden)
     }
-
-    /** 记录与推算结果必须一起更新，避免两处状态不同步 */
-    private fun ScanUiState.withRecord(record: ScanResult) = copy(
-        record = record,
-        expiry = ExpiryCalculator.resolve(
-            printedExpiry = record.expiryDate,
-            productionDate = record.productionDate,
-            shelfLife = record.shelfLife
-        )
-    )
 
     private companion object {
         const val TAG = "ScanViewModel"

@@ -34,34 +34,18 @@ class ScanActionBarTest {
      * 关着时它就是「保存」——两边的说法都不能少，否则用户从按钮上看不出接下来还有没有事
      */
     @Test
-    fun saveButtonSaysWhatComesNext() {
-        // 摆一份外面能改的状态：一个用例里只能 setContent 一次，两种文案得在同一棵树上换
-        val supplement = mutableStateOf(true)
-        composeRule.setContent {
-            FreshNowTheme() {
-                ScanActionBar(
-                    enabled = true,
-                    supplementAfterSave = supplement.value,
-                    onClear = {},
-                    onSave = {}
-                )
-            }
-        }
+    fun primaryButtonSaysWhatComesNext() {
+        setContent(enabled = true)
 
         composeRule.onNodeWithText("下一步").assertIsDisplayed()
         composeRule.onNodeWithText("保存").assertDoesNotExist()
-
-        composeRule.runOnUiThread { supplement.value = false }
-
-        composeRule.onNodeWithText("保存").assertIsDisplayed()
-        composeRule.onNodeWithText("下一步").assertDoesNotExist()
     }
 
     @Test
     fun hasScannedResult_actionsCanBeTriggered() {
         var cleared = 0
         var saved = 0
-        setContent(enabled = true, supplementAfterSave = false, onClear = { cleared++ }, onSave = { saved++ })
+        setContent(enabled = true, onClear = { cleared++ }, onNextStep = { saved++ })
 
         composeRule.onNodeWithText("清空").assertIsEnabled().performClick()
         composeRule.onNodeWithText("保存").assertIsEnabled().performClick()
@@ -72,17 +56,15 @@ class ScanActionBarTest {
 
     private fun setContent(
         enabled: Boolean,
-        supplementAfterSave: Boolean = false,
         onClear: () -> Unit = {},
-        onSave: () -> Unit = {}
+        onNextStep: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme() {
                 ScanActionBar(
                     enabled = enabled,
-                    supplementAfterSave = supplementAfterSave,
                     onClear = onClear,
-                    onSave = onSave
+                    onNextStep = onNextStep
                 )
             }
         }

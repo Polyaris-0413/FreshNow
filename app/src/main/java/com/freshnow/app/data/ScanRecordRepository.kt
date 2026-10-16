@@ -129,7 +129,9 @@ class ScanRecordRepository(
                 expiryDate = result.expiryDate,
                 shelfLife = result.shelfLife,
                 location = location,
-                imageNames = frames.mapNotNull { imageStore.write(it) },
+                // 同一张图可能被抓进草稿两次（折回去再翻面就是「补拍」）：内容寻址下同名即同图，
+                // 去重后不会在名字列表里留下重复项
+                imageNames = frames.mapNotNull { imageStore.write(it) }.distinct(),
                 savedAt = now,
                 syncId = UUID.randomUUID().toString(),
                 updatedAt = now,

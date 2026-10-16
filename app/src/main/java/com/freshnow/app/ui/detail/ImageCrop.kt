@@ -1,5 +1,6 @@
 package com.freshnow.app.ui.detail
 
+import android.graphics.Bitmap
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -68,4 +69,18 @@ internal fun cropWindow(
         top = (centerY - side / 2f).roundToInt().coerceIn(0, imageHeight - side),
         side = side
     )
+}
+
+/**
+ * 按裁剪框切下一块。坐标已经由 [cropWindow] 夹进图内，这里只做最后一道保险。
+ *
+ * 放在这里而不是各页自己的 ViewModel 里：编辑页与扫描页的「选图 → 裁剪」是同一件事，
+ * 两份实现分家之后，同一张图在两边裁出来的方块会不一样。
+ */
+internal fun Bitmap.croppedTo(window: CropWindow): Bitmap {
+    val side = window.side.coerceAtMost(minOf(width, height))
+    val left = window.left.coerceIn(0, width - side)
+    val top = window.top.coerceIn(0, height - side)
+    if (side == width && side == height && left == 0 && top == 0) return this
+    return Bitmap.createBitmap(this, left, top, side, side)
 }
