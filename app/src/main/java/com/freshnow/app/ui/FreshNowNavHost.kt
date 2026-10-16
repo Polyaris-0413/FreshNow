@@ -65,18 +65,6 @@ object FreshNowRoute {
  * 没有的用 fade through），哪一页属于哪一类得自己判。改这个集合不违反规范，只是把某一页的说法
  * 换个位置而已。
  */
-/**
- * 编辑记录页的两条入口：改一条已有记录，或手动录入一条新的。
- *
- * 它与 [CHILD_DESTINATIONS] 分开列：这里要的是「哪些转场沾了编辑页」（用来决定零淡化），
- * 而 CHILD_DESTINATIONS 管的是「哪些页面是子页」（决定用 shared axis 还是 fade through）。
- * 两件事恰好在编辑页上重合，但手动录入那条只属于前者。
- */
-private val RECORD_EDIT_ROUTES = setOf(
-    FreshNowRoute.RECORD_EDIT,
-    FreshNowRoute.MANUAL_ENTRY
-)
-
 private val CHILD_DESTINATIONS = setOf(
     FreshNowRoute.RECORD_DETAIL,
     FreshNowRoute.RECORD_EDIT,
@@ -88,17 +76,6 @@ private val CHILD_DESTINATIONS = setOf(
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.isChildJump(): Boolean =
     initialState.destination.route in CHILD_DESTINATIONS ||
         targetState.destination.route in CHILD_DESTINATIONS
-
-/**
- * 这一趟跳转是否沾编辑记录页（编辑一条已有记录，或手动录入一条新的）。
- *
- * 沾上它就一律走零淡化的 shared axis，不走 [FreshNowTransitions.fadeThroughEnter]：
- * fade through 的做法是两页同时处于半透明，那时垫在 NavHost 下面的主题底色会露出来
- * （深色主题下就是一片黑渐隐）。
- */
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.touchesRecordEdit(): Boolean =
-    initialState.destination.route in RECORD_EDIT_ROUTES ||
-        targetState.destination.route in RECORD_EDIT_ROUTES
 
 @Composable
 fun FreshNowNavHost(
@@ -114,34 +91,10 @@ fun FreshNowNavHost(
         // 转场期间两个页面同时处于半透明，这里垫上主题背景色，
         // 否则透出的是窗口背景（深色模式下偏亮，表现为一下白闪）
         modifier = Modifier.background(MaterialTheme.colorScheme.background),
-        enterTransition = {
-            if (isChildJump() || touchesRecordEdit()) {
-                forwardEnter()
-            } else {
-                FreshNowTransitions.fadeThroughEnter
-            }
-        },
-        exitTransition = {
-            if (isChildJump() || touchesRecordEdit()) {
-                forwardExit()
-            } else {
-                FreshNowTransitions.fadeThroughExit
-            }
-        },
-        popEnterTransition = {
-            if (isChildJump() || touchesRecordEdit()) {
-                backEnter()
-            } else {
-                FreshNowTransitions.fadeThroughEnter
-            }
-        },
-        popExitTransition = {
-            if (isChildJump() || touchesRecordEdit()) {
-                backExit()
-            } else {
-                FreshNowTransitions.fadeThroughExit
-            }
-        }
+        enterTransition = { if (isChildJump()) forwardEnter() else FreshNowTransitions.fadeThroughEnter },
+        exitTransition = { if (isChildJump()) forwardExit() else FreshNowTransitions.fadeThroughExit },
+        popEnterTransition = { if (isChildJump()) backEnter() else FreshNowTransitions.fadeThroughEnter },
+        popExitTransition = { if (isChildJump()) backExit() else FreshNowTransitions.fadeThroughExit }
     ) {
         composable(FreshNowRoute.HOME) {
             HomeRoute(

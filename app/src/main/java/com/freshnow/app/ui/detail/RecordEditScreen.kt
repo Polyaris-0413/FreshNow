@@ -59,7 +59,6 @@ import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.PhotoGrid
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.RecordEditForm
-import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.splicedShape
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
@@ -283,10 +282,9 @@ private fun EditForm(
             return@FreshNowSubPage
         }
 
-        // 表单比一屏长（照片就占掉半屏，再加五项），必有一项落在折叠线以下。
-        // 底边用渐隐而不是硬边：这一页没有滚动条（锁在 material3 1.4，没有滚动条组件），
-        // 而渐隐说的正是缺的那句话——「下面还有」。见 ScrollEdgeFade。
-        // 键盘顶上来时 Box 整体变矮（imePadding 在这一层），于是渐隐不会跑到键盘背后
+        // 表单比一屏长（九宫格 + 五项），必有一项落在折叠线以下，所以这一页得能滚。
+        // 【刻意不放底边渐隐】它压在下面的输入框上时，看着像「输入框被遮了一半」（用户反馈）；
+        // 而扫描页那一份表单（同一个组件）本来就没有它，去掉之后两处一致。
         val formScroll = rememberScrollState()
         Box(
             modifier = Modifier
@@ -305,10 +303,6 @@ private fun EditForm(
                     .fillMaxSize()
                     .verticalScroll(formScroll)
                     .padding(FreshNowSpacing.sm)
-            )
-            ScrollEdgeFade(
-                visible = formScroll.canScrollForward,
-                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }
