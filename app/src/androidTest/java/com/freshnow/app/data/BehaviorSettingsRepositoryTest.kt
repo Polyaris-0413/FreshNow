@@ -53,6 +53,19 @@ class BehaviorSettingsRepositoryTest {
         assertEquals(settings, repository.behaviorSettings.first())
     }
 
+    /**
+     * 这个开关要存得住。它决定扫描页保存之后那一步走不走：读丢了，就是保存完直接退走，
+     * 而用户以为自己选的是「接着填」。默认开，与 [BehaviorSettings.supplementAfterSave] 一致
+     */
+    @Test
+    fun supplementAfterSave_defaultsOn_andSurvivesASave() = runBlocking {
+        assertEquals(true, repository.behaviorSettings.first().supplementAfterSave)
+
+        repository.save(BehaviorSettings(supplementAfterSave = false))
+
+        assertEquals(false, repository.behaviorSettings.first().supplementAfterSave)
+    }
+
     /** 认不出的排序值回落到默认：改过枚举名、手改过配置文件都不该让整份设置读不出来 */
     @Test
     fun unknownSortOrder_fallsBackToCreatedOrder() = runBlocking {

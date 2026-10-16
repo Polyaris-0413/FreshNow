@@ -27,6 +27,14 @@ data class BehaviorSettings(
     val manualEntry: Boolean = false,
 
     /**
+     * 扫描页保存之后直接进这条记录的表单补填（见 ScanScreen）。
+     *
+     * 默认开：这个开关就是为「扫完接着填位置」而生的，默认关掉等于要先找到它才能用上。
+     * 关掉时扫描页与加这一项之前完全一样：一颗按钮、存完就退。
+     */
+    val supplementAfterSave: Boolean = true,
+
+    /**
      * 列表的排序方式。默认按创建时间——那是列表本来的顺序（查库就是 savedAt 倒序），
      * 换成别的等于改了「刚存的那条在哪」，该由用户自己选。
      */
