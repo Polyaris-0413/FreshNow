@@ -92,7 +92,6 @@ fun SettingsScreen(
                 },
                 showReasoning = uiState.saved.showReasoning,
                 manualEntry = uiState.behavior.manualEntry,
-                supplementAfterSave = uiState.behavior.supplementAfterSave,
                 onBasicConfigClick = {
                     viewModel.startEditing()
                     editing = SettingsEditor.BasicConfig
@@ -103,7 +102,6 @@ fun SettingsScreen(
                 },
                 onShowReasoningChange = viewModel::onShowReasoningChange,
                 onManualEntryChange = viewModel::onManualEntryChange,
-                onSupplementAfterSaveChange = viewModel::onSupplementAfterSaveChange,
                 sortOrder = uiState.behavior.sortOrder,
                 onSortOrderClick = { choosingSortOrder = true },
                 onSyncClick = onNavigateToSync,
@@ -173,13 +171,11 @@ internal fun SettingsList(
     extraSummary: String,
     showReasoning: Boolean,
     manualEntry: Boolean,
-    supplementAfterSave: Boolean,
     sortOrder: SortOrder,
     onBasicConfigClick: () -> Unit,
     onExtraRequestClick: () -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
     onManualEntryChange: (Boolean) -> Unit,
-    onSupplementAfterSaveChange: (Boolean) -> Unit,
     onSortOrderClick: () -> Unit,
     onSyncClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -240,29 +236,6 @@ internal fun SettingsList(
                 value = manualEntry,
                 role = Role.Switch,
                 onValueChange = onManualEntryChange
-            ),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-
-        // 与上一行同一种做法。它排在「手动输入」之后：「手动输入」说的是扫不扫，这一行说的是扫完接不接着填，
-        // 两个开关排在一起才是同类的两项，而下面「排序方式」是个当前值，性质不同
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_draft), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(
-                    stringResource(R.string.behavior_supplement_title),
-                    stringResource(R.string.behavior_supplement_support)
-                )
-            },
-            trailingContent = {
-                Switch(checked = supplementAfterSave, onCheckedChange = null)
-            },
-            modifier = Modifier.toggleable(
-                value = supplementAfterSave,
-                role = Role.Switch,
-                onValueChange = onSupplementAfterSaveChange
             ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )

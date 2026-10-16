@@ -52,18 +52,6 @@ class RecordEditFormTest {
         }
     }
 
-    /**
-     * 「补充信息」开关关着时位置那一栏不出现：那时没人能给这一项赋值（扫描那一步也不会去补充页），
-     * 还把它摆出来给人看，就是一栏填不了的东西
-     */
-    @Test
-    fun locationIsHiddenWhenSupplementIsOff() {
-        setContent(uiState = EMPTY.copy(supplementEnabled = false))
-
-        composeRule.onNodeWithText("位置").assertDoesNotExist()
-        composeRule.onNodeWithText("名称").assertIsDisplayed()
-    }
-
     /** 位置排在名称下面，与详情页一致：名称说这是什么、位置说它在哪，两句是一件事 */
     @Test
     fun locationSitsRightBelowTheName() {
@@ -292,7 +280,6 @@ class RecordEditFormTest {
                     ),
                     photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
                     derivedExpiry = uiState.derivedExpiry,
-                    showLocation = uiState.supplementEnabled,
                     // 表单现在只报「哪一项 + 新值」，这里按测试关心的那一项分派出去
                     onFieldChange = { field, value ->
                         when (field) {
@@ -315,6 +302,6 @@ class RecordEditFormTest {
     private companion object {
         /** 三个字段写错时共用的那一句，见 strings.xml */
         const val UNRECOGNIZED = "认不出这个写法"
-        val EMPTY = RecordEditUiState(loaded = true, found = true, supplementEnabled = true)
+        val EMPTY = RecordEditUiState(loaded = true, found = true)
     }
 }

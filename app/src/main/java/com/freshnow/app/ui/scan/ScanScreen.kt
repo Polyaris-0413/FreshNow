@@ -68,7 +68,6 @@ import androidx.compose.animation.AnimatedVisibility
 fun ScanScreen(
     onBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToSupplement: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScanViewModel = viewModel()
 ) {

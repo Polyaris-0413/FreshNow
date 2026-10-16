@@ -338,7 +338,6 @@ private fun EditForm(
                 fields = uiState.toFormFields(),
                 photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
                 derivedExpiry = uiState.derivedExpiry,
-                showLocation = uiState.supplementEnabled,
                 onFieldChange = viewModel::onFieldChange,
                 onOpenPhoto = onOpenPhoto,
                 onRemovePhoto = onRemovePhoto,

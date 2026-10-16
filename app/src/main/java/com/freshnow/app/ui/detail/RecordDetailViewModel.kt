@@ -4,7 +4,6 @@ import android.app.Application
 import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
@@ -31,11 +30,6 @@ data class RecordDetailUiState(
      * 放在这里而不是界面里：主图是这一页的主角，旋转、重建之后应当还在那一张上
      */
     val mainIndex: Int = 0,
-    /**
-     * 「补充信息」开关开着没有。关着时位置那一行不画：没人能给这一项赋值
-     * （扫描那一步也不会去补充页），还把它摆出来给人看，就是一栏填不了的东西
-     */
-    val supplementEnabled: Boolean = false,
     /** 是否已完成一次读取，用于区分"加载中"与"记录不存在" */
     val loaded: Boolean = false
 )
@@ -51,7 +45,6 @@ val RecordDetailUiState.showsThumbnails: Boolean
 class RecordDetailViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
-    private val behaviorRepository = BehaviorSettingsRepository(application)
     private val coordinator = SyncCoordinator.getInstance(application)
 
     private val _uiState = MutableStateFlow(RecordDetailUiState())
@@ -61,7 +54,6 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             // 设置读一次就够了：本页没有去设置的路径（设置是主页那一行的下级），
             // 站着这一页的期间它不会变
-            val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
             // 订阅而不是查一次：编辑页保存后回到本页，值要跟着变
             var decodedNames: List<String> = emptyList()
             var decodedImages: List<Bitmap> = emptyList()
@@ -96,7 +88,6 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
                     } ?: ExpiryOutcome.InsufficientInput,
                     images = decodedImages,
                     mainIndex = _uiState.value.mainIndex.coerceIn(0, (decodedImages.size - 1).coerceAtLeast(0)),
-                    supplementEnabled = supplementEnabled,
                     loaded = true
                 )
             }

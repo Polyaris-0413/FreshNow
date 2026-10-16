@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ImageChange
@@ -53,11 +52,6 @@ data class RecordEditUiState(
      * 它没有「认不出的写法」这一说，所以不参与校验
      */
     val location: String = "",
-    /**
-     * 「补充信息」开关开着没有。关着时位置那一栏不出现：没人能给这一项赋值（扫描那一步
-     * 也不会去补充页），还把它摆出来给人看，就是一栏填不了的东西
-     */
-    val supplementEnabled: Boolean = false,
     val productionDate: String = "",
     val expiryDate: String = "",
     val shelfLife: String = "",
@@ -163,7 +157,6 @@ private val RecordEditUiState.photoChange: ImageChange
 class RecordEditViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ScanRecordRepository(application)
-    private val behaviorRepository = BehaviorSettingsRepository(application)
 
     private val _uiState = MutableStateFlow(RecordEditUiState())
     val uiState: StateFlow<RecordEditUiState> = _uiState.asStateFlow()
@@ -193,18 +186,16 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             // 先读设置再读库：两样都拿到了才让界面渲染，否则位置那一栏会晚一帧冒出来、
             // 把下面几个字段当场往下顶一下
-            val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
             val record = repository.find(id)
             loaded = record
             if (record == null) {
-                _uiState.value = RecordEditUiState(loaded = true, found = false, supplementEnabled = supplementEnabled)
+                _uiState.value = RecordEditUiState(loaded = true, found = false)
                 return@launch
             }
             val photos = loadPhotos(record)
             _uiState.value = RecordEditUiState(
                 loaded = true,
                 found = true,
-                supplementEnabled = supplementEnabled,
                 productName = record.productName,
                 location = record.location,
                 productionDate = record.productionDate,
@@ -246,12 +237,10 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         loadedId = null
         loaded = null
         viewModelScope.launch {
-            val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
             _uiState.value = RecordEditUiState(
                 loaded = true,
                 found = true,
                 isNew = true,
-                supplementEnabled = supplementEnabled
             )
         }
     }

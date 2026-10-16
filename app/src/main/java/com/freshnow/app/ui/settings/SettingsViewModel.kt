@@ -84,14 +84,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { behaviorRepository.save(updated) }
     }
 
-    /**
-     * 「补充信息」与另两个行为开关同一条规矩：即时生效，先更新界面再落盘
-     */
-    fun onSupplementAfterSaveChange(value: Boolean) {
-        val updated = _uiState.value.behavior.copy(supplementAfterSave = value)
-        _uiState.update { it.copy(behavior = updated) }
-        viewModelScope.launch { behaviorRepository.save(updated) }
-    }
 
     /** 排序方式同样即时生效，且与主页顶栏那个菜单写的是同一份设置 */
     fun onSortOrderChange(order: SortOrder) {

@@ -66,9 +66,7 @@ internal fun RecordEditForm(
     onOpenPhoto: (Int) -> Unit,
     onRemovePhoto: (Int) -> Unit,
     onAddPhoto: () -> Unit,
-    modifier: Modifier = Modifier,
-    /** 位置那一栏画不画。编辑页受「补充信息」开关控制，扫描页翻面后总要填 */
-    showLocation: Boolean = true
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier,
@@ -94,14 +92,12 @@ internal fun RecordEditForm(
         )
         // 位置排在名称之后：名称说的是「这是什么」，位置说的是「它在哪」，两句是一件事；
         // 而下面三项是一条推算链（生产日期 + 保质期 → 过期日期），位置插在它们中间会把链子打断。
-        // 详情页上也是这个次序，两处对齐。
-        if (showLocation) {
-            EditField(
-                value = fields.location,
-                onValueChange = { onFieldChange(RecordField.LOCATION, it) },
-                label = stringResource(R.string.record_location)
-            )
-        }
+        // 详情页上也是这个次序，两处对齐
+        EditField(
+            value = fields.location,
+            onValueChange = { onFieldChange(RecordField.LOCATION, it) },
+            label = stringResource(R.string.record_location)
+        )
         EditField(
             value = fields.productionDate,
             onValueChange = { onFieldChange(RecordField.PRODUCTION_DATE, it) },

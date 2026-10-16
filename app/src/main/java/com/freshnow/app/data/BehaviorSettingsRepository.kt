@@ -22,7 +22,6 @@ class BehaviorSettingsRepository(private val dataStore: DataStore<Preferences>) 
     val behaviorSettings: Flow<BehaviorSettings> = dataStore.data.map { preferences ->
         BehaviorSettings(
             manualEntry = preferences[KEY_MANUAL_ENTRY] ?: false,
-            supplementAfterSave = preferences[KEY_SUPPLEMENT_AFTER_SAVE] ?: true,
             sortOrder = preferences[KEY_SORT_ORDER].toSortOrder()
         )
     }
@@ -30,7 +29,6 @@ class BehaviorSettingsRepository(private val dataStore: DataStore<Preferences>) 
     suspend fun save(settings: BehaviorSettings) {
         dataStore.edit { preferences ->
             preferences[KEY_MANUAL_ENTRY] = settings.manualEntry
-            preferences[KEY_SUPPLEMENT_AFTER_SAVE] = settings.supplementAfterSave
             preferences[KEY_SORT_ORDER] = settings.sortOrder.name
         }
     }
@@ -44,7 +42,6 @@ class BehaviorSettingsRepository(private val dataStore: DataStore<Preferences>) 
 
     private companion object {
         val KEY_MANUAL_ENTRY = booleanPreferencesKey("manual_entry")
-        val KEY_SUPPLEMENT_AFTER_SAVE = booleanPreferencesKey("supplement_after_save")
         val KEY_SORT_ORDER = stringPreferencesKey("sort_order")
     }
 }

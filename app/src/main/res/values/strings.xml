@@ -53,7 +53,6 @@
     <string name="record_detail_missing">记录不存在</string>
     <string name="record_location">位置</string>
     <!-- 页面名与详情页那个入口共用：两者说的是同一件事，分开取两个名字只会日后各改各的 -->
-    <string name="record_supplement_title">补充信息</string>
     <string name="record_edit_title">编辑记录</string>
     <!-- 过期日期可编也可留空：留空即跟随推算，所以把推算结果当场给出来；推不出时只说推不出，
          具体哪个字段写错了由该字段自己的错误文案报（一个错只说一次） -->
@@ -98,8 +97,6 @@
          标题另起一条的话，两处日后会各白漂移 -->
     <string name="manual_entry">手动输入</string>
     <string name="behavior_manual_entry_support">不再借助 AI 进行识别</string>
-    <string name="behavior_supplement_title">补充信息</string>
-    <string name="behavior_supplement_support">手动添加更多信息</string>
     <string name="behavior_sort_order_title">排序方式</string>
     <!-- 两种排序在菜单与设置项行上各出现一次，文案只有这一份来源（见 SortOrder.label） -->
     <string name="sort_order_created_at">创建时间</string>

@@ -57,39 +57,6 @@ class SettingsScreenTest {
         assertEquals(listOf(false), changes)
     }
 
-    /** 整行可点即切换，不只点开关才算：开关自己不吃点击（onCheckedChange = null） */
-    @Test
-    fun tappingSupplementRowTogglesIt() {
-        val changes = mutableListOf<Boolean>()
-        setContent(onSupplementAfterSaveChange = { changes += it })
-
-        composeRule.onNodeWithText("补充信息").performClick()
-
-        assertEquals(listOf(false), changes)
-    }
-
-    /**
-     * 「补充信息」也在「行为」分区下，且排在「手动输入」之后：前者说的是扫不扫，
-     * 后者说的是扫完接不接着填，两个开关排在一起才是同类项。
-     */
-    @Test
-    fun supplementSitsUnderBehaviorSectionAfterManualEntry() {
-        setContent()
-
-        val manualEntryRow = top("手动输入")
-        val supplementRow = top("补充信息")
-        val sortRow = top("排序方式")
-
-        assertTrue(
-            "「补充信息」应当在「手动输入」之下：manual=$manualEntryRow supplement=$supplementRow",
-            supplementRow > manualEntryRow
-        )
-        assertTrue(
-            "两个开关应当排在「排序方式」之前（它是个当前值，性质不同）：supplement=$supplementRow sort=$sortRow",
-            supplementRow < sortRow
-        )
-    }
-
     /**
      * 「手动输入」归在「行为」分区下，且行为那一段夹在「AI」与「调试」之间。
      *
@@ -159,7 +126,6 @@ class SettingsScreenTest {
     private fun setContent(
         onShowReasoningChange: (Boolean) -> Unit = {},
         onManualEntryChange: (Boolean) -> Unit = {},
-        onSupplementAfterSaveChange: (Boolean) -> Unit = {},
         sortOrder: SortOrder = SortOrder.CREATED_AT,
         onSortOrderClick: () -> Unit = {},
         onSyncClick: () -> Unit = {}
@@ -171,13 +137,11 @@ class SettingsScreenTest {
                     extraSummary = "跟随服务商默认",
                     showReasoning = true,
                     manualEntry = false,
-                    supplementAfterSave = true,
                     sortOrder = sortOrder,
                     onBasicConfigClick = {},
                     onExtraRequestClick = {},
                     onShowReasoningChange = onShowReasoningChange,
                     onManualEntryChange = onManualEntryChange,
-                    onSupplementAfterSaveChange = onSupplementAfterSaveChange,
                     onSortOrderClick = onSortOrderClick,
                     onSyncClick = onSyncClick
                 )
