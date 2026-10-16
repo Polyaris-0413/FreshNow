@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -184,6 +185,8 @@ fun ScanScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(innerPadding)
+                                // 键盘顶上来时整体变矮，输入框才不会被遮住（与编辑记录页同一层做法）
+                                .imePadding()
                                 .padding(FreshNowSpacing.sm)
                         )
                         return@FreshNowSubPage
