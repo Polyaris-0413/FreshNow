@@ -6,7 +6,7 @@ import com.freshnow.app.data.ScanValueFormat
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.data.isUnrecognizableDate
 import com.freshnow.app.data.isUnrecognizableShelfLife
-import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordFormFields
 
 /**
@@ -31,12 +31,16 @@ internal fun ScanUiState.backToScanning(): ScanUiState =
  * 改的就是扫描累加的那份 [ScanUiState.record] 本身，不另开一份编辑草稿：两份状态并存的话，
  * 折回扫描态再翻面就会出现「表单里是你写的值、下面只读的却是模型的值」这种分叉。
  */
-internal fun ScanUiState.onFieldChange(field: RecordField, value: String): ScanUiState = when (field) {
-    RecordField.PRODUCT_NAME -> withRecord(record.copy(productName = value))
-    RecordField.LOCATION -> copy(location = value)
-    RecordField.PRODUCTION_DATE -> withRecord(record.copy(productionDate = value))
-    RecordField.EXPIRY_DATE -> withRecord(record.copy(expiryDate = value))
-    RecordField.SHELF_LIFE -> withRecord(record.copy(shelfLife = value))
+internal fun ScanUiState.onFieldChange(field: RecordField, value: String): ScanUiState {
+    // 动过手就记住：这一项从此不再被识别覆盖（见设计文档 D6）
+    val locked = lockedFields + field
+    return when (field) {
+        RecordField.PRODUCT_NAME -> withRecord(record.copy(productName = value))
+        RecordField.LOCATION -> copy(location = value)
+        RecordField.PRODUCTION_DATE -> withRecord(record.copy(productionDate = value))
+        RecordField.EXPIRY_DATE -> withRecord(record.copy(expiryDate = value))
+        RecordField.SHELF_LIFE -> withRecord(record.copy(shelfLife = value))
+    }.copy(lockedFields = locked)
 }
 
 /** 记录与推算结果必须一起更新，避免两处状态不同步 */

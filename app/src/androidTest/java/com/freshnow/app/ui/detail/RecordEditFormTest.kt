@@ -18,7 +18,7 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.EditPhoto
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.RecordEditForm
-import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordFormFields
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals

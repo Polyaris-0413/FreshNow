@@ -53,8 +53,8 @@ import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.PhotoViewer
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordEditForm
-import com.freshnow.app.ui.component.RecordField
 import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.ImageCropScreen
 import com.freshnow.app.ui.theme.FreshNowSize

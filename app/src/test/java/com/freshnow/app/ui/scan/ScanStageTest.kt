@@ -1,8 +1,8 @@
 package com.freshnow.app.ui.scan
 
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.data.ScanResult
-import com.freshnow.app.ui.component.RecordField
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

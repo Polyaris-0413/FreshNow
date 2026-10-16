@@ -9,15 +9,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.theme.FreshNowSpacing
-
-/**
- * 表单里的一个字段。
- *
- * 给它一个枚举而不是字符串键：手改过的项要按它记名（见扫描页的锁定集合），而拼错的字符串键
- * 编译期看不出来。
- */
-enum class RecordField { PRODUCT_NAME, LOCATION, PRODUCTION_DATE, EXPIRY_DATE, SHELF_LIFE }
 
 /**
  * 记录表单的字段值，不含照片与推算结果。

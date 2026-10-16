@@ -12,6 +12,7 @@ import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.AiVisionClient
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.ScanResult
 import com.freshnow.app.data.decodePickedImage
@@ -19,7 +20,6 @@ import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.data.mergeObservation
 import com.freshnow.app.data.toSquareJpegBytes
 import com.freshnow.app.ui.component.EditPhoto
-import com.freshnow.app.ui.component.RecordField
 import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.croppedTo
 import com.freshnow.app.ui.theme.FreshNowTransitions
@@ -60,6 +60,11 @@ data class ScanUiState(
     val photos: List<EditPhoto> = emptyList(),
     /** 正在看大图的那一张（下标）；null 表示看图页没开 */
     val viewingPhotoIndex: Int? = null,
+    /**
+     * 用户自己写过的那几项（见 [mergeObservation]）。那一项从此只归他，后续的帧不再覆盖——
+     * 自己写的字被机器悄悄冲掉是最让人不信任的事。
+     */
+    val lockedFields: Set<RecordField> = emptySet(),
     /** 相册选来、等着裁剪的原图；非 null 即裁剪页正在显示 */
     val cropSource: Bitmap? = null,
     /** 取景框里那枚状态胶囊该说什么，见 [ScanStatus] */
@@ -132,8 +137,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     val analysis = client.analyze(settings, jpeg)
                     observation = analysis.result
                     _uiState.update { state ->
-                        // 累加记录：本帧没看到的字段保留已有值，推算也基于累加后的记录
-                        val record = state.record.mergeObservation(analysis.result)
+                        // 累加记录：本帧没看到的字段保留已有值，而用户手写过的项不参与合并（见 lockedFields）
+                        val record = mergeObservation(state.record, analysis.result, state.lockedFields)
                         Log.d(TAG, "本帧读数=${analysis.result} 累加记录=$record 思维链${analysis.reasoning.length}字")
                         state.withRecord(record).copy(reasoning = analysis.reasoning)
                     }
@@ -354,6 +359,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 location = "",
                 photos = emptyList(),
                 viewingPhotoIndex = null,
+                lockedFields = emptySet(),
                 cropSource = null
             )
         }

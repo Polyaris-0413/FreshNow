@@ -20,7 +20,7 @@ import com.freshnow.app.data.isUnrecognizableShelfLife
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.toSquareJpegBytes
 import com.freshnow.app.ui.component.EditPhoto
-import com.freshnow.app.ui.component.RecordField
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordFormFields
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
