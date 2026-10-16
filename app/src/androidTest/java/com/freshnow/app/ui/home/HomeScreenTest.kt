@@ -720,10 +720,10 @@ class HomeScreenTest {
         setContent(items = records(), onSortOrderChange = { changes += it })
 
         composeRule.onNodeWithContentDescription("排序").performClick()
-        composeRule.onNodeWithText("按创建时间").assertIsSelected()
-        composeRule.onNodeWithText("按过期日期").assertIsNotSelected()
+        composeRule.onNodeWithText("创建时间").assertIsSelected()
+        composeRule.onNodeWithText("过期日期").assertIsNotSelected()
 
-        composeRule.onNodeWithText("按过期日期").performClick()
+        composeRule.onNodeWithText("过期日期").performClick()
         // 选完先收面板再回传（见 HomeScreen），收起动画得先演完
         composeRule.waitForIdle()
 

@@ -130,7 +130,7 @@ class SettingsScreenTest {
 
         assertTrue("应当在「行为」标题之下", top("排序方式") > top("行为"))
         assertTrue("排序方式应当排在「调试」之前", top("排序方式") < top("调试"))
-        composeRule.onNodeWithText("按过期日期").assertExists()
+        composeRule.onNodeWithText("过期日期").assertExists()
     }
 
     /** 整行可点：选哪一个不在这行上做，而是点开那个单面面板（与主页顶栏共用同一份内容） */

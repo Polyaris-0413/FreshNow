@@ -35,7 +35,7 @@ class BehaviorSettingsRepositoryTest {
         File(dataStoreFile.absolutePath + ".tmp").delete()
     }
 
-    /** 没写过任何东西时是「关 + 按创建时间」：手动录入是旁路，排序保持列表本来的顺序 */
+    /** 没写过任何东西时是「关 + 创建时间」：手动录入是旁路，排序保持列表本来的顺序 */
     @Test
     fun default_isOffAndCreatedOrder() = runBlocking {
         assertEquals(
