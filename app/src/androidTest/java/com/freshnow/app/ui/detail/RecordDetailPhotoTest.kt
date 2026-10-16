@@ -6,6 +6,7 @@ import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -22,6 +23,7 @@ import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -45,7 +47,8 @@ class RecordDetailPhotoTest {
         InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
 
     private var recordId: Long = 0
-    private var imageName: String? = null
+    private var imageNames: List<String> = emptyList()
+    private lateinit var viewModel: RecordDetailViewModel
 
     @After
     fun cleanUp() {
@@ -53,7 +56,7 @@ class RecordDetailPhotoTest {
             if (recordId != 0L) {
                 FreshNowDatabase.getInstance(application).scanRecordDao().hardDelete(listOf(recordId))
             }
-            imageName?.let { ScanImageStore(application).delete(it) }
+            imageNames.forEach { ScanImageStore(application).delete(it) }
         }
     }
 
@@ -142,28 +145,93 @@ class RecordDetailPhotoTest {
     }
 
     private fun setContent() {
+        viewModel = RecordDetailViewModel(application)
         composeRule.setContent {
             FreshNowTheme {
                 RecordDetailScreen(
                     recordId = recordId,
                     onBack = {},
                     onNavigateToEdit = {},
-                    viewModel = RecordDetailViewModel(application)
+                    viewModel = viewModel
                 )
             }
         }
     }
 
-    /** 造一条带照片的记录：图片走真的 ScanImageStore（名字就是内容散列），记录进真的库 */
-    private fun seedRecordWithPhoto() {
-        val photo = Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888).apply {
-            eraseColor(Color.RED)
+    /** 两张时主图下面给一排缩略图，两格都在 */
+    @Test
+    fun twoImagesShowThumbnailRow() {
+        seedRecordWithPhoto(count = 2)
+        setContent()
+
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithContentDescription(THUMBNAIL).fetchSemanticsNodes().size == 2
         }
-        val bytes = ByteArrayOutputStream().use { out ->
-            photo.compress(Bitmap.CompressFormat.JPEG, 90, out)
-            out.toByteArray()
+    }
+
+    /** 一张时不留一排孤零零的缩略图：主图就是它，再说一遍没有信息 */
+    @Test
+    fun singleImageHasNoThumbnailRow() {
+        seedRecordWithPhoto()
+        setContent()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithContentDescription(PHOTO).fetchSemanticsNodes().isNotEmpty()
         }
-        imageName = runBlocking { ScanImageStore(application).write(bytes) }
+
+        composeRule.onAllNodesWithContentDescription(THUMBNAIL).assertCountEquals(0)
+    }
+
+    /** 点第二张缩略图，主图换成它 */
+    @Test
+    fun tappingThumbnailSwapsTheMainImage() {
+        seedRecordWithPhoto(count = 2)
+        setContent()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithContentDescription(THUMBNAIL).fetchSemanticsNodes().size == 2
+        }
+
+        composeRule.onAllNodesWithContentDescription(THUMBNAIL)[1].performClick()
+        composeRule.waitForIdle()
+
+        assertEquals("主图下标该跟着换", 1, viewModel.uiState.value.mainIndex)
+    }
+
+    /**
+     * 一张照片都没有时是占位图，而且点不开看图页（看图页里没有任何图可看）。
+     * 这是 Review Focus 里那条「0 张照片」：老记录、用户把图全删了、同步来的一条没图，
+     * 三种情形在这一页长得一样。
+     */
+    @Test
+    fun noImageShowsPlaceholderAndIsNotClickable() {
+        seedRecordWithPhoto(count = 0)
+        setContent()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithContentDescription(MISSING).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.onNodeWithContentDescription(MISSING).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(VIEWER_TITLE).assertDoesNotExist()
+    }
+
+    /**
+     * 造一条带照片的记录：图片走真的 ScanImageStore（名字就是内容散列），记录进真的库。
+     *
+     * 多张时每张颜色不同：内容寻址下同色的图会算出同一个名字，那条记录其实只有一张。
+     */
+    private fun seedRecordWithPhoto(count: Int = 1) {
+        val colors = listOf(Color.RED, Color.BLUE, Color.GREEN)
+        imageNames = (0 until count).map { index ->
+            val photo = Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888).apply {
+                eraseColor(colors[index % colors.size])
+            }
+            val bytes = ByteArrayOutputStream().use { out ->
+                photo.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                out.toByteArray()
+            }
+            runBlocking { ScanImageStore(application).write(bytes) }.orEmpty()
+        }
         recordId = runBlocking {
             FreshNowDatabase.getInstance(application).scanRecordDao().insert(
                 ScanRecord(
@@ -171,7 +239,7 @@ class RecordDetailPhotoTest {
                     productionDate = "2026-10-01",
                     expiryDate = "2026-12-01",
                     shelfLife = "2个月",
-                    imageNames = listOfNotNull(imageName),
+                    imageNames = imageNames,
                     savedAt = System.currentTimeMillis()
                 )
             )
@@ -189,6 +257,10 @@ class RecordDetailPhotoTest {
 
     private companion object {
         const val PHOTO = "扫描照片"
+        /** 缩略图那一排每一格的描述（见 strings.xml 的 record_image_view）*/
+        const val THUMBNAIL = "查看这张"
+        /** 没有照片时的占位图描述 */
+        const val MISSING = "无图片"
         /** 取样与步进：一帧 16ms，开头取一帧当「半路」的样本 */
         const val FRAME_MS = 16L
         const val MID_SAMPLE_MS = 80L

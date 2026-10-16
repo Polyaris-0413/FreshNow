@@ -8,11 +8,17 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,6 +44,7 @@ import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoViewer
 import com.freshnow.app.ui.component.ScanPhoto
+import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
@@ -52,16 +62,18 @@ fun RecordDetailScreen(
 ) {
     LaunchedEffect(recordId) { viewModel.load(recordId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val image = uiState.image
+    val images = uiState.images
+    val mainIndex = uiState.mainIndex
     // 看图是这一页内的一次状态切换，不是新的目的地：照片已经在内存里，走导航得把文件重读一遍。
-    // 没有照片时也看不了图——那个位置本来就是占位图
-    var viewingImage by remember { mutableStateOf(false) }
+    // 没有照片时也看不了图——那个位置本来就是占位图。
+    // 记的是「从哪一张进去的」而不是一个布尔值：全屏里能左右翻，而共享元素只该挂在进来的那一张上
+    var viewingImageIndex by remember { mutableStateOf<Int?>(null) }
     // 交接处最容易出问题（退出动画中途被打断、状态没归零），进出都记一笔
-    LaunchedEffect(viewingImage) {
-        Log.d("PhotoViewer", "详情页 看图页可见=$viewingImage 有图=${image != null}")
+    LaunchedEffect(viewingImageIndex) {
+        Log.d("PhotoViewer", "详情页 看图页可见=${viewingImageIndex != null} 有图=${images.isNotEmpty()}")
     }
     // 系统返回只该退回记录页，而不是直接离开这一页，所以在这里拦一下
-    BackHandler(enabled = viewingImage) { viewingImage = false }
+    BackHandler(enabled = viewingImageIndex != null) { viewingImageIndex = null }
 
     // 详情页常驻，看图页作为覆盖层进出：**同一个实例**进出，快速连点最多是把这段过渡反向，
     // 不可能出现「退场与进场同时进行」——重叠时框架会把上一段留在屏幕上（实测：滑走后 200~300ms
@@ -70,36 +82,46 @@ fun RecordDetailScreen(
     SharedTransitionLayout(modifier = modifier) {
         RecordDetailContent(
             uiState = uiState,
-            image = image,
             onBack = onBack,
             onNavigateToEdit = onNavigateToEdit,
-            onOpenImage = { viewingImage = true },
+            onOpenImage = { viewingImageIndex = mainIndex },
+            onSelectImage = viewModel::showImage,
             photoModifier = Modifier.sharedElementWithCallerManagedVisibility(
                 sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                visible = !viewingImage,
+                visible = viewingImageIndex == null,
                 boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
             )
         )
 
         AnimatedVisibility(
-            visible = viewingImage && image != null,
+            visible = viewingImageIndex != null && images.isNotEmpty(),
             enter = fadeIn(FreshNowTransitions.stateChange()),
             exit = fadeOut(FreshNowTransitions.stateChange())
         ) {
-            if (image != null) {
+            val startIndex = viewingImageIndex
+            if (startIndex != null) {
                 FreshNowSubPage(
                     title = stringResource(R.string.record_image),
-                    onBack = { viewingImage = false }
+                    onBack = { viewingImageIndex = null }
                 ) { innerPadding ->
                     PhotoViewer(
-                        image = image,
-                        onDismiss = { viewingImage = false },
+                        images = images,
+                        startIndex = startIndex,
+                        onDismiss = { viewingImageIndex = null },
                         modifier = Modifier.padding(innerPadding),
-                        imageModifier = Modifier.sharedElementWithCallerManagedVisibility(
-                            sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                            visible = viewingImage,
-                            boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
-                        )
+                        // 共享元素只挂在进来那一张上：翻到别的图时那一张没有对应的节点，
+                        // 还挂着只会让退场动画认错矩形
+                        imageModifier = { index ->
+                            if (index == startIndex) {
+                                Modifier.sharedElementWithCallerManagedVisibility(
+                                    sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
+                                    visible = true,
+                                    boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
+                                )
+                            } else {
+                                Modifier
+                            }
+                        }
                     )
                 }
             }
@@ -111,10 +133,10 @@ fun RecordDetailScreen(
 @Composable
 private fun RecordDetailContent(
     uiState: RecordDetailUiState,
-    image: Bitmap?,
     onBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
     onOpenImage: () -> Unit,
+    onSelectImage: (Int) -> Unit,
     photoModifier: Modifier = Modifier
 ) {
     FreshNowSubPage(
@@ -154,6 +176,7 @@ private fun RecordDetailContent(
                     .padding(FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
+                val image = uiState.mainImage
                 ScanPhoto(
                     image = image,
                     modifier = photoModifier,
@@ -161,6 +184,15 @@ private fun RecordDetailContent(
                     onClick = if (image != null) onOpenImage else null,
                     onClickLabel = if (image != null) stringResource(R.string.record_image_open) else null
                 )
+
+                // 多于一张时才给这一排：一张时主图就是它，再画一排等大的缩略图只是把同一张图说两遍
+                if (uiState.showsThumbnails) {
+                    PhotoThumbnailRow(
+                        images = uiState.images,
+                        mainIndex = uiState.mainIndex,
+                        onSelect = onSelectImage
+                    )
+                }
 
                 FreshNowResultFields(
                     productName = record.productName,
@@ -172,6 +204,47 @@ private fun RecordDetailContent(
                     location = if (uiState.supplementEnabled) record.location else null
                 )
             }
+        }
+    }
+}
+
+/**
+ * 主图下面那一排缩略图：点哪张，上面就换成哪张。
+ *
+ * 一排而不是九宫格：详情页这里是「换看哪一张」，不是「管理这几张」（增删在编辑页），
+ * 横着滑过去就够了，也不必纵向占掉正文的地方。
+ *
+ * 当前那张用一圈描边标出来：没有它，「点的这张和上面那张是不是同一张」只能靠认图。
+ */
+@Composable
+private fun PhotoThumbnailRow(
+    images: List<Bitmap>,
+    mainIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    val shape = MaterialTheme.shapes.extraSmall
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)) {
+        itemsIndexed(images) { index, bitmap ->
+            Image(
+                bitmap = remember(bitmap) { bitmap.asImageBitmap() },
+                contentDescription = stringResource(R.string.record_image_view),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(FreshNowSize.thumbnail)
+                    .clip(shape)
+                    .then(
+                        if (index == mainIndex) {
+                            Modifier.border(
+                                width = FreshNowSize.selectionOutlineWidth,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = shape
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .clickable { onSelect(index) }
+            )
         }
     }
 }

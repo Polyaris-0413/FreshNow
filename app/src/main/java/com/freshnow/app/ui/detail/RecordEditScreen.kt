@@ -224,7 +224,10 @@ fun RecordEditScreen(
                 onBack = viewModel::closePhotoViewer
             ) { innerPadding ->
                 PhotoViewer(
-                    image = viewingPhoto,
+                    // 编辑页的看图只看这一张：这里是「编」的地方，左右翻页没有多大用处，
+                    // 而草稿里可能存在位图还没解出来的格子，下标映射到多图列表会错位
+                    images = listOfNotNull(viewingPhoto),
+                    startIndex = 0,
                     onDismiss = viewModel::closePhotoViewer,
                     modifier = Modifier
                         .fillMaxSize()

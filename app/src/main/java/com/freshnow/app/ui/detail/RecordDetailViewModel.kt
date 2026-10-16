@@ -16,14 +16,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class RecordDetailUiState(
     val record: ScanRecord? = null,
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
-    /** 记录里的照片，没有图片或文件读不出来时为 null，界面用占位图代替 */
-    val image: Bitmap? = null,
+    /** 记录里的照片，顺序与 [ScanRecord.imageNames] 一致；文件读不出来的那些不在里面 */
+    val images: List<Bitmap> = emptyList(),
+    /**
+     * 正在看的那一张（下标）。点下面那排缩略图改它，越界时按 0 处理。
+     *
+     * 放在这里而不是界面里：主图是这一页的主角，旋转、重建之后应当还在那一张上
+     */
+    val mainIndex: Int = 0,
     /**
      * 「补充信息」开关开着没有。关着时位置那一行不画：没人能给这一项赋值
      * （扫描那一步也不会去补充页），还把它摆出来给人看，就是一栏填不了的东西
@@ -32,6 +39,14 @@ data class RecordDetailUiState(
     /** 是否已完成一次读取，用于区分"加载中"与"记录不存在" */
     val loaded: Boolean = false
 )
+
+/** 主图。一张都没有时为 null，界面用占位图顶上 */
+val RecordDetailUiState.mainImage: Bitmap?
+    get() = images.getOrNull(mainIndex)
+
+/** 详情页那一排缩略图要不要画：只有一张时主图就是它，再画一排等大的缩略图只是把同一张图说两遍 */
+val RecordDetailUiState.showsThumbnails: Boolean
+    get() = images.size > 1
 
 class RecordDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -48,23 +63,23 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
             // 站着这一页的期间它不会变
             val supplementEnabled = behaviorRepository.behaviorSettings.first().supplementAfterSave
             // 订阅而不是查一次：编辑页保存后回到本页，值要跟着变
-            var decodedName: String? = null
-            var decodedImage: Bitmap? = null
+            var decodedNames: List<String> = emptyList()
+            var decodedImages: List<Bitmap> = emptyList()
             // 这条记录只试一次补图。对端不在线时补不回来，而每次数据变动又试一遍的话，
             // 网络不通的那段时间里本页会反复发起超时请求，用户完全不知道它在忙什么
             var fetchAttempted = false
             repository.observe(id).collect { record ->
-                if (record?.imageName != decodedName) {
-                    decodedName = record?.imageName
-                    decodedImage = record?.let {
-                        withContext(Dispatchers.IO) { decodeScanImage(repository.imageFile(it)) }
+                if (record?.imageNames != decodedNames) {
+                    decodedNames = record?.imageNames.orEmpty()
+                    decodedImages = withContext(Dispatchers.IO) {
+                        // 读不出来的那张不进列表：它与主图是同一块位置的两种画法（照片 / 占位图），
+                        // 而占位那一格答不出「点开看哪一张」
+                        decodedNames.mapNotNull { decodeScanImage(repository.imageFile(it)) }
                     }
-                    // 记录说有图、本地却没有：多半是同步过来的那一条。拉回来之后行里的图片名会变，
+                    // 记录说有几张、本地却少读了：多半是同步过来的那一条。补图之后行里的名字会变，
                     // 订阅会把新的名字再送一趟，这一段就会重新解码
                     val pending = record
-                    if (decodedImage == null && !fetchAttempted && pending != null &&
-                        needsPhoto(pending)
-                    ) {
+                    if (decodedImages.size < decodedNames.size && !fetchAttempted && pending != null) {
                         fetchAttempted = true
                         // 另起一个协程：取图要等网络，压在 collect 里会让后续的每一条数据变动一起排队
                         viewModelScope.launch { coordinator.fetchPhoto(pending) }
@@ -79,7 +94,8 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
                             shelfLife = it.shelfLife
                         )
                     } ?: ExpiryOutcome.InsufficientInput,
-                    image = decodedImage,
+                    images = decodedImages,
+                    mainIndex = _uiState.value.mainIndex.coerceIn(0, (decodedImages.size - 1).coerceAtLeast(0)),
                     supplementEnabled = supplementEnabled,
                     loaded = true
                 )
@@ -87,7 +103,8 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    /** 记录声称自己有照片，而本地文件不在 */
-    private fun needsPhoto(record: ScanRecord): Boolean =
-        record.imageName.isNotEmpty() && repository.imageFile(record) == null
+    /** 点下面那排缩略图：换主图。只认真实存在的下标 */
+    fun showImage(index: Int) {
+        _uiState.update { if (index in it.images.indices) it.copy(mainIndex = index) else it }
+    }
 }
