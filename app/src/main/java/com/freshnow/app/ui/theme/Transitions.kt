@@ -148,13 +148,6 @@ object FreshNowTransitions {
     /** 拖多远（占视窗短边的比例）算「要退出」 */
     const val VIEW_DISMISS_THRESHOLD_RATIO = 0.18f
 
-    /**
-     * 压在图片上的浮层（详情页那枚页码，以后的角标也一样）的底色不透明度。
-     *
-     * 【规范缺席：M3 没有「压在图片上的浮层」这一档，本项目自定】取到「看得出底下有图、
-     * 上面的字又读得清」为止；纯色底会把照片盖掉一块。
-     */
-    const val OVER_IMAGE_SCRIM_ALPHA = 0.32f
 
 
     // ---- 页内状态切换 ----

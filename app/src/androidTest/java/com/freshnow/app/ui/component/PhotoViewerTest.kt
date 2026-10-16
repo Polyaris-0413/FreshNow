@@ -128,35 +128,25 @@ class PhotoViewerTest {
         return count
     }
 
-    private fun setContent(images: List<Bitmap> = listOf(photo), startIndex: Int = 0) {
+    private fun setContent(image: Bitmap = photo) {
         composeRule.setContent {
             FreshNowTheme {
-                PhotoViewer(
-                    images = images,
-                    startIndex = startIndex,
-                    onDismiss = { dismissed += 1 }
-                )
+                PhotoViewer(image = image, onDismiss = { dismissed += 1 })
             }
         }
     }
 
     /**
-     * 多张时左右滑是翻页，不是退出：两张不同颜色的图，滑一下之后屏幕上的红色应当大幅减少。
+     * 全屏只看点开的那一张：左右滑不再是翻页，而是与上下滑同一套退出。
      *
-     * 第二条断言同时钉住「没退出」：真退出了的话，屏幕上什么颜色都不会有。
+     * 主图区那边已经能左右滑看其他张，全屏里再能滑只会让人分不清「现在看的是哪一张」。
      */
     @Test
-    fun swipingLeftShowsTheNextPhoto() {
-        setContent(images = listOf(photo, otherPhoto))
+    fun swipingSidewaysDismissesInsteadOfTurningThePage() {
+        setContent()
 
-        val before = photoPixels()
         composeRule.onRoot().performTouchInput { swipeLeft() }
-        composeRule.waitForIdle()
-        val after = photoPixels()
-
-        assertTrue("滑一下之后第一张该让位：前 $before，后 $after", after < before)
-        // 没退出去靠这条：真退出了的话，两颗按钮的场面就都不在了
-        assertEquals("翻页不该退出看图页", 0, dismissed)
+        composeRule.waitUntil(timeoutMillis = 5_000) { dismissed == 1 }
     }
 
     private companion object {
@@ -164,11 +154,6 @@ class PhotoViewerTest {
         val PHOTO_COLOR = Color.Red
         val photo = Bitmap.createBitmap(200, 100, Bitmap.Config.ARGB_8888).apply {
             eraseColor(android.graphics.Color.RED)
-        }
-
-        /** 第二张用另一种颜色：翻页之后屏幕上的红色只剩它的那一半（两张各占一页）*/
-        val otherPhoto = Bitmap.createBitmap(200, 100, Bitmap.Config.ARGB_8888).apply {
-            eraseColor(android.graphics.Color.BLUE)
         }
     }
 }

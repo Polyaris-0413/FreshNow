@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -41,7 +39,6 @@ import androidx.compose.ui.unit.IntSize
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -61,29 +58,16 @@ import kotlin.math.roundToInt
  *
  * 双击朝**点到的那一点**放大：按住的那点全程不动，放大后看的就是你指的地方。缩回一倍时位移跟着
  * 归零（见 [clampViewerOffset]），不会把图留在角落。
- *
- * 多张时左右滑翻页（[startIndex] 决定从哪一张进来）；此时水平方向的拖动归翻页，退出只看垂直位移
- * ——一次左右滑不该既翻页又退出。
  */
 @Composable
 fun PhotoViewer(
-    images: List<Bitmap>,
-    startIndex: Int,
+    image: Bitmap,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    imageModifier: @Composable (Int) -> Modifier = { Modifier }
+    imageModifier: Modifier = Modifier
 ) {
-    if (images.isEmpty()) return
-    val pageCount = images.size
-    val pagerState = rememberPagerState(
-        initialPage = startIndex.coerceIn(images.indices),
-        pageCount = { pageCount }
-    )
     BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val viewport = IntSize(constraints.maxWidth, constraints.maxHeight)
-        // 当前这一页的图：缩放、位移、退出手势都围着它转。翻页时它一变，下面那些
-        // remember(image) 就跟着重置——翻到下一张本来就该回到原样
-        val image = images[pagerState.currentPage]
         var zoom by remember(image) { mutableFloatStateOf(1f) }
         var offset by remember(image) { mutableStateOf(Offset.Zero) }
         // 退出时图跟手的位移（像素，两轴都算）
@@ -164,51 +148,31 @@ fun PhotoViewer(
             }
         }
 
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            // 只有一张时不让它吃手势：那样「水平拖动退出」就再没机会触发（见上面的退出判据）
-            // 不让它自己吃手势：捏合、下滑退出、水平翻页统一由下面那层盒子处理（见那里的说明）。
-            // 两层都吃的话会互相抢，谁都拿不准
-            userScrollEnabled = false
-        ) { page ->
-            val current = page == pagerState.currentPage
-            val pageSize = photoSize(images[page], viewport)
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Image(
-                    bitmap = remember(images[page]) { images[page].asImageBitmap() },
-                    // 语义由页面标题承担，这里再报一遍是噪音；单击关闭在看图这类界面里是共识读法
-                    contentDescription = null,
-                    modifier = Modifier
-                        // 跟手用**布局**位移，不用 graphicsLayer 的位移：退场的共享元素过渡以这块矩形的
-                        // 布局位置为起点，拖到哪儿就从哪儿飞回去；用图层位移的话，松手那一刻图会先弹回正中。
-                        // 位移只属于当前这一页：别的页正在翻页动画里，跟着挪会看出重影
-                        .offset {
-                            if (current) {
-                                IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
-                            } else {
-                                IntOffset.Zero
-                            }
-                        }
-                        .then(imageModifier(page))
-                        .size(
-                            width = with(density) { pageSize.width.toDp() },
-                            height = with(density) { pageSize.height.toDp() }
-                        )
-                        // 缩放要接在蒙版之前：接在之后的话，图是在「蒙版出来的那块矩形」里缩放，
-                        // 放大后只是那块矩形里换了内容，看上去没变大（测试里就撞上了这个）
-                        .graphicsLayer(
-                            scaleX = if (current) zoom else 1f,
-                            scaleY = if (current) zoom else 1f,
-                            translationX = if (current) offset.x else 0f,
-                            translationY = if (current) offset.y else 0f
-                        )
-                        .clip(MaterialTheme.shapes.medium),
-                    // 节点已经是照片的比例，Fit 与 FillBounds 在这里等价
-                    contentScale = ContentScale.Fit
+        Image(
+            bitmap = remember(image) { image.asImageBitmap() },
+            // 语义由页面标题承担，这里再报一遍是噪音；单击关闭在看图这类界面里是共识读法
+            contentDescription = null,
+            modifier = Modifier
+                // 跟手用**布局**位移，不用 graphicsLayer 的位移：退场的共享元素过渡以这块矩形的
+                // 布局位置为起点，拖到哪儿就从哪儿飞回去；用图层位移的话，松手那一刻图会先弹回正中
+                .offset { IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt()) }
+                .then(imageModifier)
+                .size(
+                    width = with(density) { photoSize.width.toDp() },
+                    height = with(density) { photoSize.height.toDp() }
                 )
-            }
-        }
+                // 缩放要接在蒙版之前：接在之后的话，图是在「蒙版出来的那块矩形」里缩放，
+                // 放大后只是那块矩形里换了内容，看上去没变大（测试里就撞上了这个）
+                .graphicsLayer(
+                    scaleX = zoom,
+                    scaleY = zoom,
+                    translationX = offset.x,
+                    translationY = offset.y
+                )
+                .clip(MaterialTheme.shapes.medium),
+            // 节点已经是照片的比例，Fit 与 FillBounds 在这里等价
+            contentScale = ContentScale.Fit
+        )
 
         // 手势都挂在外层盒子上：指哪都能捏、都能点
         Box(
@@ -237,32 +201,18 @@ fun PhotoViewer(
                             }
                         }
                         val distance = drag.getDistance()
-                        // 多图时水平方向归翻页，退出只看垂直位移：否则一次左右滑会既翻页又退出
-                        val dismissDistance = if (pageCount > 1) abs(drag.y) else distance
-                        val turnPage = pageCount > 1 && !multiTouch && zoom <= 1f &&
-                            abs(drag.x) > dismissThreshold
                         Log.d(
                             TAG,
                             "手势结束 多指=$multiTouch zoom=$zoom 拖动=(${drag.x.toInt()},${drag.y.toInt()}) " +
-                                "距离=${dismissDistance.toInt()} 阈值=${dismissThreshold.toInt()} pan=(${offset.x.toInt()},${offset.y.toInt()})"
+                                "距离=${distance.toInt()} 阈值=${dismissThreshold.toInt()} pan=(${offset.x.toInt()},${offset.y.toInt()})"
                         )
-                        when {
-                            turnPage -> {
-                                // 水平拖够了就翻一张。翻页也归这一层：pager 自己不吃手势，
-                                // 两层都吃的话会互相抢，谁都拿不准
-                                val target = (pagerState.currentPage + if (drag.x < 0) 1 else -1)
-                                    .coerceIn(0, pageCount - 1)
-                                scope.launch { pagerState.animateScrollToPage(target) }
-                            }
-
-                            !multiTouch && zoom <= 1f && dismissDistance > dismissThreshold -> {
-                                // 这一页马上就没了，回弹动画不必跑：退场的共享元素过渡接着演，
-                                // 图就停在跟手的位置，不会先弹回正中
-                                Log.d(TAG, "退出：拖拽 拖动=(${drag.x.toInt()},${drag.y.toInt()})")
-                                dismiss()
-                            }
-
-                            else -> animateDragBack()
+                        if (!multiTouch && zoom <= 1f && distance > dismissThreshold) {
+                            // 这一页马上就没了，回弹动画不必跑：退场的共享元素过渡接着演，
+                            // 图就停在跟手的位置，不会先弹回正中
+                            Log.d(TAG, "退出：拖拽 拖动=(${drag.x.toInt()},${drag.y.toInt()})")
+                            dismiss()
+                        } else {
+                            animateDragBack()
                         }
                     }
                 }
@@ -288,13 +238,7 @@ fun PhotoViewer(
 /** 日志标签：复现手势异常时用 adb logcat -s PhotoViewer 抓 */
 private const val TAG = "PhotoViewer"
 
-// 下面三个是手势参数：M3 里没有「看图」这个组件（也就没有双击倍率、下拉退出距离的档位），
-// 社区也没有公认值——把这三个数换成别的照样能跑，它们既不对应规范、也不对应行业惯例。
-// 各自的取法见注释。
-
-/** 看图能放到的最大倍率。比裁剪页高，看图的一个用途是看清标签上的小字 */
-
-
+// 手势参数（最大倍率、双击倍率、退出距离）都在设计源里，见 FreshNowTransitions 的「手势参数」那段。
 
 
 /** 照片按 [ContentScale.Fit] 铺进视窗后的尺寸。视窗还没量出来时为 [Size.Zero] */

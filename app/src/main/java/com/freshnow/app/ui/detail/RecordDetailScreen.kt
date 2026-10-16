@@ -51,7 +51,8 @@ import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoViewer
 import com.freshnow.app.ui.component.ScanPhoto
-import com.freshnow.app.ui.theme.FreshNowSize
+import com.freshnow.app.ui.theme.OnOverImageScrim
+import com.freshnow.app.ui.theme.OverImageScrim
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
@@ -112,23 +113,16 @@ fun RecordDetailScreen(
                     onBack = { viewingImageIndex = null }
                 ) { innerPadding ->
                     PhotoViewer(
-                        images = images,
-                        startIndex = startIndex,
+                        // 全屏只看点开的那一张：主图区已经能左右滑了，全屏里再能滑只会让人分不清
+                        // 「现在看的是哪一张」（用户反馈）
+                        image = images[startIndex],
                         onDismiss = { viewingImageIndex = null },
                         modifier = Modifier.padding(innerPadding),
-                        // 共享元素只挂在进来那一张上：翻到别的图时那一张没有对应的节点，
-                        // 还挂着只会让退场动画认错矩形
-                        imageModifier = { index ->
-                            if (index == startIndex) {
-                                Modifier.sharedElementWithCallerManagedVisibility(
-                                    sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                                    visible = true,
-                                    boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
-                                )
-                            } else {
-                                Modifier
-                            }
-                        }
+                        imageModifier = Modifier.sharedElementWithCallerManagedVisibility(
+                            sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
+                            visible = true,
+                            boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
+                        )
                     )
                 }
             }
@@ -226,17 +220,12 @@ private fun RecordDetailContent(
                                 images.size
                             ),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.inverseOnSurface,
+                            color = OnOverImageScrim,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(FreshNowSpacing.xs)
                                 .clip(MaterialTheme.shapes.small)
-                                .background(
-                                    // 压在图片上的浮层底色：M3 没这一档，取值在设计源里
-                                    MaterialTheme.colorScheme.scrim.copy(
-                                        alpha = FreshNowTransitions.OVER_IMAGE_SCRIM_ALPHA
-                                    )
-                                )
+                                .background(OverImageScrim)
                                 .padding(
                                     horizontal = FreshNowSpacing.xs,
                                     vertical = FreshNowSpacing.xxs
