@@ -34,11 +34,10 @@
 * 支持通过局域网共享记录
 
 ## 截图
-
 <p align="center">
-  <img width="32%" src="https://github.com/user-attachments/assets/5e381430-0b3d-4e4a-869a-99a13ef70e75" alt="截图 1" />
-  <img width="32%" src="https://github.com/user-attachments/assets/dabd4c62-d5c7-4b58-a76d-79175964bb55" alt="截图 2" />
-  <img width="32%" src="https://github.com/user-attachments/assets/c5c947c5-46d7-4907-b685-f2cb01d474b3" alt="截图 3" />
+  <img width="32%" src="https://github.com/user-attachments/assets/a5ccd538-8653-4902-9d36-7c776598afda" alt="截图 1" />
+  <img width="32%" src="https://github.com/user-attachments/assets/5c3ffda5-9f0c-487d-94c6-02a71abedaae" alt="截图 2" />
+  <img width="32%" src="https://github.com/user-attachments/assets/c7709299-c99e-4f62-9542-c592afa5623f" alt="截图 3" />
 </p>
 
 ## 贡献
