@@ -87,6 +87,10 @@ fun SettingsScreen(
         // Switch 播一次关→开的动画，观感上就是「每次进设置页开关动画都重播」
         if (uiState.loaded) {
             SettingsList(
+                summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
+                extraSummary = uiState.saved.extraRequestJson.ifBlank {
+                    stringResource(R.string.ai_settings_extra_default)
+                },
                 showReasoning = uiState.saved.showReasoning,
                 manualEntry = uiState.behavior.manualEntry,
                 supplementAfterSave = uiState.behavior.supplementAfterSave,
@@ -171,6 +175,8 @@ fun SettingsScreen(
  */
 @Composable
 internal fun SettingsList(
+    summary: String,
+    extraSummary: String,
     showReasoning: Boolean,
     manualEntry: Boolean,
     supplementAfterSave: Boolean,
@@ -201,7 +207,7 @@ internal fun SettingsList(
                         Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
                     },
                     headlineContent = {
-                        ListItemText(stringResource(R.string.ai_settings_basic_group_title))
+                        ListItemText(stringResource(R.string.ai_settings_basic_group_title), summary)
                     },
                     modifier = Modifier.clickable(onClick = onBasicConfigClick),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -214,7 +220,7 @@ internal fun SettingsList(
                         Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
                     },
                     headlineContent = {
-                        ListItemText(stringResource(R.string.ai_settings_extra_title))
+                        ListItemText(stringResource(R.string.ai_settings_extra_title), extraSummary)
                     },
                     modifier = Modifier.clickable(onClick = onExtraRequestClick),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -281,7 +287,7 @@ internal fun SettingsList(
                         Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
                     },
                     headlineContent = {
-                        ListItemText(stringResource(R.string.behavior_sort_order_title))
+                        ListItemText(stringResource(R.string.behavior_sort_order_title), sortOrder.label())
                     },
                     modifier = Modifier.clickable(onClick = onSortOrderClick),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
