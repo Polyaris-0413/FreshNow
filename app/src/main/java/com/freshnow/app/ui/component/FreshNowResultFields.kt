@@ -132,9 +132,13 @@ private fun FieldSegment(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    // 填充容器与形状都由拼接组那份实现给（见 SplicedGroup）：这一段只是「标签 + 值」的行，
-    // 左右内边距得由这里补（装 ListItem 的地方不需要）
-    SplicedSegment(shape = shape, modifier = modifier, horizontalPadding = FreshNowSpacing.sm) {
-        content()
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
+    ) {
+        Box(modifier = Modifier.padding(horizontal = FreshNowSpacing.sm)) {
+            content()
+        }
     }
 }

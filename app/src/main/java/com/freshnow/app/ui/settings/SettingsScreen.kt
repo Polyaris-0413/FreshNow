@@ -47,7 +47,6 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.SectionHeading
-import com.freshnow.app.ui.component.SplicedGroup
 import com.freshnow.app.ui.component.SortOrderMenuItems
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.label
@@ -192,36 +191,29 @@ internal fun SettingsList(
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
-        // 一个分区一块拼接容器（缝与圆角见 SplicedGroup）：分组靠边界与缝读出来，不再靠分隔线。
         // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
         // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
-        SplicedGroup {
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(stringResource(R.string.ai_settings_basic_group_title), summary)
-                    },
-                    modifier = Modifier.clickable(onClick = onBasicConfigClick),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            }
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(stringResource(R.string.ai_settings_basic_group_title), summary)
+            },
+            modifier = Modifier.clickable(onClick = onBasicConfigClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(stringResource(R.string.ai_settings_extra_title), extraSummary)
-                    },
-                    modifier = Modifier.clickable(onClick = onExtraRequestClick),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            }
-        }
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(stringResource(R.string.ai_settings_extra_title), extraSummary)
+            },
+            modifier = Modifier.clickable(onClick = onExtraRequestClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
         SectionHeading(
             text = stringResource(R.string.behavior_settings_section_title),
@@ -229,90 +221,80 @@ internal fun SettingsList(
             modifier = Modifier.padding(top = FreshNowSpacing.md)
         )
 
-        SplicedGroup {
-            // 与「显示思维链」同一种行：整行可点、角色给 Switch（开关自己不吃点击），
-            // 说明文字写在下面一行而不是摆在标题里——开关说的是「怎么用「添加」」，标题只给出名字
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(
-                            stringResource(R.string.manual_entry),
-                            stringResource(R.string.behavior_manual_entry_support)
-                        )
-                    },
-                    trailingContent = {
-                        Switch(checked = manualEntry, onCheckedChange = null)
-                    },
-                    modifier = Modifier.toggleable(
-                        value = manualEntry,
-                        role = Role.Switch,
-                        onValueChange = onManualEntryChange
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        // 与「显示思维链」同一种行：整行可点、角色给 Switch（开关自己不吃点击），
+        // 说明文字写在下面一行而不是摆在标题里——开关说的是「怎么用「添加」」，标题只给出名字
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(
+                    stringResource(R.string.manual_entry),
+                    stringResource(R.string.behavior_manual_entry_support)
                 )
-            }
+            },
+            trailingContent = {
+                Switch(checked = manualEntry, onCheckedChange = null)
+            },
+            modifier = Modifier.toggleable(
+                value = manualEntry,
+                role = Role.Switch,
+                onValueChange = onManualEntryChange
+            ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            // 与上一行同一种做法。它排在「手动输入」之后：「手动输入」说的是扫不扫，这一行说的是扫完接不接着填，
-            // 两个开关排在一起才是同类的两项，而下面「排序方式」是个当前值，性质不同
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_draft), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(
-                            stringResource(R.string.behavior_supplement_title),
-                            stringResource(R.string.behavior_supplement_support)
-                        )
-                    },
-                    trailingContent = {
-                        Switch(checked = supplementAfterSave, onCheckedChange = null)
-                    },
-                    modifier = Modifier.toggleable(
-                        value = supplementAfterSave,
-                        role = Role.Switch,
-                        onValueChange = onSupplementAfterSaveChange
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        // 与上一行同一种做法。它排在「手动输入」之后：「手动输入」说的是扫不扫，这一行说的是扫完接不接着填，
+        // 两个开关排在一起才是同类的两项，而下面「排序方式」是个当前值，性质不同
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_draft), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(
+                    stringResource(R.string.behavior_supplement_title),
+                    stringResource(R.string.behavior_supplement_support)
                 )
-            }
+            },
+            trailingContent = {
+                Switch(checked = supplementAfterSave, onCheckedChange = null)
+            },
+            modifier = Modifier.toggleable(
+                value = supplementAfterSave,
+                role = Role.Switch,
+                onValueChange = onSupplementAfterSaveChange
+            ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            // 与「基础配置」那一行同一种做法：行上显示当前值，点开面板换一个。
-            // 当前值就是这一行的说明文字——设置页里「现在用的是哪种」得看得见
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(stringResource(R.string.behavior_sort_order_title), sortOrder.label())
-                    },
-                    modifier = Modifier.clickable(onClick = onSortOrderClick),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            }
+        // 与「基础配置」那一行同一种做法：行上显示当前值，点开面板换一个。
+        // 当前值就是这一行的说明文字——设置页里「现在用的是哪种」得看得见
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(stringResource(R.string.behavior_sort_order_title), sortOrder.label())
+            },
+            modifier = Modifier.clickable(onClick = onSortOrderClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
-            // 同步是跨设备的行为，排在这一分区的末尾：上面的三项都只影响本机
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_sync), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(
-                            stringResource(R.string.sync_title),
-                            stringResource(R.string.sync_settings_support),
-                            trailingLabel = stringResource(R.string.sync_beta_label)
-                        )
-                    },
-                    modifier = Modifier.clickable(onClick = onSyncClick),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        // 同步是跨设备的行为，排在这一分区的末尾：上面的三项都只影响本机
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_sync), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(
+                    stringResource(R.string.sync_title),
+                    stringResource(R.string.sync_settings_support),
+                    trailingLabel = stringResource(R.string.sync_beta_label)
                 )
-            }
-        }
+            },
+            modifier = Modifier.clickable(onClick = onSyncClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
 
         SectionHeading(
             text = stringResource(R.string.debug_settings_section_title),
@@ -321,32 +303,27 @@ internal fun SettingsList(
         )
 
         // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
-        // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关。
-        // 这一组只有一行：一块四角都取大圆角的容器，与别的组看上去是同一种东西
-        SplicedGroup {
-            row {
-                ListItem(
-                    leadingContent = {
-                        Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
-                    },
-                    headlineContent = {
-                        ListItemText(
-                            stringResource(R.string.ai_settings_show_reasoning_title),
-                            stringResource(R.string.ai_settings_show_reasoning_support)
-                        )
-                    },
-                    trailingContent = {
-                        Switch(checked = showReasoning, onCheckedChange = null)
-                    },
-                    modifier = Modifier.toggleable(
-                        value = showReasoning,
-                        role = Role.Switch,
-                        onValueChange = onShowReasoningChange
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(
+                    stringResource(R.string.ai_settings_show_reasoning_title),
+                    stringResource(R.string.ai_settings_show_reasoning_support)
                 )
-            }
-        }
+            },
+            trailingContent = {
+                Switch(checked = showReasoning, onCheckedChange = null)
+            },
+            modifier = Modifier.toggleable(
+                value = showReasoning,
+                role = Role.Switch,
+                onValueChange = onShowReasoningChange
+            ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
         // 应用、项目、法律信息三段在关于页，不在设置里：设置只管可调项
     }
 }
