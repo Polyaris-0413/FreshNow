@@ -85,9 +85,6 @@ fun FreshNowResultFields(
 /**
  * 品名块（以及跟着它的位置块）。[location] 为 null 时只有品名一块，四角都取规范给卡片类容器的 medium；
  * 非 null 时两块拼成一组，朝外的一侧取大圆角、相接的一侧取小圆角。
- *
- * 位置空着时值写「未填」而不是共用 [scanValueText] 的「未知」：那个词在本应用里是「这一项没读到」，
- * 而位置从来不是读到的——写到它头上的「未知」会让人以为模型没识别出来。
  */
 @Composable
 private fun ProductNameBlock(
@@ -116,7 +113,7 @@ private fun ProductNameBlock(
             FieldSegment(shape = splicedShape(top = innerCorner, bottom = outerCorner)) {
                 FreshNowFieldRow(
                     label = stringResource(R.string.record_location),
-                    value = location.ifBlank { stringResource(R.string.record_location_unset) }
+                    value = scanValueText(location)
                 )
             }
         }

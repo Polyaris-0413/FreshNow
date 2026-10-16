@@ -50,9 +50,7 @@
     <string name="home_delete_dialog_message">记录和扫描照片都会被删除，无法恢复。</string>
     <string name="record_detail_title">记录详情</string>
     <string name="record_detail_missing">记录不存在</string>
-    <!-- 位置是唯一一项模型读不到的字段，所以它空着时不能说「未知」——那个词在本应用里是「这一项没读到」 -->
     <string name="record_location">位置</string>
-    <string name="record_location_unset">未填</string>
     <!-- 页面名与详情页那个入口共用：两者说的是同一件事，分开取两个名字只会日后各改各的 -->
     <string name="record_supplement_title">补充信息</string>
     <string name="record_edit_title">编辑记录</string>

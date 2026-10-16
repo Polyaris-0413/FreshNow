@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
  * 一是它得跟「名称」挨在一起、排在名称之下——名称说这是什么、位置说它在哪，是一件事；
  * 而下面三块是一条推算链，位置插进去会把它打断。
  *
- * 二是它空着时不能写「未知」：那个词在本应用里是「这一项没读到」，而位置从来不是读到的。
+ * 二是它空着时写「未知」，与其余字段同一套空值规则。
  *
  * 三是扫描页根本不出现这一行（那里传 null）。只摆结果这一块，不走整页：整页要连数据库一起测进来。
  */
@@ -37,11 +37,10 @@ class RecordDetailLocationTest {
     }
 
     @Test
-    fun blankLocationReadsUnset() {
+    fun blankLocationReadsUnknown() {
         setContent(location = "")
 
-        composeRule.onNodeWithText("未填").assertIsDisplayed()
-        composeRule.onNodeWithText("未知").assertDoesNotExist()
+        composeRule.onNodeWithText("未知").assertIsDisplayed()
     }
 
     /** 位置排在名称之下、日期组之上 */
@@ -66,7 +65,7 @@ class RecordDetailLocationTest {
         setContent(location = null)
 
         composeRule.onNodeWithText("位置").assertDoesNotExist()
-        composeRule.onNodeWithText("未填").assertDoesNotExist()
+        composeRule.onNodeWithText("未知").assertDoesNotExist()
     }
 
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top
