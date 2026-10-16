@@ -52,7 +52,6 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
-import com.freshnow.app.ui.component.PhotoViewer
 import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.detail.CropWindow
@@ -61,6 +60,7 @@ import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,111 +132,104 @@ fun ScanScreen(
     }
 
     FreshNowSubPage(
-        title = stringResource(R.string.scan),
+        // 翻面之后这一页做的是「把这条记录补齐」（位置、照片、校对那几个字），与补全信息是同一件事，
+        // 所以沿用那个名字（设计文档 D8）；扫描态才叫「扫描」
+        title = stringResource(
+            if (uiState.stage == ScanStage.EDITING) {
+                R.string.record_supplement_title
+            } else {
+                R.string.scan
+            }
+        ),
         onBack = { if (hasResult) showSaveDialog = true else onBack() },
         modifier = modifier
     ) { innerPadding ->
-        // 编辑态：相机收起来（见 ScanStage），露出的就是记录表单与九宫格。扫描态那一套原样在下
-        if (uiState.stage == ScanStage.EDITING) {
-            ScanEditStage(
-                uiState = uiState,
-                onFieldChange = viewModel::onFieldChange,
-                onOpenPhoto = viewModel::onPhotoOpened,
-                onRemovePhoto = viewModel::onPhotoRemoved,
-                onAddPhoto = { showImageSources = true },
-                onContinueScanning = viewModel::backToScanning,
-                onSave = { viewModel.save { onBack() } },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(FreshNowSpacing.sm)
-            )
-            return@FreshNowSubPage
-        }
-        // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
-        val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
-            CameraBox(
-                permission = permission,
-                torchOn = torchOn,
-                onTorchChange = { torchOn = it },
-                status = uiState.status,
-                canAcceptFrame = viewModel::canAcceptFrame,
-                onFrame = viewModel::submitFrame,
-                modifier = sizeConstraint
-            )
-        }
-
-        // 操作区放内容区底部而不是 Scaffold 的 bottomBar：它与上方内容共用外层 Column 的那一层
-        // 留白（FreshNowSpacing.sm），交给 Scaffold 就得在 bottomBar 里再写一遍同一档留白，
-        // 两处日后会各漂各的。
-        val actionBar: @Composable () -> Unit = {
-            ScanActionBar(
-                enabled = hasResult,
-                onClear = viewModel::clearRecord,
-                onNextStep = viewModel::nextStep
-            )
-        }
-
-        // 【有意偏离 M3 规范，请勿「按规范」改回去】
-        // M3 要求 600dp 起切换多窗格、并给大屏内容加 840dp 宽度上限。本项目只面向手机形态，
-        // 不做平板/折叠屏多窗格，也不做宽度约束——Activity 锁竖屏（见 AndroidManifest），
-        // 所以这里不按宽高比分支，只有一种版式。
-        //
-        // 取景框撑满宽度、结果是主角，两者都要在，只能让位给滚动：相机跟着结果一起滚，
-        // 滚上去之后取景框会移出可视区。这是竖屏下早就有的取舍。
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(FreshNowSpacing.sm),
-            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-        ) {
-            val pageScroll = rememberScrollState()
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(pageScroll),
-                    verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
-                ) {
-                    // 只定宽；方形由 CameraBox 自己保证
-                    cameraBox(Modifier.fillMaxWidth())
-                    ScanResultColumn(uiState = uiState)
-                }
-                ScrollEdgeFade(
-                    visible = pageScroll.canScrollForward,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
-            actionBar()
-        }
-    }
-
-    // 看图：这一页内的一次状态切换（与编辑页同一套）。扫描页的草稿里可能有位图还没解出来的格子，
-    // 所以只看被点的那一张，不做翻页
-    val viewingPhoto = uiState.viewingPhotoIndex?.let { index -> uiState.photos.getOrNull(index)?.bitmap }
-    BackHandler(enabled = viewingPhoto != null) { viewModel.closePhotoViewer() }
-    AnimatedVisibility(visible = viewingPhoto != null) {
-        if (viewingPhoto != null) {
-            FreshNowSubPage(
-                title = stringResource(R.string.record_image),
-                onBack = viewModel::closePhotoViewer
-            ) { innerPadding ->
-                PhotoViewer(
-                    images = listOfNotNull(viewingPhoto),
-                    startIndex = 0,
-                    onDismiss = viewModel::closePhotoViewer,
+        // 翻面是同一页里换一份内容（见 ScanStage），所以用淡入淡出：左右滑动在这套导航里
+        // 说的是「上一级 / 下一级」，而这里并没有换页
+        AnimatedContent(
+            targetState = uiState.stage,
+            transitionSpec = { FreshNowTransitions.fadeSwap() },
+            label = "scanStage"
+        ) { stage ->
+            if (stage == ScanStage.EDITING) {
+                ScanEditStage(
+                    uiState = uiState,
+                    onFieldChange = viewModel::onFieldChange,
+                    onRemovePhoto = viewModel::onPhotoRemoved,
+                    onAddPhoto = { showImageSources = true },
+                    onContinueScanning = viewModel::backToScanning,
+                    onSave = { viewModel.save { onBack() } },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .padding(FreshNowSpacing.sm)
                 )
+                return@AnimatedContent
+            }
+                // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
+            val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
+                CameraBox(
+                    permission = permission,
+                    torchOn = torchOn,
+                    onTorchChange = { torchOn = it },
+                    status = uiState.status,
+                    canAcceptFrame = viewModel::canAcceptFrame,
+                    onFrame = viewModel::submitFrame,
+                    modifier = sizeConstraint
+                )
+            }
+    
+            // 操作区放内容区底部而不是 Scaffold 的 bottomBar：它与上方内容共用外层 Column 的那一层
+            // 留白（FreshNowSpacing.sm），交给 Scaffold 就得在 bottomBar 里再写一遍同一档留白，
+            // 两处日后会各漂各的。
+            val actionBar: @Composable () -> Unit = {
+                ScanActionBar(
+                    enabled = hasResult,
+                    onClear = viewModel::clearRecord,
+                    onNextStep = viewModel::nextStep
+                )
+            }
+    
+            // 【有意偏离 M3 规范，请勿「按规范」改回去】
+            // M3 要求 600dp 起切换多窗格、并给大屏内容加 840dp 宽度上限。本项目只面向手机形态，
+            // 不做平板/折叠屏多窗格，也不做宽度约束——Activity 锁竖屏（见 AndroidManifest），
+            // 所以这里不按宽高比分支，只有一种版式。
+            //
+            // 取景框撑满宽度、结果是主角，两者都要在，只能让位给滚动：相机跟着结果一起滚，
+            // 滚上去之后取景框会移出可视区。这是竖屏下早就有的取舍。
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(FreshNowSpacing.sm),
+                verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+            ) {
+                val pageScroll = rememberScrollState()
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(pageScroll),
+                        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
+                    ) {
+                        // 只定宽；方形由 CameraBox 自己保证
+                        cameraBox(Modifier.fillMaxWidth())
+                        ScanResultColumn(uiState = uiState)
+                    }
+                    ScrollEdgeFade(
+                        visible = pageScroll.canScrollForward,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+                actionBar()
             }
         }
     }
+
 
     if (showImageSources) {
         PhotoSourceSheet(
@@ -377,7 +370,6 @@ internal fun ServiceUnavailableDialog(
 internal fun ScanEditStage(
     uiState: ScanUiState,
     onFieldChange: (RecordField, String) -> Unit,
-    onOpenPhoto: (Int) -> Unit,
     onRemovePhoto: (Int) -> Unit,
     onAddPhoto: () -> Unit,
     onContinueScanning: () -> Unit,
@@ -393,7 +385,6 @@ internal fun ScanEditStage(
             photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
             derivedExpiry = uiState.expiry,
             onFieldChange = onFieldChange,
-            onOpenPhoto = onOpenPhoto,
             onRemovePhoto = onRemovePhoto,
             onAddPhoto = onAddPhoto,
             modifier = Modifier

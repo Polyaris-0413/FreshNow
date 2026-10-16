@@ -63,13 +63,6 @@ data class RecordEditUiState(
     val photos: List<EditPhoto> = emptyList(),
     /** 相册选来、等着裁剪的原图；非 null 即裁剪页正在显示 */
     val cropSource: Bitmap? = null,
-    /**
-     * 正在看大图的那一张（下标）；null 表示看图页没开。
-     *
-     * 看图是这一页内的一次状态切换而不是新的目的地：照片已经在内存里，走导航得把文件重读一遍
-     * （与详情页同一个理由）
-     */
-    val viewingPhotoIndex: Int? = null,
     /** 选来的图读不出来时置起，由界面提示一次后清掉（见 RecordEditScreen） */
     val imageReadFailed: Boolean = false,
     /** 正在写库。写盘不是瞬时的，这段时间里再点一次保存就会多弹一层返回栈（见 save） */
@@ -333,15 +326,6 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 state.copy(photos = state.photos.filterIndexed { i, _ -> i != index })
             }
         }
-    }
-
-    /** 点开某一格看大图。只认草稿里真实存在的下标 */
-    fun onPhotoOpened(index: Int) {
-        _uiState.update { if (index in it.photos.indices) it.copy(viewingPhotoIndex = index) else it }
-    }
-
-    fun closePhotoViewer() {
-        _uiState.update { it.copy(viewingPhotoIndex = null) }
     }
 
     fun closeImageReadFailed() {

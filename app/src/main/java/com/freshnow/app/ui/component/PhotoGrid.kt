@@ -7,14 +7,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -37,57 +39,64 @@ internal const val MAX_RECORD_IMAGES = 9
 /** 九宫格，一行三格 */
 private const val COLUMNS = 3
 
+/** 末尾那格「+」在列表里的 key。照片用各自的名字，它不能撞上 */
+private const val ADD_KEY = "add-photo-tile"
+
 /**
  * 九宫格里的一格。
  *
- * [key] 用来在增删时认住同一格（已存的照片用文件名，还在草稿里的用它自己的编号）：只看下标的话，
- * 删掉中间那张会让后面每一格的图都当成「换成了另一张」重放一次动画。
+ * [key] 用来在增删时认住同一格（已存的照片用文件名，草稿用它自己的编号）：只看下标的话，
+ * 删掉中间那张会让后面每一格的图都当成「换成了另一张」，动画与解码都会重来一遍。
  */
 internal data class PhotoGridItem(val key: String, val image: Bitmap?)
 
 /**
- * 记录里的照片区：一格一张，末尾一格是「+」，每格右上角是「✕」。
+ * 记录里的照片区：一格一张，末尾一格是「+」，**点某一张就把它移除**。
  *
- * 用九宫格而不是一排缩略图：上限就是九张，格子把「已经存了几张、还能加几张」摆在同一块地方；
- * 一排缩略图放到第五张就得横着滑，用户看不见自己存了多少。
+ * 不在格子上再压一枚 ✕：格子只有一百来 dp，角上叠一个按钮既难看又容易点错，而它要做的只是
+ * 「去掉这一张」。整格一个动作之后，误触的代价也只是「再加回来」——草稿里的删除在保存前不落盘。
  *
- * 用普通的 Column + Row 而不是 LazyVerticalGrid：格数上限就是九，而这个组件要嵌在一个本身会滚动的
- * 表单里，嵌套的惰性网格会把滚动手势抢走。
+ * 用 LazyVerticalGrid 而不是手写的 Column + Row：删掉中间一张时，剩下的格子要有位移与淡出动画
+ * （`Modifier.animateItem`），而那套动画只有惰性布局给得了。它自己不许滚
+ * （`userScrollEnabled = false`）：这个组件嵌在一个本身会滚动的表单里，抢走手势就会让表单卡住。
  */
 @Composable
 internal fun PhotoGrid(
     items: List<PhotoGridItem>,
-    onOpen: (Int) -> Unit,
     onRemove: (Int) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 把「已有的格子」与末尾那格「+」拼成一串再切行：一行满了自然下移，「+」接在最后一张照片之后。
-    // 到顶时不再补那一格，上限因此是看得见的
-    val cellCount = items.size + if (items.size < MAX_RECORD_IMAGES) 1 else 0
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)
-    ) {
-        (0 until cellCount).chunked(COLUMNS).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)) {
-                row.forEach { index ->
-                    Box(modifier = Modifier.weight(1f)) {
-                        val item = items.getOrNull(index)
-                        if (item == null) {
-                            AddTile(onClick = onAdd)
-                        } else {
-                            PhotoTile(
-                                item = item,
-                                onOpen = { onOpen(index) },
-                                onRemove = { onRemove(index) }
-                            )
-                        }
-                    }
-                }
-                // 一行不满时补上等宽的空位：不补的话最后那一行剩下的格子会被拉宽，与上面几行大小不一
-                repeat(COLUMNS - row.size) {
-                    Box(modifier = Modifier.weight(1f))
+    val showAdd = items.size < MAX_RECORD_IMAGES
+    val cellCount = items.size + if (showAdd) 1 else 0
+    if (cellCount == 0) return
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // 三列等宽：总宽减去两条缝再三等分。高度得自己算出来——惰性网格不接受无界高度，
+        // 而这里又不许它滚，只能把行数换成固定高度
+        val gap = FreshNowSpacing.xxxs
+        val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
+        val rows = (cellCount + COLUMNS - 1) / COLUMNS
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(COLUMNS),
+            userScrollEnabled = false,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(cell * rows + gap * (rows - 1)),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalArrangement = Arrangement.spacedBy(gap)
+        ) {
+            itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
+                PhotoTile(
+                    item = item,
+                    onRemove = { onRemove(index) },
+                    // 增删时的淡入淡出与其余格子的让位都由它演
+                    modifier = Modifier.animateItem()
+                )
+            }
+            if (showAdd) {
+                item(key = ADD_KEY) {
+                    AddTile(onClick = onAdd, modifier = Modifier.animateItem())
                 }
             }
         }
@@ -95,23 +104,20 @@ internal fun PhotoGrid(
 }
 
 /**
- * 一格照片。
- *
- * 语义（「扫描照片」与「移除照片」）挂在两块可点的区域上，而不是里面的图标上：按语义找节点的
- * 测试与无障碍工具找到的必须是能点的那个节点，挂在图标上就会找到一个点不动的节点。
+ * 一格照片。整格可点，点了就是「去掉这一张」——语义挂在可点的那块区域上，
+ * 而不是里面的图标上：按语义找节点的测试与无障碍工具找到的必须是能点的那个。
  */
 @Composable
-private fun PhotoTile(item: PhotoGridItem, onOpen: () -> Unit, onRemove: () -> Unit) {
-    val photoLabel = stringResource(R.string.record_image)
-    val removeLabel = stringResource(R.string.record_image_remove)
+private fun PhotoTile(item: PhotoGridItem, onRemove: () -> Unit, modifier: Modifier = Modifier) {
+    val label = stringResource(R.string.record_image_remove)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onOpen, onClickLabel = stringResource(R.string.record_image_open))
-            .semantics { contentDescription = photoLabel }
+            .clickable(onClick = onRemove, onClickLabel = label)
+            .semantics { contentDescription = label }
     ) {
         if (item.image != null) {
             Image(
@@ -130,21 +136,6 @@ private fun PhotoTile(item: PhotoGridItem, onOpen: () -> Unit, onRemove: () -> U
                     .size(FreshNowSize.smallIcon)
             )
         }
-
-        // 用 IconButton 而不是裸图标：它的点击区按 M3 的最小触摸目标给（48dp），
-        // 而这个按钮落在照片右上角，触摸区小了就等于点不中
-        IconButton(
-            onClick = onRemove,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .semantics { contentDescription = removeLabel }
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_close),
-                contentDescription = null,
-                modifier = Modifier.size(FreshNowSize.smallIcon)
-            )
-        }
     }
 }
 
@@ -153,10 +144,10 @@ private fun PhotoTile(item: PhotoGridItem, onOpen: () -> Unit, onRemove: () -> U
  * 让「这里还能加一张照片」与「这里还能写点什么」看起来是同一类地方。
  */
 @Composable
-private fun AddTile(onClick: () -> Unit) {
+private fun AddTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val addLabel = stringResource(R.string.record_image_add)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .border(

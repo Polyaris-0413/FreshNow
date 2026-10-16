@@ -67,28 +67,13 @@ class PhotoGridTest {
         assertEquals("第二格的 ✕ 要报回下标 1", 1, removed)
     }
 
-    /** 点格子本身报的也是那一格（看大图走这条路） */
-    @Test
-    fun openReportsTheTappedIndex() {
-        var opened = -1
-        setContent(
-            items = (1..3).map { PhotoGridItem(key = "k$it", image = null) },
-            onOpen = { opened = it }
-        )
-
-        composeRule.onAllNodesWithContentDescription(PHOTO)[2].performClick()
-
-        assertEquals("第三格要报回下标 2", 2, opened)
-    }
-
     private fun setContent(
         items: List<PhotoGridItem>,
-        onRemove: (Int) -> Unit = {},
-        onOpen: (Int) -> Unit = {}
+        onRemove: (Int) -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme {
-                PhotoGrid(items = items, onOpen = onOpen, onRemove = onRemove, onAdd = {})
+                PhotoGrid(items = items, onRemove = onRemove, onAdd = {})
             }
         }
     }
@@ -96,6 +81,5 @@ class PhotoGridTest {
     private companion object {
         const val ADD = "添加照片"
         const val REMOVE = "移除照片"
-        const val PHOTO = "扫描照片"
     }
 }

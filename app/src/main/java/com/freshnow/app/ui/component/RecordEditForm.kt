@@ -63,7 +63,6 @@ internal fun RecordEditForm(
     photos: List<PhotoGridItem>,
     derivedExpiry: ExpiryOutcome,
     onFieldChange: (RecordField, String) -> Unit,
-    onOpenPhoto: (Int) -> Unit,
     onRemovePhoto: (Int) -> Unit,
     onAddPhoto: () -> Unit,
     modifier: Modifier = Modifier
@@ -81,7 +80,6 @@ internal fun RecordEditForm(
         // 再套一层描边框等于把「这里可以动」这个意思说两遍。
         PhotoGrid(
             items = photos,
-            onOpen = onOpenPhoto,
             onRemove = onRemovePhoto,
             onAdd = onAddPhoto
         )

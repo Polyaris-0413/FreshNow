@@ -55,7 +55,6 @@ import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.PhotoGrid
 import com.freshnow.app.ui.component.PhotoGridItem
-import com.freshnow.app.ui.component.PhotoViewer
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
@@ -206,35 +205,10 @@ fun RecordEditScreen(
                 uiState = uiState,
                 onBack = onBack,
                 onSave = viewModel::save,
-                onOpenPhoto = viewModel::onPhotoOpened,
                 onRemovePhoto = viewModel::onPhotoRemoved,
                 onAddPhoto = { showImageSources = true },
                 viewModel = viewModel
             )
-        }
-    }
-
-    // 看图：这一页内的一次状态切换，不是新的目的地——照片已经在内存里，走导航得把文件重读一遍
-    // （与详情页同一个取舍）。它是盖在整页上的一层，所以自带顶标与返回
-    val viewingPhoto = uiState.viewingPhotoIndex?.let { index -> uiState.photos.getOrNull(index)?.bitmap }
-    BackHandler(enabled = viewingPhoto != null) { viewModel.closePhotoViewer() }
-    AnimatedVisibility(visible = viewingPhoto != null) {
-        if (viewingPhoto != null) {
-            FreshNowSubPage(
-                title = stringResource(R.string.record_image),
-                onBack = viewModel::closePhotoViewer
-            ) { innerPadding ->
-                PhotoViewer(
-                    // 编辑页的看图只看这一张：这里是「编」的地方，左右翻页没有多大用处，
-                    // 而草稿里可能存在位图还没解出来的格子，下标映射到多图列表会错位
-                    images = listOfNotNull(viewingPhoto),
-                    startIndex = 0,
-                    onDismiss = viewModel::closePhotoViewer,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                )
-            }
         }
     }
 
@@ -264,7 +238,6 @@ private fun EditForm(
     uiState: RecordEditUiState,
     onBack: () -> Unit,
     onSave: ((imageSaved: Boolean) -> Unit) -> Unit,
-    onOpenPhoto: (Int) -> Unit,
     onRemovePhoto: (Int) -> Unit,
     onAddPhoto: () -> Unit,
     viewModel: RecordEditViewModel
@@ -339,7 +312,6 @@ private fun EditForm(
                 photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
                 derivedExpiry = uiState.derivedExpiry,
                 onFieldChange = viewModel::onFieldChange,
-                onOpenPhoto = onOpenPhoto,
                 onRemovePhoto = onRemovePhoto,
                 onAddPhoto = onAddPhoto,
                 modifier = Modifier

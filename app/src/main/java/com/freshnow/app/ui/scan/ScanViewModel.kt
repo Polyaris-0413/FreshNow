@@ -58,8 +58,6 @@ data class ScanUiState(
     val location: String = "",
     /** 编辑态的照片草稿；第一张是按下「下一步」那一刻的画面（见设计文档 D5）*/
     val photos: List<EditPhoto> = emptyList(),
-    /** 正在看大图的那一张（下标）；null 表示看图页没开 */
-    val viewingPhotoIndex: Int? = null,
     /**
      * 用户自己写过的那几项（见 [mergeObservation]）。那一项从此只归他，后续的帧不再覆盖——
      * 自己写的字被机器悄悄冲掉是最让人不信任的事。
@@ -253,13 +251,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onPhotoOpened(index: Int) {
-        _uiState.update { if (index in it.photos.indices) it.copy(viewingPhotoIndex = index) else it }
-    }
-
-    fun closePhotoViewer() {
-        _uiState.update { it.copy(viewingPhotoIndex = null) }
-    }
 
     /**
      * 相册选来的图：解码后停在草稿里等着裁剪（与编辑页同一套，见 [ImageCropScreen]）。
@@ -358,7 +349,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 stage = ScanStage.SCANNING,
                 location = "",
                 photos = emptyList(),
-                viewingPhotoIndex = null,
                 lockedFields = emptySet(),
                 cropSource = null
             )

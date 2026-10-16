@@ -132,19 +132,6 @@ class RecordEditFormTest {
         assertEquals(1, added)
     }
 
-    @Test
-    fun tappingAPhotoOpensThatOne() {
-        var opened = -1
-        setContent(
-            uiState = EMPTY.copy(photos = listOf(photo(1), photo(2))),
-            onOpenPhoto = { opened = it }
-        )
-
-        composeRule.onAllNodesWithContentDescription("扫描照片")[1].performClick()
-
-        assertEquals("点第二格报的要是 1", 1, opened)
-    }
-
     /** 输入要能传到调用方，否则字段只是个摆设 */
     @Test
     fun typingReportsNewValue() {
@@ -219,7 +206,6 @@ class RecordEditFormTest {
                             )
                         }
                     },
-                    onOpenPhoto = {},
                     onRemovePhoto = {},
                     onAddPhoto = {}
                 )
@@ -261,7 +247,6 @@ class RecordEditFormTest {
         uiState: RecordEditUiState = EMPTY,
         onProductNameChange: (String) -> Unit = {},
         onLocationChange: (String) -> Unit = {},
-        onOpenPhoto: (Int) -> Unit = {},
         onRemovePhoto: (Int) -> Unit = {},
         onAddPhoto: () -> Unit = {}
     ) {
@@ -288,7 +273,6 @@ class RecordEditFormTest {
                             else -> Unit
                         }
                     },
-                    onOpenPhoto = onOpenPhoto,
                     onRemovePhoto = onRemovePhoto,
                     onAddPhoto = onAddPhoto
                 )
