@@ -64,6 +64,7 @@
     <string name="record_edit_error_unrecognized">认不出这个写法</string>
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
+    <string name="record_image_add">添加照片</string>
     <string name="record_image_change">更换照片</string>
     <string name="record_image_source_gallery">相册</string>
     <string name="record_image_remove">移除照片</string>
