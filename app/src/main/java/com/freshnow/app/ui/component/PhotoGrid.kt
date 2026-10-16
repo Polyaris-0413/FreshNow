@@ -2,6 +2,7 @@ package com.freshnow.app.ui.component
 
 import android.graphics.Bitmap
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,13 +100,22 @@ internal fun PhotoGrid(
     val showAdd = items.size < MAX_RECORD_IMAGES
     val cellCount = items.size + if (showAdd) 1 else 0
     if (cellCount == 0) return
-    // 拖动期间列表不会增删，所以格数在这一次组合里是个定值（拿它去算目标格）
-    val itemCount = items.size
 
     // 正在拖的是哪一格，以及它跟手的位移。这两个只在拖动期间有值
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    /**
+     * 松手时要落到哪一格。拖动期间列表**一个字都不动**：一动，被拖那一格的布局位置就跳了，
+     * 而跟手位移要等下一帧才能补上，中间那一帧就是「在旁边闪一下」。顺序在松手时一次提交。
+     */
+    var hoverIndex by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
+    // 拿起来的放大要渐变：在 1.0 与 1.06 之间硬跳，松手那一刻会看见它「突然缩一下」
+    val draggingScale by animateFloatAsState(
+        targetValue = if (draggingIndex != null) DRAGGING_SCALE else 1f,
+        animationSpec = FreshNowTransitions.fastSpatial(),
+        label = "draggingScale"
+    )
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 三列等宽：总宽减去两条缝再三等分。高度得自己算出来——惰性网格不接受无界高度，
@@ -113,6 +124,7 @@ internal fun PhotoGrid(
         val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
         val rows = (cellCount + COLUMNS - 1) / COLUMNS
         val stepPx = with(LocalDensity.current) { (cell + gap).toPx() }
+        val count = items.size
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(COLUMNS),
@@ -124,73 +136,67 @@ internal fun PhotoGrid(
             verticalArrangement = Arrangement.spacedBy(gap)
         ) {
             itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
+                val latestIndex by rememberUpdatedState(index)
                 val dragging = draggingIndex == index
                 PhotoTile(
                     item = item,
                     onRemove = { onRemove(index) },
                     modifier = Modifier
-                        // 增删时淡入淡出、其余格子让位。正在被拿住的那一格不给位移动画：
-                        // 它的位置由手指决定，再叠一层动画就是「拖泥带水」
-                        .animateItem(
-                            placementSpec = if (dragging) null else FreshNowTransitions.defaultSpatial()
-                        )
+                        // 增删时淡入淡出、其余格子让位
+                        .animateItem()
                         // 被拿着的那一格浮到其余格子之上，否则它会被后画的格子盖住
                         .zIndex(if (dragging) 1f else 0f)
                         .graphicsLayer {
                             if (dragging) {
                                 translationX = dragOffset.x
                                 translationY = dragOffset.y
-                                scaleX = DRAGGING_SCALE
-                                scaleY = DRAGGING_SCALE
+                                scaleX = draggingScale
+                                scaleY = draggingScale
                             }
                         }
-                        // 拖动期间由协程自己维护「现在拖的是第几位」：itemsIndexed 给的 index 是
-                        // 组合那一刻的值，而换位之后列表已经变了。手势协程是长期活着的（key 不变就
-                        // 不重启），继续用旧下标去算就会算在一个已经不属于它的位置上——
-                        // 表现就是「拖过去之后再也拖不回来」
                         .pointerInput(item.key) {
-                            var currentIndex = index
-                            var travelled = Offset.Zero
+                            // 手势协程长期活着（key 不变就不重启），它捕获的 index 是**组合那一刻**的
+                            // 值。拿它去算目标格，置换一次之后基准就错了——表现是「点 A 拖动的却是 B」。
+                            // 长按开始那一刻从 rememberUpdatedState 取最新的下标。
+                            var currentIndex = latestIndex
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
-                                    currentIndex = index
-                                    travelled = Offset.Zero
+                                    currentIndex = latestIndex
                                     dragOffset = Offset.Zero
-                                    draggingIndex = index
+                                    hoverIndex = latestIndex
+                                    draggingIndex = latestIndex
                                 },
                                 onDrag = { change, amount ->
                                     // 消费掉：不消费的话，表单会跟着一起滚
                                     change.consume()
-                                    travelled += amount
-                                    dragOffset = travelled
-                                    val target = gridTargetIndex(currentIndex, travelled, stepPx, itemCount)
-                                    if (target != currentIndex) {
-                                        onMove(currentIndex, target)
-                                        // 换位之后这一格已经落在新的格子上，跟手位移要把这两格之间
-                                        // 那一段扣掉，否则图会从手指下跳走
-                                        travelled -= gridDelta(currentIndex, target, stepPx)
-                                        currentIndex = target
-                                        draggingIndex = target
-                                    }
+                                    dragOffset += amount
+                                    // 只记「现在悬在哪一格」，不动列表：列表一动就会有那一帧的闪
+                                    hoverIndex = gridTargetIndex(currentIndex, dragOffset, stepPx, count)
                                 },
                                 onDragEnd = {
-                                    // 弹回格子正中。**动画跑完才结束「被拿着」的状态**：
-                                    // 先清掉的话 translation 会立即归零，图就闪到位置上，
-                                    // 而那个回弹动画根本没人再读——「松手硬切」就是这么来的
-                                    val settle = travelled
+                                    val from = currentIndex
+                                    val to = hoverIndex ?: currentIndex
+                                    val settle = dragOffset
                                     scope.launch {
+                                        // 先提交顺序，再让位移归零：两者几乎同时发生，
+                                        // 于是所有格子（包括被拖的这一格）一起滑到位
+                                        if (to != from) onMove(from, to)
                                         animate(
                                             initialValue = 0f,
                                             targetValue = 1f,
                                             animationSpec = FreshNowTransitions.fastSpatial()
                                         ) { value, _ -> dragOffset = settle * (1f - value) }
                                         dragOffset = Offset.Zero
+                                        hoverIndex = null
+                                        // 位移与缩放都归位之后才结束「被拿着」的状态：
+                                        // 提前清掉的话它们是当场突变的
                                         draggingIndex = null
                                     }
                                 },
                                 onDragCancel = {
-                                    draggingIndex = null
                                     dragOffset = Offset.Zero
+                                    hoverIndex = null
+                                    draggingIndex = null
                                 }
                             )
                         }
@@ -205,15 +211,6 @@ internal fun PhotoGrid(
     }
 }
 
-/**
- * 从一格移到另一格，位置差了多少像素。
- *
- * 列差乘一个步长（格宽 + 缝），行差乘一个步长——网格是等宽等高的，所以两轴共用同一个步长。
- */
-private fun gridDelta(from: Int, to: Int, stepPx: Float): Offset = Offset(
-    x = ((to % COLUMNS) - (from % COLUMNS)) * stepPx,
-    y = ((to / COLUMNS) - (from / COLUMNS)) * stepPx
-)
 
 /**
  * 拖到哪儿算落在哪一格。
@@ -236,7 +233,7 @@ private fun gridTargetIndex(
 }
 
 /**
- * 一格照片。整格可点，点了就是「去掉这一张」——语义挂在可点的那块区域上，
+ * 一格照片。整格可点，点了就是「要移除这一张」——语义挂在可点的那块区域上，
  * 而不是里面的图标上：按语义找节点的测试与无障碍工具找到的必须是能点的那个。
  */
 @Composable
