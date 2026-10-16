@@ -243,7 +243,10 @@ internal fun SettingsList(
                         Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
                     },
                     headlineContent = {
-                        ListItemText(stringResource(R.string.manual_entry))
+                        ListItemText(
+                            stringResource(R.string.manual_entry),
+                            stringResource(R.string.behavior_manual_entry_support)
+                        )
                     },
                     trailingContent = {
                         Switch(checked = manualEntry, onCheckedChange = null)
@@ -265,7 +268,10 @@ internal fun SettingsList(
                         Icon(painter = painterResource(R.drawable.ic_draft), contentDescription = null)
                     },
                     headlineContent = {
-                        ListItemText(stringResource(R.string.behavior_supplement_title))
+                        ListItemText(
+                            stringResource(R.string.behavior_supplement_title),
+                            stringResource(R.string.behavior_supplement_support)
+                        )
                     },
                     trailingContent = {
                         Switch(checked = supplementAfterSave, onCheckedChange = null)
@@ -303,6 +309,7 @@ internal fun SettingsList(
                     headlineContent = {
                         ListItemText(
                             stringResource(R.string.sync_title),
+                            stringResource(R.string.sync_settings_support),
                             trailingLabel = stringResource(R.string.sync_beta_label)
                         )
                     },
@@ -328,7 +335,10 @@ internal fun SettingsList(
                         Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
                     },
                     headlineContent = {
-                        ListItemText(stringResource(R.string.ai_settings_show_reasoning_title))
+                        ListItemText(
+                            stringResource(R.string.ai_settings_show_reasoning_title),
+                            stringResource(R.string.ai_settings_show_reasoning_support)
+                        )
                     },
                     trailingContent = {
                         Switch(checked = showReasoning, onCheckedChange = null)

@@ -34,8 +34,7 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 @Composable
 fun ListItemText(
     headline: String,
-    // 不给说明就是单行行：列表项的高度由最高的那个元素决定，少一行就矮一档（M3 列表项 56/72/88dp 就是这么来的）
-    supporting: String? = null,
+    supporting: String?,
     modifier: Modifier = Modifier,
     supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     trailingLabel: String? = null
