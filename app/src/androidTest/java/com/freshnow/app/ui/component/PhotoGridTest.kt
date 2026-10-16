@@ -6,7 +6,6 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
@@ -90,7 +89,10 @@ class PhotoGridTest {
         val bounds = second.getBoundsInRoot()
         val cell = bounds.right - bounds.left
         second.performTouchInput {
-            longClick()
+            // 长按拖动要用 down + 等过阈值 + move + up 拼：longClick() 自己就把手指抱起了，
+            // 之后再 moveBy 会报「没有进行中的手势」
+            down(center)
+            advanceEventTime(600)
             // 往左挪一格多一点：一格宽加一条缝
             moveBy(Offset(-(cell.toPx() + 8.dp.toPx()), 0f))
             up()

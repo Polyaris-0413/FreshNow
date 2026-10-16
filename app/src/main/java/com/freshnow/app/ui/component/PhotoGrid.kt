@@ -122,10 +122,14 @@ internal fun PhotoGrid(
      */
     val visualItems = items.withDraggedAt(draggingKey, hoverIndex)
     /**
-     * 被拖的那一格在**真实列表**里的下标。拖动期间真实列表不动，所以它是个定值；
-     * 它同时也是「手指位移的参考点」——位移说的是「相对这一格的中心挪了多远」。
+     * 被拖的那一格在**真实列表**里的下标，在长按开始那一刻定下。
+     *
+     * 它必须是 state，不能是组合时算出来的值：拖动开始之前根本没有人在拖，那时算出来的
+     * 是无意义的 -1；而手势协程与 `graphicsLayer` 的绘制回调都只在**第一次组合**时把外层的
+     * 值捕获一次，此后永远读到那个 -1——于是起始位置算不出来（让位错位）、松手也提交不了
+     * （`from < 0` 直接返回）。这与上一轮那个「协程捕获了组合时的 index」是同一类错误。
      */
-    val draggingFrom = draggingKey?.let { key -> items.indexOfFirst { it.key == key } } ?: -1
+    var dragFromIndex by remember { mutableStateOf(-1) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 三列等宽：总宽减去两条缝再三等分。高度得自己算出来——惰性网格不接受无界高度，
@@ -165,8 +169,8 @@ internal fun PhotoGrid(
                                 // 它现在占着 hoverIndex 那一格，而位移的参考点是起始格：
                                 // 起始格中心 + dragOffset 是手指位置，两者之差才是要加的位移
                                 val delta = gridDelta(
-                                    draggingFrom,
-                                    hoverIndex ?: draggingFrom,
+                                    dragFromIndex,
+                                    hoverIndex ?: dragFromIndex,
                                     stepPx
                                 )
                                 translationX = dragOffset.x - delta.x
@@ -178,6 +182,7 @@ internal fun PhotoGrid(
                         .pointerInput(item.key) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
+                                    dragFromIndex = latestIndex
                                     dragOffset = Offset.Zero
                                     hoverIndex = latestIndex
                                     draggingKey = item.key
@@ -188,16 +193,17 @@ internal fun PhotoGrid(
                                     dragOffset += amount
                                     // 只改「占着哪一格」，不动真实列表：让位是上面那份渲染顺序的事
                                     hoverIndex = gridTargetIndex(
-                                        draggingFrom,
+                                        dragFromIndex,
                                         dragOffset,
                                         stepPx,
                                         count
                                     )
                                 },
                                 onDragEnd = {
-                                    val from = draggingFrom
+                                    val from = dragFromIndex
                                     val to = (hoverIndex ?: from).coerceIn(0, items.lastIndex)
-                                    if (from < 0 || to == from) {
+                                    if (from !in items.indices || to == from) {
+                                        dragFromIndex = -1
                                         dragOffset = Offset.Zero
                                         hoverIndex = null
                                         draggingKey = null
@@ -219,9 +225,11 @@ internal fun PhotoGrid(
                                         dragOffset = Offset.Zero
                                         hoverIndex = null
                                         draggingKey = null
+                                        dragFromIndex = -1
                                     }
                                 },
                                 onDragCancel = {
+                                    dragFromIndex = -1
                                     dragOffset = Offset.Zero
                                     hoverIndex = null
                                     draggingKey = null
