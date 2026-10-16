@@ -37,6 +37,13 @@ internal data class SyncRecordDto(
     val productionDate: String,
     val expiryDate: String,
     val shelfLife: String,
+    /**
+     * 与其余几项不同，它不来自标签，是用户自己写的（见 [ScanRecord.location]）。
+     *
+     * 带默认值不是省事：对端可能是还不知道有这一项的版本，它发来的载荷里根本没有这个键，
+     * 而解码缺键的对象会当场抛异常——那时失掉的不是位置，是那条记录整个同步不过来。
+     */
+    val location: String = "",
     val imageName: String,
     val savedAt: Long,
     val updatedAt: Long,
@@ -74,6 +81,7 @@ internal fun ScanRecord.toDto(): SyncRecordDto = SyncRecordDto(
     productionDate = productionDate,
     expiryDate = expiryDate,
     shelfLife = shelfLife,
+    location = location,
     imageName = imageName,
     savedAt = savedAt,
     updatedAt = updatedAt,
@@ -94,6 +102,7 @@ internal fun SyncRecordDto.toRecord(): ScanRecord = ScanRecord(
     productionDate = productionDate,
     expiryDate = expiryDate,
     shelfLife = shelfLife,
+    location = location,
     imageName = imageName,
     savedAt = savedAt,
     syncId = syncId,
