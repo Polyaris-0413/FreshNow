@@ -48,3 +48,6 @@ keystore.properties
 
 # tools/generate-color-scheme.cjs 的依赖：清单入库以便在新机器上复现，依赖本体不入库
 /node_modules
+
+# 头脑风暴视觉伴侣（superpowers）的会话文件：只在本机看图用，与构建无关
+/.superpowers/
