@@ -83,14 +83,15 @@ val RecordEditUiState.canSave: Boolean
         (!isNew || hasAnyValue)
 
 /**
- * 四个字段里有没有哪一个填了东西。判据只有一处实现（见 data/ScanResult.kt 的 anyFieldFilled），
+ * 四个「模型读到的」字段里有没有哪一个填了东西（位置不在其列——它是用户自己写的，
+ * 不参与「这条记录有没有内容」这个判据）。判据只有一处实现（见 data/ScanResult.kt 的 anyFieldFilled），
  * 与扫描侧「一个字段都没读到就不存」是同一条规矩。
  */
 val RecordEditUiState.hasAnyValue: Boolean
     get() = anyFieldFilled(productName, productionDate, expiryDate, shelfLife)
 
 /**
- * 草稿里四个字段按落库写法规整后的样子（见 [RecordEditViewModel.save]）。
+ * 草稿里的字段按落库写法规整后的样子（见 [RecordEditViewModel.save]）。
  *
  * 提着它是因为插入与覆盖两条路要的是同一套规整（[ScanValueFormat]）：各写一遍的话，
  * 「值不管谁写的、落库只有一种写法」这条规矩会从一个分支漏掉，而那就是同一个日期在库里
@@ -116,7 +117,7 @@ private fun RecordEditUiState.storedFields() = StoredFields(
 /**
  * 改一条记录的文字字段、位置与照片，或者手填一条还没有的新记录（手动录入，见 [RecordEditViewModel.startNew]）。
  *
- * 四项放在同一份草稿里一起改、一起存：过期日期可能是标签印刷的值，也可能是由生产日期与保质期
+ * 这些字段放在同一份草稿里一起改、一起存：过期日期可能是标签印刷的值，也可能是由生产日期与保质期
  * 推算出来的派生值，这条联动必须在同一屏里看得见——逐个字段就地改会把它藏起来（见 ExpiryCalculator）。
  *
  * 照片也在这份草稿里，理由相同：它是同一条记录的一个字段，与文字一起改、一起存，
