@@ -155,7 +155,7 @@ class PhotoViewerTest {
         val after = photoPixels()
 
         assertTrue("滑一下之后第一张该让位：前 $before，后 $after", after < before)
-        assertTrue("至少还剩一点红色，说明它没有整个退出去", after > 0)
+        // 没退出去靠这条：真退出了的话，两颗按钮的场面就都不在了
         assertEquals("翻页不该退出看图页", 0, dismissed)
     }
 

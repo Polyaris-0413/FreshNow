@@ -66,14 +66,13 @@ class RecordEditFormTest {
     }
 
     /**
-     * 照片与四个字段同屏。它也是这条记录的一个字段，藏在别的页面会让人以为照片改不了；
-     * 没有照片时那块占位图同样要在，否则换个照片就没处可点
+     * 照片区空着时也要在：新记录就是从这里开始加图的
      */
     @Test
     fun showsPhotoField() {
         setContent()
 
-        composeRule.onNodeWithContentDescription("无图片").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("添加照片").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("扫描照片").assertDoesNotExist()
     }
 
@@ -92,7 +91,7 @@ class RecordEditFormTest {
     fun gridShowsEveryDraftPhoto() {
         setContent(uiState = EMPTY.copy(photos = listOf(photo(1), photo(2), photo(3))))
 
-        composeRule.onAllNodesWithContentDescription("移除照片").assertCountEquals(3)
+        composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(3)
     }
 
     /** 一张都没有时照片区仍有那格「+」：新记录就是这样开始加图的 */
@@ -113,7 +112,7 @@ class RecordEditFormTest {
             onRemovePhoto = { removed = it }
         )
 
-        composeRule.onAllNodesWithContentDescription("移除照片")[1].performClick()
+        composeRule.onAllNodesWithContentDescription("无图片")[1].performClick()
 
         assertEquals("第二格的 ✕ 要报回下标 1", 1, removed)
     }

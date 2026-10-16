@@ -176,7 +176,8 @@ class RecordDetailPhotoTest {
 
         composeRule.onNodeWithText("1/2").assertIsDisplayed()
 
-        composeRule.onRoot().performTouchInput { swipeLeft() }
+        // 在**照片上**滑：root 的中心可能落在下面的字段区，那一下滑不到 pager
+        composeRule.onAllNodesWithContentDescription(PHOTO)[0].performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
         assertEquals("滑一下该翻到第二张", 1, viewModel.uiState.value.mainIndex)

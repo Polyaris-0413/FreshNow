@@ -33,7 +33,7 @@ class PhotoGridTest {
         setContent(items = (1..MAX_RECORD_IMAGES).map { PhotoGridItem(key = "k$it", image = null) })
 
         composeRule.onNodeWithContentDescription(ADD).assertDoesNotExist()
-        composeRule.onAllNodesWithContentDescription(REMOVE).assertCountEquals(MAX_RECORD_IMAGES)
+        composeRule.onAllNodesWithContentDescription(TILE).assertCountEquals(MAX_RECORD_IMAGES)
     }
 
     /** 六张时还留着一格「+」 */
@@ -50,7 +50,7 @@ class PhotoGridTest {
         setContent(items = emptyList())
 
         composeRule.onNodeWithContentDescription(ADD).assertIsDisplayed()
-        composeRule.onAllNodesWithContentDescription(REMOVE).assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription(TILE).assertCountEquals(0)
     }
 
     /** 点某一格报的是那一格的序号（0 起），不是别的格 */
@@ -62,7 +62,7 @@ class PhotoGridTest {
             onRemove = { removed = it }
         )
 
-        composeRule.onAllNodesWithContentDescription(REMOVE)[1].performClick()
+        composeRule.onAllNodesWithContentDescription(TILE)[1].performClick()
 
         assertEquals("第二格要报回下标 1", 1, removed)
     }
@@ -80,6 +80,7 @@ class PhotoGridTest {
 
     private companion object {
         const val ADD = "添加照片"
-        const val REMOVE = "移除照片"
+        /** 格子本身的描述：测试里都不给位图，所以是占位图那一档 */
+        const val TILE = "无图片"
     }
 }

@@ -108,20 +108,26 @@ internal fun PhotoGrid(
 }
 
 /**
- * 一格照片。整格可点，点了就是「要移除这一张」——语义挂在可点的那块区域上，而不是里面的图标上：
- * 按语义找节点的测试与无障碍工具找到的必须是能点的那个。
+ * 一格照片。
+ *
+ * 语义分两层：格子的描述说的是「这里是什么」（照片 / 占位图），动作的描述说的是「点它会怎样」
+ * （要移除这一张）。两层都要有——只说动作的话，无障碍读屏读到的是「移除照片、移除照片…」一串，
+ * 听不出格子里到底有没有图；只说内容的话，用户又不知道为什么它能点。
  */
 @Composable
 private fun PhotoTile(item: PhotoGridItem, onRemove: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(R.string.record_image_remove)
+    val removeLabel = stringResource(R.string.record_image_remove)
+    val tileLabel = stringResource(
+        if (item.image != null) R.string.record_image else R.string.record_image_missing
+    )
     Box(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onRemove, onClickLabel = label)
-            .semantics { contentDescription = label }
+            .clickable(onClick = onRemove, onClickLabel = removeLabel)
+            .semantics { contentDescription = tileLabel }
     ) {
         if (item.image != null) {
             Image(

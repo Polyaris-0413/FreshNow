@@ -168,7 +168,9 @@ fun PhotoViewer(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
             // 只有一张时不让它吃手势：那样「水平拖动退出」就再没机会触发（见上面的退出判据）
-            userScrollEnabled = pageCount > 1
+            // 不让它自己吃手势：捏合、下滑退出、水平翻页统一由下面那层盒子处理（见那里的说明）。
+            // 两层都吃的话会互相抢，谁都拿不准
+            userScrollEnabled = false
         ) { page ->
             val current = page == pagerState.currentPage
             val pageSize = photoSize(images[page], viewport)
@@ -237,18 +239,30 @@ fun PhotoViewer(
                         val distance = drag.getDistance()
                         // 多图时水平方向归翻页，退出只看垂直位移：否则一次左右滑会既翻页又退出
                         val dismissDistance = if (pageCount > 1) abs(drag.y) else distance
+                        val turnPage = pageCount > 1 && !multiTouch && zoom <= 1f &&
+                            abs(drag.x) > dismissThreshold
                         Log.d(
                             TAG,
                             "手势结束 多指=$multiTouch zoom=$zoom 拖动=(${drag.x.toInt()},${drag.y.toInt()}) " +
                                 "距离=${dismissDistance.toInt()} 阈值=${dismissThreshold.toInt()} pan=(${offset.x.toInt()},${offset.y.toInt()})"
                         )
-                        if (!multiTouch && zoom <= 1f && dismissDistance > dismissThreshold) {
-                            // 这一页马上就没了，回弹动画不必跑：退场的共享元素过渡接着演，
-                            // 图就停在跟手的位置，不会先弹回正中
-                            Log.d(TAG, "退出：拖拽 拖动=(${drag.x.toInt()},${drag.y.toInt()})")
-                            dismiss()
-                        } else {
-                            animateDragBack()
+                        when {
+                            turnPage -> {
+                                // 水平拖够了就翻一张。翻页也归这一层：pager 自己不吃手势，
+                                // 两层都吃的话会互相抢，谁都拿不准
+                                val target = (pagerState.currentPage + if (drag.x < 0) 1 else -1)
+                                    .coerceIn(0, pageCount - 1)
+                                scope.launch { pagerState.animateScrollToPage(target) }
+                            }
+
+                            !multiTouch && zoom <= 1f && dismissDistance > dismissThreshold -> {
+                                // 这一页马上就没了，回弹动画不必跑：退场的共享元素过渡接着演，
+                                // 图就停在跟手的位置，不会先弹回正中
+                                Log.d(TAG, "退出：拖拽 拖动=(${drag.x.toInt()},${drag.y.toInt()})")
+                                dismiss()
+                            }
+
+                            else -> animateDragBack()
                         }
                     }
                 }

@@ -20,18 +20,20 @@ class ScanActionBarTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 还没扫到内容时两个入口必须置灰：此时点保存等于存一条空记录 */
+    /** 还没扫到内容时两个入口必须置灰：此时点下去等于存一条空记录 */
     @Test
     fun nothingScanned_disablesBothActions() {
         setContent(enabled = false)
 
         composeRule.onNodeWithText("清空").assertIsNotEnabled()
-        composeRule.onNodeWithText("保存").assertIsNotEnabled()
+        composeRule.onNodeWithText("下一步").assertIsNotEnabled()
     }
 
     /**
-     * 开关打开时那颗按钮叫「下一步」：那一按下去还要接着填位置，写着「保存」会让人以为这一步完了。
-     * 关着时它就是「保存」——两边的说法都不能少，否则用户从按钮上看不出接下来还有没有事
+     * 那颗主按钮只能叫「下一步」。
+     *
+     * 它按下去只是翻面接着编（真正落库是编辑态里那颗「保存」），写着「保存」会让人以为这一步
+     * 已经完了——位置还没填、图也许还没加。
      */
     @Test
     fun primaryButtonSaysWhatComesNext() {
@@ -44,14 +46,14 @@ class ScanActionBarTest {
     @Test
     fun hasScannedResult_actionsCanBeTriggered() {
         var cleared = 0
-        var saved = 0
-        setContent(enabled = true, onClear = { cleared++ }, onNextStep = { saved++ })
+        var movedOn = 0
+        setContent(enabled = true, onClear = { cleared++ }, onNextStep = { movedOn++ })
 
         composeRule.onNodeWithText("清空").assertIsEnabled().performClick()
-        composeRule.onNodeWithText("保存").assertIsEnabled().performClick()
+        composeRule.onNodeWithText("下一步").assertIsEnabled().performClick()
 
         assertEquals(1, cleared)
-        assertEquals(1, saved)
+        assertEquals(1, movedOn)
     }
 
     private fun setContent(
