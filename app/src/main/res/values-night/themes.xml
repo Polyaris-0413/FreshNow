@@ -4,7 +4,7 @@
 <resources>
 
     <!-- 说明见 values/themes.xml；取值等于 DarkColorScheme 的 background（neutral tone 10） -->
-    <color name="window_background">#191C19</color>
+    <color name="window_background">#1B1B1F</color>
 
     <style name="Theme.FreshNow.Base" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
