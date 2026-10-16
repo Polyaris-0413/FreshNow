@@ -135,11 +135,9 @@
     <string name="ai_settings_extra_title">思考参数</string>
     <string name="ai_settings_extra_label">附加请求参数</string>
     <string name="ai_settings_extra_hint">思考档位越低，结果生成越快，但准确度会下降。留空或写法不规范时，跟随服务商默认配置。</string>
-    <string name="ai_settings_extra_default">跟随服务商默认</string>
     <string name="ai_settings_base_url_label">API Base URL</string>
     <string name="ai_settings_model_name_label">模型名</string>
     <string name="ai_settings_api_key_label">API Key</string>
-    <string name="ai_settings_not_configured">未配置</string>
     <string name="error_required_field">此项为必填项</string>
 
     <!-- 欢迎页：只在首次使用时出现一次。五步依次是定位、代价（识别要用自备的模型）、配置、相机权限。
