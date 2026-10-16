@@ -27,6 +27,8 @@
     <string name="scan_status_recognizing">正在识别…</string>
     <string name="scan_status_found">已读到 %1$d 项</string>
     <string name="scan_clear">清空</string>
+    <!-- 开关打开时那颗按钮的字：这一按下去还要接着填位置，叫「保存」会让人以为这一步完了（见 ScanScreen） -->
+    <string name="scan_next_step">下一步</string>
     <!-- 两条文案说的是「点一下会发生什么」，不是「当前是什么状态」：切换态图标的读法在两种设备上不一致 -->
     <string name="scan_flashlight_on">开启手电筒</string>
     <string name="scan_flashlight_off">关闭手电筒</string>

@@ -53,6 +53,7 @@ import com.freshnow.app.ui.showToast
 fun ScanScreen(
     onBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToSupplement: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ScanViewModel = viewModel()
 ) {
@@ -66,9 +67,18 @@ fun ScanScreen(
     var torchOn by rememberSaveable { mutableStateOf(false) }
     val hasResult = uiState.record.hasAnyValue
 
-    // 保存成功即退出扫描页：结果已经进了列表，留在本页没有意义，也避免误以为还没保存
+    // 离开提示里那颗「保存」：那一问问的是「要不要带着结果走」，回答是走，所以存完就退，
+    // 不再多一步——在那里接着填位置只会让人以为退不出去了
     fun saveAndLeave() {
-        if (viewModel.save()) onBack()
+        viewModel.save { onBack() }
+    }
+
+    // 底部那颗按钮：开关打开时它是「下一步」，存住之后进这条记录的表单，
+    // 把那几项只有用户知道的字段（位置）填上；关着时与上面同一条路
+    fun saveAndContinue() {
+        viewModel.save { id ->
+            if (uiState.supplementAfterSave) onNavigateToSupplement(id) else onBack()
+        }
     }
 
     // 有结果时先问一句再走，避免扫到的结果被静默丢掉；没有结果就直接退。
@@ -104,8 +114,9 @@ fun ScanScreen(
         val actionBar: @Composable () -> Unit = {
             ScanActionBar(
                 enabled = hasResult,
+                supplementAfterSave = uiState.supplementAfterSave,
                 onClear = viewModel::clearRecord,
-                onSave = { saveAndLeave() }
+                onSave = { saveAndContinue() }
             )
         }
 
@@ -271,6 +282,10 @@ internal fun ServiceUnavailableDialog(
  * 无内容时置灰而不隐藏：隐藏会让它在第一条识别结果到达的瞬间凭空出现、把上方内容顶一下。
  * 保存是主操作（填充按钮）、清空是次操作（文字按钮），与设置页的取消/保存同一套主次关系。
  *
+ * [supplementAfterSave] 打开时那颗按钮叫「下一步」而不是「保存」：那时按下去只是把这一步存住，
+ * 接着还要进表单填位置，而写着「保存」会让人以为这一步已经完了。这一步存不住是不行的（照片就在
+ * 这一次写入里落盘），所以按钮只能说「还有下一步」，不能说「还没存」。
+ *
  * 两个按钮的「可点 / 不可点」不是用户点出来的，而是识别结果到了自己翻过来的：两端颜色硬切的话，
  * 屏幕上会有一处颜色「啪」地变掉。所以颜色自己插值，并把同一个值喂给默认态与不可点态两个槽
  * （与手电筒按钮同一个办法：开关语义仍由 `enabled` 提供，颜色由我们演）。
@@ -282,6 +297,7 @@ internal fun ServiceUnavailableDialog(
 @Composable
 internal fun ScanActionBar(
     enabled: Boolean,
+    supplementAfterSave: Boolean,
     onClear: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier
@@ -329,7 +345,11 @@ internal fun ScanActionBar(
                 disabledContentColor = saveContentColor
             )
         ) {
-            Text(text = stringResource(R.string.action_save))
+            Text(
+                text = stringResource(
+                    if (supplementAfterSave) R.string.scan_next_step else R.string.action_save
+                )
+            )
         }
     }
 }

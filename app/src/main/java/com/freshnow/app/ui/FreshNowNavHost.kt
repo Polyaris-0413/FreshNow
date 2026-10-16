@@ -115,7 +115,12 @@ fun FreshNowNavHost(
             ScanScreen(
                 onBack = { navigator.navigateUp() },
                 // 压栈而不是切换目的地：从设置回来仍落在扫描页，相机与累加记录都还在
-                onNavigateToSettings = { navigator.navigate(FreshNowRoute.SETTINGS) }
+                onNavigateToSettings = { navigator.navigate(FreshNowRoute.SETTINGS) },
+                // 这条路不一样：保存之后这一程扫描就结束了，所以把扫描页从栈上撤掉。
+                // 留着它的话，在表单里填完位置退回来会落在一张空的扫描页上，还得再按一次返回
+                onNavigateToSupplement = { id ->
+                    navigator.navigate(FreshNowRoute.recordEdit(id), popUpTo = FreshNowRoute.SCAN)
+                }
             )
         }
         composable(

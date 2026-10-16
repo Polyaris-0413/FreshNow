@@ -1,5 +1,7 @@
 package com.freshnow.app.ui.scan
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -27,11 +29,39 @@ class ScanActionBarTest {
         composeRule.onNodeWithText("保存").assertIsNotEnabled()
     }
 
+    /**
+     * 开关打开时那颗按钮叫「下一步」：那一按下去还要接着填位置，写着「保存」会让人以为这一步完了。
+     * 关着时它就是「保存」——两边的说法都不能少，否则用户从按钮上看不出接下来还有没有事
+     */
+    @Test
+    fun saveButtonSaysWhatComesNext() {
+        // 摆一份外面能改的状态：一个用例里只能 setContent 一次，两种文案得在同一棵树上换
+        val supplement = mutableStateOf(true)
+        composeRule.setContent {
+            FreshNowTheme() {
+                ScanActionBar(
+                    enabled = true,
+                    supplementAfterSave = supplement.value,
+                    onClear = {},
+                    onSave = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("下一步").assertIsDisplayed()
+        composeRule.onNodeWithText("保存").assertDoesNotExist()
+
+        composeRule.runOnUiThread { supplement.value = false }
+
+        composeRule.onNodeWithText("保存").assertIsDisplayed()
+        composeRule.onNodeWithText("下一步").assertDoesNotExist()
+    }
+
     @Test
     fun hasScannedResult_actionsCanBeTriggered() {
         var cleared = 0
         var saved = 0
-        setContent(enabled = true, onClear = { cleared++ }, onSave = { saved++ })
+        setContent(enabled = true, supplementAfterSave = false, onClear = { cleared++ }, onSave = { saved++ })
 
         composeRule.onNodeWithText("清空").assertIsEnabled().performClick()
         composeRule.onNodeWithText("保存").assertIsEnabled().performClick()
@@ -42,12 +72,18 @@ class ScanActionBarTest {
 
     private fun setContent(
         enabled: Boolean,
+        supplementAfterSave: Boolean = false,
         onClear: () -> Unit = {},
         onSave: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme() {
-                ScanActionBar(enabled = enabled, onClear = onClear, onSave = onSave)
+                ScanActionBar(
+                    enabled = enabled,
+                    supplementAfterSave = supplementAfterSave,
+                    onClear = onClear,
+                    onSave = onSave
+                )
             }
         }
     }

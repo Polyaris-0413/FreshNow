@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.AiVisionClient
+import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.ScanRecordRepository
@@ -41,6 +42,11 @@ data class ScanUiState(
     val expiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
     val reasoning: String = "",
     val showReasoning: Boolean = false,
+    /**
+     * 底部那颗按钮这一按下去是不是还要接着填位置（见 BehaviorSettings.supplementAfterSave）。
+     * 初值取默认值而不等设置读回来：先按「还要接着填」写，读回来的真值不一样再改口
+     */
+    val supplementAfterSave: Boolean = true,
     /** 取景框里那枚状态胶囊该说什么，见 [ScanStatus] */
     val status: ScanStatus = ScanStatus.Hidden,
     /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
@@ -50,6 +56,7 @@ data class ScanUiState(
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepository = AiSettingsRepository(application)
+    private val behaviorRepository = BehaviorSettingsRepository(application)
     private val recordRepository = ScanRecordRepository(application)
     private val client = AiVisionClient()
 
@@ -79,6 +86,12 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settingsRepository.aiSettings.collect { settings ->
                 _uiState.update { it.copy(showReasoning = settings.showReasoning) }
+            }
+        }
+        // 同上：在设置里改「保存后接着填」后回到本页，那颗按钮的文案当场跟着变
+        viewModelScope.launch {
+            behaviorRepository.behaviorSettings.collect { settings ->
+                _uiState.update { it.copy(supplementAfterSave = settings.supplementAfterSave) }
             }
         }
     }
@@ -164,14 +177,21 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 保存当前累加记录，成功后清空以便接着扫描下一件商品。无可保存内容时返回 false
      */
-    fun save(): Boolean {
+    /**
+     * 落库之后回调新记录的 id，界面凭它决定接着去哪（开关打开时进这条记录的表单去补填）。
+     *
+     * 用回调而不是返回 id：那是一次挂在本 ViewModel 作用域上的异步写入，方法当场返回时还没有 id。
+     * 一个字段都没读到就不写、也不回调——与「清空 / 保存」置灰用的是同一条判据。
+     */
+    fun save(onSaved: (Long) -> Unit) {
         val record = _uiState.value.record
-        if (!record.hasAnyValue) return false
+        if (!record.hasAnyValue) return
 
         val frame = latestFrame
-        viewModelScope.launch { recordRepository.save(record, frame) }
+        viewModelScope.launch {
+            onSaved(recordRepository.save(record, frame))
+        }
         clearRecord()
-        return true
     }
 
     /**

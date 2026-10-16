@@ -130,6 +130,29 @@ class SettledNavigatorTest {
     }
 
     /**
+     * 带 popUpTo 的那一支：来路那一页要真的从返回栈上撤掉。
+     *
+     * 【为什么盯它】扫描页的「下一步」走的是这一支。撤不掉不是显错，而是补填完退回来时落在一张
+     * 空的扫描页上——得再按一次返回才回得去，而屏幕上没有任何东西解释那一下。
+     */
+    @Test
+    fun navigateWithPopUpTo_dropsThePageItCameFrom() {
+        setContent()
+
+        composeRule.runOnUiThread { navigator.navigate(B) }
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
+        composeRule.runOnUiThread { navigator.navigate(C, popUpTo = B) }
+        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
+
+        composeRule.onNodeWithText(C).assertExists()
+        assertEquals(
+            "B 应当从栈上撤掉：栈里是 导航图 + 起点 + C",
+            listOf(null, A, C),
+            navController.currentBackStack.value.map { it.destination.route }
+        )
+    }
+
+    /**
      * 一帧一帧推到 [text] 那一页出现为止。
      *
      * 不按「推多久」写死：转场结束、延迟那一程出发、新页开始进场，这几步各有一两帧的调度延迟，

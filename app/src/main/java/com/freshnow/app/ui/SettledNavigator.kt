@@ -43,6 +43,16 @@ class SettledNavigator internal constructor(
     /** 去 [route]；上一次转场若还没演完，等它收尾再走 */
     fun navigate(route: String) = navigateWhenSettled { navController.navigate(route) }
 
+    /**
+     * 去 [route]，并把 [popUpTo] 那一页连同它上面的页面一并从返回栈上撤掉。
+     *
+     * 扫描页的「下一步」走这一支：那一按下去这一程扫描就结束了（结果已经落库），而撤不掉的话，
+     * 补填完退回来会落在一张空的扫描页上，还得再按一次返回才回得去。
+     */
+    fun navigate(route: String, popUpTo: String) = navigateWhenSettled {
+        navController.navigate(route) { popUpTo(popUpTo) { inclusive = true } }
+    }
+
     /** 退回上一页；同上 */
     fun navigateUp() = navigateWhenSettled { navController.navigateUp() }
 
