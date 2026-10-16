@@ -158,42 +158,52 @@ class RecordDetailPhotoTest {
         }
     }
 
-    /** 两张时主图下面给一排缩略图，两格都在 */
+    /**
+     * 两张时主图右侧给一枚「下一张」的箭头：缩略图那一排已经拆了（它把正文挤下去），
+     * 翻页的指引改压在照片边缘上
+     */
     @Test
-    fun twoImagesShowThumbnailRow() {
+    fun twoImagesShowNextArrow() {
         seedRecordWithPhoto(count = 2)
         setContent()
 
         composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithContentDescription(THUMBNAIL).fetchSemanticsNodes().size == 2
+            composeRule.onAllNodesWithContentDescription(NEXT).fetchSemanticsNodes().isNotEmpty()
         }
+
+        composeRule.onNodeWithContentDescription(NEXT).assertIsDisplayed()
+        // 站在第一张上，左侧没有上一张
+        composeRule.onNodeWithContentDescription(PREVIOUS).assertDoesNotExist()
     }
 
-    /** 一张时不留一排孤零零的缩略图：主图就是它，再说一遍没有信息 */
+    /** 一张时两枚箭头都不给：没得翻，画了反而让人以为还有图 */
     @Test
-    fun singleImageHasNoThumbnailRow() {
+    fun singleImageHasNoPagingArrows() {
         seedRecordWithPhoto()
         setContent()
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.onAllNodesWithContentDescription(PHOTO).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onAllNodesWithContentDescription(THUMBNAIL).assertCountEquals(0)
+        composeRule.onNodeWithContentDescription(NEXT).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription(PREVIOUS).assertDoesNotExist()
     }
 
-    /** 点第二张缩略图，主图换成它 */
+    /** 点「下一张」，主图换成它，并且这时左边出现「上一张」 */
     @Test
-    fun tappingThumbnailSwapsTheMainImage() {
+    fun tappingNextArrowSwapsTheMainImage() {
         seedRecordWithPhoto(count = 2)
         setContent()
         composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithContentDescription(THUMBNAIL).fetchSemanticsNodes().size == 2
+            composeRule.onAllNodesWithContentDescription(NEXT).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onAllNodesWithContentDescription(THUMBNAIL)[1].performClick()
+        composeRule.onNodeWithContentDescription(NEXT).performClick()
         composeRule.waitForIdle()
 
         assertEquals("主图下标该跟着换", 1, viewModel.uiState.value.mainIndex)
+        composeRule.onNodeWithContentDescription(PREVIOUS).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(NEXT).assertDoesNotExist()
     }
 
     /**
@@ -257,10 +267,11 @@ class RecordDetailPhotoTest {
 
     private companion object {
         const val PHOTO = "扫描照片"
-        /** 缩略图那一排每一格的描述（见 strings.xml 的 record_image_view）*/
-        const val THUMBNAIL = "查看这张"
         /** 没有照片时的占位图描述 */
         const val MISSING = "无图片"
+        /** 主图左右那两枚翻页箭头 */
+        const val NEXT = "下一张"
+        const val PREVIOUS = "上一张"
         /** 取样与步进：一帧 16ms，开头取一帧当「半路」的样本 */
         const val FRAME_MS = 16L
         const val MID_SAMPLE_MS = 80L

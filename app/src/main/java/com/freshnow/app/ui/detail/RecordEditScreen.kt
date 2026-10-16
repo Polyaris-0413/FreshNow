@@ -206,6 +206,7 @@ fun RecordEditScreen(
                 onBack = onBack,
                 onSave = viewModel::save,
                 onRemovePhoto = viewModel::onPhotoRemoved,
+                onMovePhoto = viewModel::onPhotoMoved,
                 onAddPhoto = { showImageSources = true },
                 viewModel = viewModel
             )
@@ -239,6 +240,7 @@ private fun EditForm(
     onBack: () -> Unit,
     onSave: ((imageSaved: Boolean) -> Unit) -> Unit,
     onRemovePhoto: (Int) -> Unit,
+    onMovePhoto: (from: Int, to: Int) -> Unit,
     onAddPhoto: () -> Unit,
     viewModel: RecordEditViewModel
 ) {
@@ -313,6 +315,7 @@ private fun EditForm(
                 derivedExpiry = uiState.derivedExpiry,
                 onFieldChange = viewModel::onFieldChange,
                 onRemovePhoto = onRemovePhoto,
+                onMovePhoto = onMovePhoto,
                 onAddPhoto = onAddPhoto,
                 modifier = Modifier
                     .fillMaxSize()

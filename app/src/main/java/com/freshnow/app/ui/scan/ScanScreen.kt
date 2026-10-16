@@ -156,6 +156,7 @@ fun ScanScreen(
                     uiState = uiState,
                     onFieldChange = viewModel::onFieldChange,
                     onRemovePhoto = viewModel::onPhotoRemoved,
+                    onMovePhoto = viewModel::onPhotoMoved,
                     onAddPhoto = { showImageSources = true },
                     onContinueScanning = viewModel::backToScanning,
                     onSave = { viewModel.save { onBack() } },
@@ -371,6 +372,7 @@ internal fun ScanEditStage(
     uiState: ScanUiState,
     onFieldChange: (RecordField, String) -> Unit,
     onRemovePhoto: (Int) -> Unit,
+    onMovePhoto: (from: Int, to: Int) -> Unit,
     onAddPhoto: () -> Unit,
     onContinueScanning: () -> Unit,
     onSave: () -> Unit,
@@ -386,6 +388,7 @@ internal fun ScanEditStage(
             derivedExpiry = uiState.expiry,
             onFieldChange = onFieldChange,
             onRemovePhoto = onRemovePhoto,
+            onMovePhoto = onMovePhoto,
             onAddPhoto = onAddPhoto,
             modifier = Modifier
                 .weight(1f)

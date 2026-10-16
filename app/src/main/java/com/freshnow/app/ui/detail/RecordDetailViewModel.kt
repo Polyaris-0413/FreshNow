@@ -38,8 +38,8 @@ data class RecordDetailUiState(
 val RecordDetailUiState.mainImage: Bitmap?
     get() = images.getOrNull(mainIndex)
 
-/** 详情页那一排缩略图要不要画：只有一张时主图就是它，再画一排等大的缩略图只是把同一张图说两遍 */
-val RecordDetailUiState.showsThumbnails: Boolean
+/** 多于一张时，主图左右才需要翻页指引：只有一张时没得翻 */
+val RecordDetailUiState.hasSeveralImages: Boolean
     get() = images.size > 1
 
 class RecordDetailViewModel(application: Application) : AndroidViewModel(application) {

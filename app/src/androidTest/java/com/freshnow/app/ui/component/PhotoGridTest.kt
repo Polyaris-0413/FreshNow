@@ -73,7 +73,7 @@ class PhotoGridTest {
     ) {
         composeRule.setContent {
             FreshNowTheme {
-                PhotoGrid(items = items, onRemove = onRemove, onAdd = {})
+                PhotoGrid(items = items, onRemove = onRemove, onMove = { _, _ -> }, onAdd = {})
             }
         }
     }

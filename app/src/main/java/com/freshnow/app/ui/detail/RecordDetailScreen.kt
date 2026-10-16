@@ -8,19 +8,20 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,9 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
@@ -177,21 +182,27 @@ private fun RecordDetailContent(
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
                 val image = uiState.mainImage
-                ScanPhoto(
-                    image = image,
-                    modifier = photoModifier,
-                    // 占位图不可点：那里没有图可看，能点开一张空图只会让人以为坏了
-                    onClick = if (image != null) onOpenImage else null,
-                    onClickLabel = if (image != null) stringResource(R.string.record_image_open) else null
-                )
-
-                // 多于一张时才给这一排：一张时主图就是它，再画一排等大的缩略图只是把同一张图说两遍
-                if (uiState.showsThumbnails) {
-                    PhotoThumbnailRow(
-                        images = uiState.images,
-                        mainIndex = uiState.mainIndex,
-                        onSelect = onSelectImage
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    ScanPhoto(
+                        image = image,
+                        modifier = photoModifier,
+                        // 占位图不可点：那里没有图可看，能点开一张空图只会让人以为坏了
+                        onClick = if (image != null) onOpenImage else null,
+                        onClickLabel = if (image != null) stringResource(R.string.record_image_open) else null
                     )
+
+                    // 翻页的指引压在照片的左右边缘：原来这里是下面一排缩略图，它把正文往下挤了
+                    // 一大截（用户反馈「挡住下面的卡片」）。箭头不占版面，同时把「左右也能翻」说出来。
+                    // 手也挂在这一层：指哪都能滑
+                    if (uiState.hasSeveralImages && image != null) {
+                        PhotoPagingAffordance(
+                            hasPrevious = uiState.mainIndex > 0,
+                            hasNext = uiState.mainIndex < uiState.images.lastIndex,
+                            onPrevious = { onSelectImage(uiState.mainIndex - 1) },
+                            onNext = { onSelectImage(uiState.mainIndex + 1) },
+                            modifier = Modifier.matchParentSize()
+                        )
+                    }
                 }
 
                 FreshNowResultFields(
@@ -209,42 +220,95 @@ private fun RecordDetailContent(
 }
 
 /**
- * 主图下面那一排缩略图：点哪张，上面就换成哪张。
+ * 主图上的翻页指引：左右各一枚半透明箭头（只在那一侧还有图时出现），整块都能横向滑。
  *
- * 一排而不是九宫格：详情页这里是「换看哪一张」，不是「管理这几张」（增删在编辑页），
- * 横着滑过去就够了，也不必纵向占掉正文的地方。
- *
- * 当前那张用一圈描边标出来：没有它，「点的这张和上面那张是不是同一张」只能靠认图。
+ * 箭头压在图上而不是排在下面：详情页的纵向位置得留给正文（用户反馈「挡住下面的卡片」）。
+ * 箭头本身也可点：滑是给知道能滑的人的，箭头是给不知道的人的。
  */
 @Composable
-private fun PhotoThumbnailRow(
-    images: List<Bitmap>,
-    mainIndex: Int,
-    onSelect: (Int) -> Unit
+private fun PhotoPagingAffordance(
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val shape = MaterialTheme.shapes.extraSmall
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(FreshNowSpacing.xxxs)) {
-        itemsIndexed(images) { index, bitmap ->
-            Image(
-                bitmap = remember(bitmap) { bitmap.asImageBitmap() },
-                contentDescription = stringResource(R.string.record_image_view),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(FreshNowSize.thumbnail)
-                    .clip(shape)
-                    .then(
-                        if (index == mainIndex) {
-                            Modifier.border(
-                                width = FreshNowSize.selectionOutlineWidth,
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = shape
-                            )
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .clickable { onSelect(index) }
+    Box(
+        modifier = modifier.pointerInput(hasPrevious, hasNext) {
+            var travelled = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { travelled = 0f },
+                onHorizontalDrag = { change, amount ->
+                    change.consume()
+                    travelled += amount
+                },
+                onDragEnd = {
+                    val threshold = SWIPE_THRESHOLD.toPx()
+                    when {
+                        travelled <= -threshold && hasNext -> onNext()
+                        travelled >= threshold && hasPrevious -> onPrevious()
+                    }
+                }
+            )
+        }
+    ) {
+        if (hasPrevious) {
+            PagingArrow(
+                forward = false,
+                onClick = onPrevious,
+                modifier = Modifier.align(Alignment.CenterStart)
+            )
+        }
+        if (hasNext) {
+            PagingArrow(
+                forward = true,
+                onClick = onNext,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
     }
 }
+
+/**
+ * 一枚翻页箭头。
+ *
+ * 底取 scrim 半透明：M3 没有给「压在图片上的浮层」这一档，而 scrim 本来就是给内容之上的
+ * 遮罩用的——纯色底会把照片盖掉一块，半透明才既看得见箭头又看得出底下有图。
+ */
+@Composable
+private fun PagingArrow(forward: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val label = stringResource(
+        if (forward) R.string.record_image_next else R.string.record_image_previous
+    )
+    Box(
+        modifier = modifier
+            .padding(FreshNowSpacing.xs)
+            .size(FreshNowSize.icon)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = ARROW_SCRIM_ALPHA))
+            .clickable(onClick = onClick, onClickLabel = label)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_back),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.inverseOnSurface,
+            modifier = Modifier
+                .size(FreshNowSize.smallIcon)
+                // 只有一枚返回箭头图标，往右那一侧把它翻过来
+                .graphicsLayer { if (forward) scaleX = -1f }
+        )
+    }
+}
+
+/**
+ * 横滑多少 dp 才算「翻一张」。
+ *
+ * M3 没给横向翻页的手势阈值（它规定的是拖拽与滑动退出这类），这里取 48dp：与 M3 的最小触摸
+ * 目标同一档，手指走过这一段必然是有意的。
+ */
+private val SWIPE_THRESHOLD = 48.dp
+
+/** 箭头底的不透明度。M3 没有这一档，取到「看得出底下有图、箭头又清楚」为止 */
+private const val ARROW_SCRIM_ALPHA = 0.32f
