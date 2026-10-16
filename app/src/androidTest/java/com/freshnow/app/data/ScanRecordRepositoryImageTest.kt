@@ -212,6 +212,26 @@ class ScanRecordRepositoryImageTest {
         updated.imageNames.forEach { assertNotNull("每一张都要真的在磁盘上：$it", store.find(it)) }
     }
 
+    /** 编辑页那一路：旧图留一张、新加两张，保存后库里三个名字、磁盘上三个文件 */
+    @Test
+    fun editPath_writesSeveralPhotosInOneGo() = runBlocking {
+        val saved = insertWithPhoto()
+        val keptName = saved.imageName
+
+        val written = repository.update(
+            saved,
+            ImageChange.Update(kept = listOf(keptName), added = listOf(NEW_PHOTO, ORPHAN_PHOTO))
+        )
+
+        val updated = requireNotNull(repository.find(saved.id))
+        assertTrue(written)
+        assertEquals(
+            "旧的那张排在前面，新加的在后面",
+            listOf(keptName, store.write(NEW_PHOTO), store.write(ORPHAN_PHOTO)),
+            updated.imageNames
+        )
+    }
+
     /** 三条里减去中间那条，另外两张的名字与顺序一个都不能动 */
     @Test
     fun update_droppingOneKeepsTheOthers() = runBlocking {

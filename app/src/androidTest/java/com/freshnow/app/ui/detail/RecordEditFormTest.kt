@@ -4,9 +4,11 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -86,37 +88,68 @@ class RecordEditFormTest {
     @Test
     fun showsPhotoWhenPresent() {
         val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
-        setContent(uiState = EMPTY.copy(image = bitmap))
+        setContent(uiState = EMPTY.copy(photos = listOf(EditPhoto(id = 1, bitmap = bitmap))))
 
         composeRule.onNodeWithContentDescription("无图片").assertDoesNotExist()
         composeRule.onNodeWithContentDescription("扫描照片").assertIsDisplayed()
     }
 
+    /** 草稿里几张，格子就几格 */
+    @Test
+    fun gridShowsEveryDraftPhoto() {
+        setContent(uiState = EMPTY.copy(photos = listOf(photo(1), photo(2), photo(3))))
+
+        composeRule.onAllNodesWithContentDescription("移除照片").assertCountEquals(3)
+    }
+
+    /** 一张都没有时照片区仍有那格「+」：新记录就是这样开始加图的 */
+    @Test
+    fun emptyPhotoAreaStillOffersAdd() {
+        setContent(uiState = EMPTY.copy(photos = emptyList()))
+
+        composeRule.onNodeWithContentDescription("添加照片").assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription("移除照片").assertCountEquals(0)
+    }
+
+    /** 点某一格的 ✕，报的是那一格的下标 */
+    @Test
+    fun removingAPhotoReportsItsIndex() {
+        var removed = -1
+        setContent(
+            uiState = EMPTY.copy(photos = listOf(photo(1), photo(2), photo(3))),
+            onRemovePhoto = { removed = it }
+        )
+
+        composeRule.onAllNodesWithContentDescription("移除照片")[1].performClick()
+
+        assertEquals("第二格的 ✕ 要报回下标 1", 1, removed)
+    }
+
     /**
-     * 点是照片本身而不是旁边的控件：文本框点哪里都能改，照片也一样。
-     * 两条各一次：有图时点的是照片，没图时点的是占位图。
+     * 两条路各一个入口：点「+」是加图，点某一格是看它。两个动作分开之后，
+     * 「点照片」不再有歧义——它只可能是「我要看这张」。
      */
     @Test
-    fun tappingThePhotoAsksToChangeIt() {
-        var clicked = 0
-        setContent(onChangePhoto = { clicked++ })
+    fun tappingTheAddTileAsksToAddAPhoto() {
+        var added = 0
+        setContent(onAddPhoto = { added++ })
 
-        composeRule.onNodeWithContentDescription("无图片").performClick()
+        composeRule.onNodeWithContentDescription("添加照片").performClick()
 
-        assertEquals(1, clicked)
+        assertEquals(1, added)
     }
 
     @Test
-    fun tappingThePlaceholderAsksToAddAPhoto() {
-        var clicked = 0
+    fun tappingAPhotoOpensThatOne() {
+        var opened = -1
         setContent(
-            uiState = EMPTY.copy(image = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)),
-            onChangePhoto = { clicked++ }
+            uiState = EMPTY.copy(photos = listOf(photo(1), photo(2))),
+            onOpenPhoto = { opened = it }
         )
 
-        composeRule.onNodeWithContentDescription("扫描照片").performClick()
+        composeRule.onAllNodesWithContentDescription("扫描照片")[1].performClick()
 
-        assertEquals(1, clicked)
+        assertEquals("点第二格报的要是 1", 1, opened)
     }
 
     /** 输入要能传到调用方，否则字段只是个摆设 */
@@ -193,7 +226,9 @@ class RecordEditFormTest {
                     },
                     onExpiryDateChange = {},
                     onShelfLifeChange = {},
-                    onChangePhoto = {}
+                    onOpenPhoto = {},
+                    onRemovePhoto = {},
+                    onAddPhoto = {}
                 )
             }
         }
@@ -233,7 +268,9 @@ class RecordEditFormTest {
         uiState: RecordEditUiState = EMPTY,
         onProductNameChange: (String) -> Unit = {},
         onLocationChange: (String) -> Unit = {},
-        onChangePhoto: () -> Unit = {}
+        onOpenPhoto: (Int) -> Unit = {},
+        onRemovePhoto: (Int) -> Unit = {},
+        onAddPhoto: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme() {
@@ -244,11 +281,16 @@ class RecordEditFormTest {
                     onProductionDateChange = {},
                     onExpiryDateChange = {},
                     onShelfLifeChange = {},
-                    onChangePhoto = onChangePhoto
+                    onOpenPhoto = onOpenPhoto,
+                    onRemovePhoto = onRemovePhoto,
+                    onAddPhoto = onAddPhoto
                 )
             }
         }
     }
+
+    /** 草稿里的一张照片。这里只看格子在不在，所以名字与字节都不给 */
+    private fun photo(id: Long) = EditPhoto(id = id)
 
     private companion object {
         /** 三个字段写错时共用的那一句，见 strings.xml */

@@ -33,10 +33,29 @@ import kotlinx.coroutines.withContext
  * 三个 `xxxInvalid` 是「认不出这个写法」：空白不算错（模型没读到、还没填都正常），但只要写了
  * 认不出的东西就算，用于挡下保存与显示错误文案。
  *
- * 照片分成三份：[image] 是本屏要显示的那张，[cropSource] 是相册选来、等着裁剪的原图
- * （非 null 即裁剪页正在显示），[imageChange] 记的是「这张与库里那张是什么关系」——
- * 选中与裁好的照片都只停在草稿里，点保存才落盘，这样取消编辑不会在磁盘上留下没人引用的图。
+ * 照片是一份列表 [photos]（见 [EditPhoto]），另有 [cropSource] 是相册选来、等着裁剪的原图
+ * （非 null 即裁剪页正在显示）。新加的图只停在草稿里，点保存才落盘，这样取消编辑不会在磁盘上
+ * 留下没人引用的图。
  */
+/**
+ * 草稿里的一张照片。
+ *
+ * 两种身份靠前两个字段分：有 [name] 的是库里已经那一张（保存时按名字留下），有 [bytes] 的是刚加
+ * 进来、还没落盘的。两者不会同时有——照片名由内容算出来，只有写盘那一刻才知道。
+ *
+ * [bitmap] 是这一屏要用它显示的那张图：库里那张解码得来，新加的从字节解；解不出来时为 null，
+ * 格子用占位图顶上。
+ *
+ * [id] 是草稿内的身份，给界面在增删时认住同一格用：[name] 与 [bytes] 都会在保存那一刻才定下来，
+ * 只能拿它当 key。
+ */
+data class EditPhoto(
+    val id: Long,
+    val name: String = "",
+    val bytes: ByteArray? = null,
+    val bitmap: Bitmap? = null
+)
+
 data class RecordEditUiState(
     val loaded: Boolean = false,
     val found: Boolean = false,
@@ -60,9 +79,17 @@ data class RecordEditUiState(
     val shelfLifeInvalid: Boolean = false,
     val expiryDateInvalid: Boolean = false,
     val derivedExpiry: ExpiryOutcome = ExpiryOutcome.InsufficientInput,
-    val image: Bitmap? = null,
+    /** 草稿里的照片，顺序即展示顺序、第一位是代表图 */
+    val photos: List<EditPhoto> = emptyList(),
+    /** 相册选来、等着裁剪的原图；非 null 即裁剪页正在显示 */
     val cropSource: Bitmap? = null,
-    val imageChange: ImageChange = ImageChange.Keep,
+    /**
+     * 正在看大图的那一张（下标）；null 表示看图页没开。
+     *
+     * 看图是这一页内的一次状态切换而不是新的目的地：照片已经在内存里，走导航得把文件重读一遍
+     * （与详情页同一个理由）
+     */
+    val viewingPhotoIndex: Int? = null,
     /** 选来的图读不出来时置起，由界面提示一次后清掉（见 RecordEditScreen） */
     val imageReadFailed: Boolean = false,
     /** 正在写库。写盘不是瞬时的，这段时间里再点一次保存就会多弹一层返回栈（见 save） */
@@ -115,6 +142,18 @@ private fun RecordEditUiState.storedFields() = StoredFields(
 )
 
 /**
+ * 草稿里的照片与库里那串名字之间的关系，见 [ImageChange.Update]。
+ *
+ * 当场从草稿推出来，而不是每次增删都维护一份：草稿是唯一真相，关系是它的函数——
+ * 两处各记一份的话，「删了又加回来」「同一张图选两次」这类操作迟早会让它们分家。
+ */
+private val RecordEditUiState.photoChange: ImageChange
+    get() = ImageChange.Update(
+        kept = photos.mapNotNull { photo -> photo.name.takeIf { it.isNotEmpty() } },
+        added = photos.mapNotNull { it.bytes }
+    )
+
+/**
  * 改一条记录的文字字段、位置与照片，或者手填一条还没有的新记录（手动录入，见 [RecordEditViewModel.startNew]）。
  *
  * 这些字段放在同一份草稿里一起改、一起存：过期日期可能是标签印刷的值，也可能是由生产日期与保质期
@@ -140,6 +179,9 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     /** 已经开过手填的草稿。与 [loadedId] 一样只是个判重标记，两者不会同时成立 */
     private var startedNew = false
 
+/** 草稿照片的 id 发到哪儿了。只在草稿内部流转，不与库里的任何东西对应 */
+    private var nextPhotoId = 0L
+
     /**
      * 读入草稿。只读一次、不订阅：正在编辑的值不该被库里的写入抢走。
      *
@@ -160,7 +202,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 _uiState.value = RecordEditUiState(loaded = true, found = false, supplementEnabled = supplementEnabled)
                 return@launch
             }
-            val image = withContext(Dispatchers.IO) { decodeScanImageFile(record) }
+            val photos = loadPhotos(record)
             _uiState.value = RecordEditUiState(
                 loaded = true,
                 found = true,
@@ -170,7 +212,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 productionDate = record.productionDate,
                 expiryDate = record.expiryDate,
                 shelfLife = record.shelfLife,
-                image = image
+                photos = photos
             ).revalidate()
         }
     }
@@ -253,11 +295,10 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 _uiState.update { it.copy(cropSource = null, imageReadFailed = true) }
                 return@launch
             }
-            _uiState.update {
-                it.copy(
-                    image = preview,
-                    cropSource = null,
-                    imageChange = ImageChange.Update(kept = emptyList(), added = listOf(replaced))
+            _uiState.update { state ->
+                state.copy(
+                    photos = state.photos + EditPhoto(id = nextPhotoId++, bytes = replaced, bitmap = preview),
+                    cropSource = null
                 )
             }
         }
@@ -276,17 +317,33 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 _uiState.update { it.copy(imageReadFailed = true) }
                 return@launch
             }
-            _uiState.update {
-                it.copy(image = preview, imageChange = ImageChange.Update(kept = emptyList(), added = listOf(jpeg)))
+            _uiState.update { state ->
+                state.copy(photos = state.photos + EditPhoto(id = nextPhotoId++, bytes = jpeg, bitmap = preview))
             }
         }
     }
 
     /**
-     * 移除照片。只改草稿：库里那张仍在原处（保存时才连文件一起删），所以取消编辑等于没删过。
+     * 移除草稿里的某一张。只改草稿：库里那张仍在原处（保存时才不再引用它，文件由
+     * [ScanRecordRepository.reconcileImages] 收走），所以取消编辑等于没删过。
      */
-    fun onImageRemoved() {
-        _uiState.update { it.copy(image = null, imageChange = ImageChange.Update(kept = emptyList())) }
+    fun onPhotoRemoved(index: Int) {
+        _uiState.update { state ->
+            if (index !in state.photos.indices) {
+                state
+            } else {
+                state.copy(photos = state.photos.filterIndexed { i, _ -> i != index })
+            }
+        }
+    }
+
+    /** 点开某一格看大图。只认草稿里真实存在的下标 */
+    fun onPhotoOpened(index: Int) {
+        _uiState.update { if (index in it.photos.indices) it.copy(viewingPhotoIndex = index) else it }
+    }
+
+    fun closePhotoViewer() {
+        _uiState.update { it.copy(viewingPhotoIndex = null) }
     }
 
     fun closeImageReadFailed() {
@@ -325,7 +382,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                             shelfLife = fields.shelfLife,
                             savedAt = System.currentTimeMillis()
                         ),
-                        current.imageChange
+                        current.photoChange
                     )
 
                     // 记录已经读不到了（比如在别处被删掉）就没有可存的东西，当作照片也没问题，直接退出
@@ -342,7 +399,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                             expiryDate = fields.expiryDate,
                             shelfLife = fields.shelfLife
                         ),
-                        current.imageChange
+                        current.photoChange
                     )
                 }
             } catch (e: CancellationException) {
@@ -360,8 +417,19 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    /** 库里那张照片，读不出来时按「没有照片」处理，与详情页一致 */
-    private fun decodeScanImageFile(record: ScanRecord) = decodeScanImage(repository.imageFile(record))
+    /**
+     * 把库里这条记录的照片读成草稿。
+     *
+     * 解不出来的那张也照样进草稿（[EditPhoto.bitmap] 为 null，格子用占位图顶上）：它还在记录名下，
+     * 从这里悄悄抹掉就等于用户一进编辑页、什么都没做、一保存就把那张图删了。
+     */
+    private suspend fun loadPhotos(record: ScanRecord): List<EditPhoto> = record.imageNames.map { name ->
+        EditPhoto(
+            id = nextPhotoId++,
+            name = name,
+            bitmap = withContext(Dispatchers.IO) { decodeScanImage(repository.imageFile(name)) }
+        )
+    }
 
     /** 按裁剪框切下一块。坐标已经由 [cropWindow] 夹进图内 */
     private fun Bitmap.croppedTo(window: CropWindow): Bitmap {

@@ -141,7 +141,10 @@ class ScanRecordRepository(
     }
 
     /** 记录的代表图（第一张），没有图片或文件已不在时返回 null */
-    fun imageFile(record: ScanRecord): File? = imageStore.find(record.imageName)
+    fun imageFile(record: ScanRecord): File? = imageFile(record.imageName)
+
+    /** 某一张照片的文件，名字对不上形态或文件已不在时返回 null */
+    fun imageFile(name: String): File? = imageStore.find(name)
 
     /** 本地有没有这张照片（名字对得上形态且文件还在） */
     fun hasImage(name: String): Boolean = imageStore.find(name) != null

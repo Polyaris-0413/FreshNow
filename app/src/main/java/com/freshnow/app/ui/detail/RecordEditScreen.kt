@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,7 +53,9 @@ import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.MenuSheetItem
-import com.freshnow.app.ui.component.ScanPhoto
+import com.freshnow.app.ui.component.PhotoGrid
+import com.freshnow.app.ui.component.PhotoGridItem
+import com.freshnow.app.ui.component.PhotoViewer
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.splicedShape
@@ -202,15 +205,37 @@ fun RecordEditScreen(
                 uiState = uiState,
                 onBack = onBack,
                 onSave = viewModel::save,
-                onChangePhoto = { showImageSources = true },
+                onOpenPhoto = viewModel::onPhotoOpened,
+                onRemovePhoto = viewModel::onPhotoRemoved,
+                onAddPhoto = { showImageSources = true },
                 viewModel = viewModel
             )
         }
     }
 
+    // 看图：这一页内的一次状态切换，不是新的目的地——照片已经在内存里，走导航得把文件重读一遍
+    // （与详情页同一个取舍）。它是盖在整页上的一层，所以自带顶标与返回
+    val viewingPhoto = uiState.viewingPhotoIndex?.let { index -> uiState.photos.getOrNull(index)?.bitmap }
+    BackHandler(enabled = viewingPhoto != null) { viewModel.closePhotoViewer() }
+    AnimatedVisibility(visible = viewingPhoto != null) {
+        if (viewingPhoto != null) {
+            FreshNowSubPage(
+                title = stringResource(R.string.record_image),
+                onBack = viewModel::closePhotoViewer
+            ) { innerPadding ->
+                PhotoViewer(
+                    image = viewingPhoto,
+                    onDismiss = viewModel::closePhotoViewer,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                )
+            }
+        }
+    }
+
     if (showImageSources) {
         ChangePhotoSheet(
-            hasImage = uiState.image != null,
             sheetState = imageSheetState,
             onDismissRequest = { showImageSources = false },
             onPickFromGallery = {
@@ -220,8 +245,7 @@ fun RecordEditScreen(
                     )
                 }
             },
-            onTakePhoto = { dismissSheetThen { showCamera = true } },
-            onRemove = { dismissSheetThen(viewModel::onImageRemoved) }
+            onTakePhoto = { dismissSheetThen { showCamera = true } }
         )
     }
 }
@@ -236,7 +260,9 @@ private fun EditForm(
     uiState: RecordEditUiState,
     onBack: () -> Unit,
     onSave: ((imageSaved: Boolean) -> Unit) -> Unit,
-    onChangePhoto: () -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onRemovePhoto: (Int) -> Unit,
+    onAddPhoto: () -> Unit,
     viewModel: RecordEditViewModel
 ) {
     val context = LocalContext.current
@@ -311,7 +337,9 @@ private fun EditForm(
                 onProductionDateChange = viewModel::onProductionDateChange,
                 onExpiryDateChange = viewModel::onExpiryDateChange,
                 onShelfLifeChange = viewModel::onShelfLifeChange,
-                onChangePhoto = onChangePhoto,
+                onOpenPhoto = onOpenPhoto,
+                onRemovePhoto = onRemovePhoto,
+                onAddPhoto = onAddPhoto,
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(formScroll)
@@ -326,24 +354,25 @@ private fun EditForm(
 }
 
 /**
- * 换照片：从哪来，或者不要了。
+ * 添加照片：从哪来。
  *
  * 就是一叠居中卡片（见 MenuBottomSheet），与主页顶栏「更多选项」展开后同一副外观：这里是
  * 挑一个动作，不是一列设置项，M3 的 ListItem 长成「左图右文的一行行」是给后者的。
  *
  * 「从相册选择」与「拍照」拼成一块：两者是同一层级的两个来路，并排各占一半比上下叠成两张卡片
  * 更读得出它们是一组；中间一条 outlineVariant 分隔线把两块分干净（M3 的 connected buttons
- * 就是这么拼的）。「移除照片」自成一张卡——它是另一回事（不要了），且只在真有照片时才出现。
+ * 就是这么拼的）。
+ *
+ * 不再带「移除照片」那一项：照片多了之后，删哪一张由九宫格上那一格的 ✕ 回答，
+ * 而这里只能说「移除照片」——究竟是哪一张并不清楚。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChangePhotoSheet(
-    hasImage: Boolean,
     sheetState: SheetState,
     onDismissRequest: () -> Unit,
     onPickFromGallery: () -> Unit,
-    onTakePhoto: () -> Unit,
-    onRemove: () -> Unit
+    onTakePhoto: () -> Unit
 ) {
     MenuBottomSheet(sheetState = sheetState, onDismissRequest = onDismissRequest) {
         // 两个来源上下拼成一组（上：拍照，下：相册），与结果字段那一组同一套拼法：外圆内方、
@@ -364,13 +393,6 @@ private fun ChangePhotoSheet(
                 text = stringResource(R.string.record_image_source_gallery),
                 onClick = onPickFromGallery,
                 shape = splicedShape(top = innerCorner, bottom = outerCorner)
-            )
-        }
-        // 「不要了」不属于上面那一组：它是另一件事，所以自己一块、四角都取卡片自己的形状
-        if (hasImage) {
-            MenuSheetItem(
-                text = stringResource(R.string.record_image_remove),
-                onClick = onRemove
             )
         }
     }
@@ -401,56 +423,28 @@ internal fun RecordEditForm(
     onProductionDateChange: (String) -> Unit,
     onExpiryDateChange: (String) -> Unit,
     onShelfLifeChange: (String) -> Unit,
-    onChangePhoto: () -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onRemovePhoto: (Int) -> Unit,
+    onAddPhoto: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        // 照片那一栏：一枚缩略图加一句「更换照片」，整行可点。
+        // 照片那一栏：九宫格，末尾一格是「+」，每格右上角是「✕」。
         //
-        // 原来这里是占满宽度的一张大卡片（方形照片约 380dp，半个屏幕还多），再加上五项文字，
-        // 这一页就超过了可视区，必有一项被推到折叠线以下。照片在这一页只需回答「这条记录配的是
-        // 哪张图」与「怎么换掉」；拍得好不好由详情页那张大图负责（那里点开还能看全屏）。
-        // 卡片的轮廓留着，它仍然是一个可编辑项（与几个文本框同一层意思），只是不再占半屏。
+        // 从「一枚缩略图 + 更换照片」换成九宫格：一条记录现在能配多张（上限九张），而这一栏要回答
+        // 的是「这条记录有哪几张、还能加几张」；一排缩略图放到第五张就得横着滑，看不见自己存了多少。
         //
-        // 圆角与描边跟同屏那几个输入框对齐：这一页主要是输入框，一块圆角、描边颜色都与它们不同的
-        // 卡片摆在里面就是一处杂音。
-        //
-        // 圆角直接引输入框自己的形状来源；颜色取 outline——这是 M3 给 outlined text field 定的那个
-        // 颜色角色（OutlinedTextFieldTokens.OutlineColor → ColorSchemeKeyTokens.Outline），
-        // 不是输入框里图标与标签用的 onSurfaceVariant；宽度见 FreshNowSize.fieldOutlineWidth。
-        OutlinedCard(
-            onClick = onChangePhoto,
-            modifier = Modifier.fillMaxWidth(),
-            shape = OutlinedTextFieldDefaults.shape,
-            border = BorderStroke(
-                FreshNowSize.fieldOutlineWidth,
-                MaterialTheme.colorScheme.outline
-            )
-        ) {
-            Row(
-                modifier = Modifier.padding(FreshNowSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ScanPhoto(
-                    image = uiState.image,
-                    modifier = Modifier.size(FreshNowSize.thumbnail),
-                    // 框是 48dp 方，图也得填满它（源图已裁成方形，这一下实际上不会裁掉内容）
-                    contentScale = ContentScale.Crop,
-                    // 圆角跟着外面那块框走：48dp 的方块配 medium（12dp）会把整个角都圆掉；
-                    // 占位图标也换小一档：48dp 的图标在这 48dp 的格子里会顶满（见 ScanPhoto）
-                    shape = MaterialTheme.shapes.extraSmall,
-                    placeholderIconSize = FreshNowSize.smallIcon
-                )
-                Text(
-                    text = stringResource(R.string.record_image_change),
-                    modifier = Modifier.padding(start = FreshNowSpacing.sm),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+        // 不再包一层卡片轮廓：格子自己就是可编辑项的边界（虚线那一格说的正是「还能加」），
+        // 再套一层描边框等于把「这里可以动」这个意思说两遍。
+        PhotoGrid(
+            items = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
+            onOpen = onOpenPhoto,
+            onRemove = onRemovePhoto,
+            onAdd = onAddPhoto
+        )
         EditField(
             value = uiState.productName,
             onValueChange = onProductNameChange,
