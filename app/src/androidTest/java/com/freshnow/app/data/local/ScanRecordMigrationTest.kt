@@ -10,11 +10,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * v3 → v4 的迁移。
+ * v3 → v4、v4 → v5 的迁移。
  *
  * 迁移只在用户升级那一刻跑一次，写错了一年也不会有第二个用户来撞见——而它撞上的是
- * 「记录全没了」。所以这里用 Room 的迁移测试助手：先建一个真的 v3 库、塞进记录，
- * 再跑迁移，最后按 v4 的表结构校验一遍。
+ * 「记录全没了」。所以这里用 Room 的迁移测试助手：先建一个真的旧版库、塞进记录，
+ * 再跑迁移，最后按新版表结构校验一遍。
  *
  * 与 ScanRecordDaoTest 同样用测试专用的库名，不碰设备上应用自己的库。
  */
@@ -94,11 +94,38 @@ class ScanRecordMigrationTest {
         }
     }
 
+    /**
+     * 老记录必须原样活下来，位置这一列读出来是空串——它们那时没有这一项。
+     *
+     * 本次迁移没有重建表（只 ALTER TABLE 加一列），所以这一遍校验同时也在回答那个问题：
+     * 带 DEFAULT 的子句会不会让 Room 拿实体对不上。对比它是唯一说得上数的，注释不算。
+     */
+    @Test
+    fun migrate4To5_keepsRecordsAndLeavesLocationEmpty() {
+        helper.createDatabase(TEST_DATABASE, 4).use { database ->
+            database.execSQL(
+                "INSERT INTO `scan_records` " +
+                    "(`productName`, `productionDate`, `expiryDate`, `shelfLife`, `imageName`, " +
+                    "`savedAt`, `syncId`, `updatedAt`, `updatedBy`, `deletedAt`) " +
+                    "VALUES ('纯牛奶', '2026-01-01', '2026-12-31', '12个月', 'old.jpg', " +
+                    "111, 'sid-1', 111, 'dev-a', 0)"
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DATABASE, 5, true, MIGRATION_4_5)
+
+        migrated.query("SELECT `productName`, `location`, `imageName` FROM `scan_records`").use { cursor ->
+            assertTrue("老记录不能被迁移弄丢", cursor.moveToFirst())
+            assertEquals("纯牛奶", cursor.getString(0))
+            assertEquals("那时没有位置这一项，读出来是空串", "", cursor.getString(1))
+            assertEquals("其余字段不受影响", "old.jpg", cursor.getString(2))
+        }
+    }
+
     private companion object {
         /**
          * 测试专用的库名。共用一个名字时，上一个用例留下的文件会让 createDatabase 直接抛异常，
          * 而报错内容（「库已存在」）和真正要验的东西毫无关系。
          */
         const val TEST_DATABASE = "migration_test.db"
-    }
-}
+    }}

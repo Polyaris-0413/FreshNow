@@ -127,16 +127,20 @@ class ScanRecordRepository(
     }
 
     /**
-     * [frame] 是点保存那一刻的最新画面；图片落盘失败时该记录就没有图片，界面显示占位图
+     * [frame] 是点保存那一刻的最新画面；图片落盘失败时该记录就没有图片，界面显示占位图。
+     *
+     * 返回新记录的 id：开关打开时扫描页要凭它进到这条记录的表单去补填。
      */
-    suspend fun save(result: ScanResult, frame: ByteArray?) {
+    suspend fun save(result: ScanResult, frame: ByteArray?): Long {
         val now = System.currentTimeMillis()
-        dao.insert(
+        val id = dao.insert(
             ScanRecord(
                 productName = result.productName,
                 productionDate = result.productionDate,
                 expiryDate = result.expiryDate,
                 shelfLife = result.shelfLife,
+                // 扫描这一步问不到位置（标签上不印它），留在表单里填；这里显式写空是给读代码的人看的
+                location = "",
                 imageName = frame?.let { imageStore.write(it) }.orEmpty(),
                 savedAt = now,
                 syncId = UUID.randomUUID().toString(),
@@ -145,6 +149,7 @@ class ScanRecordRepository(
             )
         )
         _localEdits.tryEmit(Unit)
+        return id
     }
 
     /** 记录对应的照片文件，没有图片或文件已不在时返回 null */

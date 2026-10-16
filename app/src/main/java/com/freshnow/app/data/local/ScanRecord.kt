@@ -8,6 +8,8 @@ import androidx.room.PrimaryKey
  * 一条扫描记录。只落库模型读到的原文——[expiryDate] 是标签**印刷**的过期日期，由生产日期与
  * 保质期推算出来的那个值不存，展示时用 ExpiryCalculator 现算，推算逻辑改进后旧记录也能受益
  *
+ * [location] 是这条规律之外的一列：它不是模型读到的，是用户自己写上去的
+ *
  * 后四列只服务于局域网同步（见 data/sync/）。与记录同表而不是另开一张同步表：它们的生命周期与
  * 记录完全重合，分表只会让每次读写都多一次关联，而「同一行」这件事本来就该由一个主键说了算。
  *
@@ -33,6 +35,11 @@ data class ScanRecord(
     val productionDate: String,
     val expiryDate: String,
     val shelfLife: String,
+    /**
+     * 东西放在哪儿。它是唯一一项不来自标签的字段：标签上不印这个，AI 也读不到（它看不到冰箱），
+     * 只能由用户自己写，所以它不在 [com.freshnow.app.data.ScanResult] 那一套里。空串表示还没填。
+     */
+    val location: String = "",
     /** 扫描照片的文件名，空串表示这条记录没有图片 */
     val imageName: String,
     val savedAt: Long,

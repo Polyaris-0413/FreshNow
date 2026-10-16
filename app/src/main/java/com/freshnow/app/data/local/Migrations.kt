@@ -55,3 +55,17 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+/**
+ * v4 → v5：加「位置」一列。
+ *
+ * 这一次用 ALTER TABLE，没有像 3 → 4 那样重建表：那一次重建是为了给老记录现生成身份、并建出
+ * 对端表，加列本身不需要重建。3 → 4 上面那段「带 DEFAULT 的列会与实体比对不上」的说法，
+ * 由迁移测试来判——[ScanRecordMigrationTest.migrate4To5_keepsRecordsAndLeavesLocationEmpty]
+ * 会拿真实表结构与实体核对一遍，那是唯一的准绳。
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `scan_records` ADD COLUMN `location` TEXT NOT NULL DEFAULT ''")
+    }
+}
