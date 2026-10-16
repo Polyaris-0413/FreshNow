@@ -104,7 +104,10 @@ fun AboutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                // 与设置页同一条规矩：圆角容器不贴屏，末尾也不贴底（见 SettingsScreen）
+                .padding(horizontal = FreshNowSpacing.sm)
                 .verticalScroll(rememberScrollState())
+                .padding(bottom = FreshNowSpacing.sm)
         )
     }
 

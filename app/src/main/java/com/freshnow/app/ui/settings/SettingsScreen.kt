@@ -111,7 +111,12 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    // 圆角容器不贴屏：左右各让出一档页边距，圆角才不被屏边切掉。
+                    // 标题自己的左边距与行自己的内边距都是 16dp，加上这一档之后两者依旧对齐
+                    .padding(horizontal = FreshNowSpacing.sm)
                     .verticalScroll(rememberScrollState())
+                    // 末尾这一组也不贴页面底边
+                    .padding(bottom = FreshNowSpacing.sm)
             )
         }
     }
