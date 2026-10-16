@@ -101,17 +101,9 @@ internal fun PhotoGrid(
     val cellCount = items.size + if (showAdd) 1 else 0
     if (cellCount == 0) return
 
-    /**
-     * 被拿着的是哪一格。这里存的是它的 [PhotoGridItem.key] 而不是下标：松手时先提交新顺序，
-     * 列表一重排，下标就换人了——按下标认的话，「被拿着」的状态会从这一格转移到旁边那一格，
-     * 那一格就顶着别人的位移飞出去。
-     */
     var draggingKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    /**
-     * 松手时要落到哪一格。拖动期间列表**一个字都不动**：一动，被拖那一格的布局位置就跳了，
-     * 而跟手位移要等下一帧才能补上，中间那一帧就是「在旁边闪一下」。顺序在松手时一次提交。
-     */
+    /** 被拖的那一格现在占着哪个位置（渲染用的顺序里）*/
     var hoverIndex by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
     // 拿起来的放大要渐变：在 1.0 与 1.06 之间硬跳，松手那一刻会看见它「突然缩一下」
@@ -120,6 +112,20 @@ internal fun PhotoGrid(
         animationSpec = FreshNowTransitions.fastSpatial(),
         label = "draggingScale"
     )
+
+    /**
+     * 拖动期间给界面看的那一份顺序：被拖的那一格占住 [hoverIndex]，其余格子依次让位。
+     *
+     * 它是**当帧算出来的**（不经过任何异步状态），所以「手指位置」与「格子位置」永远在同一帧
+     * 里自洽——之前那些闪与跳，根源都是这两件事分属不同帧：布局要等列表更新（下一帧），
+     * 而跟手位移是当帧改的。
+     */
+    val visualItems = items.withDraggedAt(draggingKey, hoverIndex)
+    /**
+     * 被拖的那一格在**真实列表**里的下标。拖动期间真实列表不动，所以它是个定值；
+     * 它同时也是「手指位移的参考点」——位移说的是「相对这一格的中心挪了多远」。
+     */
+    val draggingFrom = draggingKey?.let { key -> items.indexOfFirst { it.key == key } } ?: -1
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 三列等宽：总宽减去两条缝再三等分。高度得自己算出来——惰性网格不接受无界高度，
@@ -139,33 +145,39 @@ internal fun PhotoGrid(
             horizontalArrangement = Arrangement.spacedBy(gap),
             verticalArrangement = Arrangement.spacedBy(gap)
         ) {
-            itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
+            itemsIndexed(visualItems, key = { _, item -> item.key }) { index, item ->
                 val latestIndex by rememberUpdatedState(index)
                 val dragging = item.key == draggingKey
                 PhotoTile(
+                    // 报的是**真实列表**里的下标（渲染顺序在拖动期间与它不同）
                     item = item,
-                    onRemove = { onRemove(index) },
+                    onRemove = { onRemove(items.indexOfFirst { it.key == item.key }) },
                     modifier = Modifier
-                        // 增删时淡入淡出、其余格子让位
-                        .animateItem()
+                        // 增删时淡入淡出；其余格子让位靠它。被拖的那一格不要位移动画：
+                        // 它的位置由手指决定（上面那套换算已经把两者对齐了）
+                        .animateItem(
+                            placementSpec = if (dragging) null else FreshNowTransitions.defaultSpatial()
+                        )
                         // 被拿着的那一格浮到其余格子之上，否则它会被后画的格子盖住
                         .zIndex(if (dragging) 1f else 0f)
                         .graphicsLayer {
                             if (dragging) {
-                                translationX = dragOffset.x
-                                translationY = dragOffset.y
+                                // 它现在占着 hoverIndex 那一格，而位移的参考点是起始格：
+                                // 起始格中心 + dragOffset 是手指位置，两者之差才是要加的位移
+                                val delta = gridDelta(
+                                    draggingFrom,
+                                    hoverIndex ?: draggingFrom,
+                                    stepPx
+                                )
+                                translationX = dragOffset.x - delta.x
+                                translationY = dragOffset.y - delta.y
                                 scaleX = draggingScale
                                 scaleY = draggingScale
                             }
                         }
                         .pointerInput(item.key) {
-                            // 手势协程长期活着（key 不变就不重启），它捕获的 index 是**组合那一刻**的
-                            // 值。拿它去算目标格，置换一次之后基准就错了——表现是「点 A 拖动的却是 B」。
-                            // 长按开始那一刻从 rememberUpdatedState 取最新的下标。
-                            var currentIndex = latestIndex
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
-                                    currentIndex = latestIndex
                                     dragOffset = Offset.Zero
                                     hoverIndex = latestIndex
                                     draggingKey = item.key
@@ -174,19 +186,31 @@ internal fun PhotoGrid(
                                     // 消费掉：不消费的话，表单会跟着一起滚
                                     change.consume()
                                     dragOffset += amount
-                                    // 只记「现在悬在哪一格」，不动列表：列表一动就会有那一帧的闪
-                                    hoverIndex = gridTargetIndex(currentIndex, dragOffset, stepPx, count)
+                                    // 只改「占着哪一格」，不动真实列表：让位是上面那份渲染顺序的事
+                                    hoverIndex = gridTargetIndex(
+                                        draggingFrom,
+                                        dragOffset,
+                                        stepPx,
+                                        count
+                                    )
                                 },
                                 onDragEnd = {
-                                    val from = currentIndex
-                                    val to = hoverIndex ?: currentIndex
-                                    // 提交之后这一格会挪到 (to - from) 格上，所以跟手位移要把那一段
-                                    // 先扣掉：不扣的话它会先跳一格再回弹
-                                    val settle = dragOffset - gridDelta(from, to, stepPx)
+                                    val from = draggingFrom
+                                    val to = (hoverIndex ?: from).coerceIn(0, items.lastIndex)
+                                    if (from < 0 || to == from) {
+                                        dragOffset = Offset.Zero
+                                        hoverIndex = null
+                                        draggingKey = null
+                                        return@detectDragGesturesAfterLongPress
+                                    }
+                                    // 先把位移折算成「相对目标格」的值：提交之后它在列表里的位置就是
+                                    // 目标格，那时这个值才是对的。这一帧真实列表还没变，而
+                                    // 「位移 − 格子差」的合计没变，所以画面不会动
+                                    dragOffset -= gridDelta(from, to, stepPx)
+                                    val settle = dragOffset
                                     scope.launch {
-                                        // 先提交顺序，再让位移归零：两者几乎同时发生，
-                                        // 于是所有格子（包括被拖的这一格）一起滑到位
-                                        if (to != from) onMove(from, to)
+                                        // 先提交顺序，再让它从手指处滑到格子正中
+                                        onMove(from, to)
                                         animate(
                                             initialValue = 0f,
                                             targetValue = 1f,
@@ -194,8 +218,6 @@ internal fun PhotoGrid(
                                         ) { value, _ -> dragOffset = settle * (1f - value) }
                                         dragOffset = Offset.Zero
                                         hoverIndex = null
-                                        // 位移与缩放都归位之后才结束「被拿着」的状态：
-                                        // 提前清掉的话它们是当场突变的
                                         draggingKey = null
                                     }
                                 },
@@ -217,6 +239,23 @@ internal fun PhotoGrid(
     }
 }
 
+
+/**
+ * 拖动期间给界面看的那一份顺序：把 [key] 那一格挪到 [hoverIndex] 上，其余格子依次让位。
+ *
+ * 纯函数、只看入参：界面每一帧拿同样的入参就能算出一致的顺序，不存在「等列表更新」的下一帧。
+ * 越界或找不到那一格时原样返回。
+ */
+internal fun List<PhotoGridItem>.withDraggedAt(
+    key: String?,
+    hoverIndex: Int?
+): List<PhotoGridItem> {
+    if (key == null || hoverIndex == null) return this
+    val from = indexOfFirst { it.key == key }
+    val to = hoverIndex.coerceIn(0, lastIndex)
+    if (from < 0 || from == to) return this
+    return toMutableList().apply { add(to, removeAt(from)) }
+}
 
 /**
  * 从一格移到另一格，位置差了多少像素。
