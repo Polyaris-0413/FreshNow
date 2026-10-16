@@ -152,7 +152,7 @@ class SyncEngineTest {
     /** 照片不跟着交换走：交换里只有名字，图要等真正要看的时候才取 */
     @Test
     fun photo_comesOverOnlyWhenAskedFor() = runBlocking {
-        deviceA.addRecord("纯牛奶", photo = PHOTO)
+        deviceA.addRecord("纯牛奶", photos = listOf(PHOTO))
         pair()
 
         syncInitiator(deviceB, with = deviceA)
@@ -162,23 +162,42 @@ class SyncEngineTest {
         assertNull("图还没取，本地不该凭空多出文件", deviceB.records.imageFile(onB))
 
         val peer = requireNotNull(deviceB.peers.find(deviceA.deviceId()))
-        assertTrue(deviceB.engine.fetchImage(onB, peer, deviceA.address))
+        assertTrue(deviceB.engine.fetchImages(onB, peer, deviceA.address))
 
         val fetched = deviceB.visible().single()
         assertNotNull("取过之后要能读到这张图", deviceB.records.imageFile(fetched))
         assertEquals("两边存的应当是同一张图", onB.imageName, fetched.imageName)
     }
 
+    /** 对端一条记录两张图：取回来之后本机两张都在，顺序一致 */
+    @Test
+    fun severalPhotos_comeOverTogether() = runBlocking {
+        deviceA.addRecord("纯牛奶", photos = listOf(PHOTO, PHOTO2))
+        pair()
+        syncInitiator(deviceB, with = deviceA)
+
+        val onB = deviceB.visible().single()
+        assertEquals("两个名字都要跟着过来", 2, onB.imageNames.size)
+        assertNull("图还没取，本地不该凭空多出文件", deviceB.records.imageFile(onB))
+
+        val peer = requireNotNull(deviceB.peers.find(deviceA.deviceId()))
+        assertTrue(deviceB.engine.fetchImages(onB, peer, deviceA.address))
+
+        val fetched = deviceB.visible().single()
+        assertEquals("顺序不变", onB.imageNames, fetched.imageNames)
+        assertEquals("两张都要真的在本地磁盘上", 2, deviceB.records.imageFiles(fetched).size)
+    }
+
     /** 取图不该改动记录本身：用户没编辑过它，凭空盖一个修改时刻会把对端真正的新版本顶掉 */
     @Test
     fun fetchingAPhoto_doesNotCountAsAnEdit() = runBlocking {
-        deviceA.addRecord("纯牛奶", photo = PHOTO)
+        deviceA.addRecord("纯牛奶", photos = listOf(PHOTO))
         pair()
         syncInitiator(deviceB, with = deviceA)
 
         val before = deviceB.visible().single()
         val peer = requireNotNull(deviceB.peers.find(deviceA.deviceId()))
-        deviceB.engine.fetchImage(before, peer, deviceA.address)
+        deviceB.engine.fetchImages(before, peer, deviceA.address)
 
         val after = deviceB.visible().single()
         assertEquals(before.updatedAt, after.updatedAt)
@@ -351,6 +370,7 @@ class SyncEngineTest {
 
     private companion object {
         val PHOTO = byteArrayOf(0x11, 0x22, 0x33, 0x44)
+        val PHOTO2 = byteArrayOf(0x55, 0x66)
     }
 }
 
@@ -401,7 +421,7 @@ private class TestDevice(label: String) {
 
     suspend fun deviceName(): String = identity.deviceName()
 
-    suspend fun addRecord(name: String, photo: ByteArray? = null) {
+    suspend fun addRecord(name: String, photos: List<ByteArray> = emptyList()) {
         records.insert(
             ScanRecord(
                 productName = name,
@@ -410,7 +430,9 @@ private class TestDevice(label: String) {
                 shelfLife = "12个月",
                 savedAt = System.currentTimeMillis()
             ),
-            photo?.let { ImageChange.Update(kept = emptyList(), added = listOf(it)) } ?: ImageChange.Keep
+            photos.takeIf { it.isNotEmpty() }
+                ?.let { ImageChange.Update(kept = emptyList(), added = it) }
+                ?: ImageChange.Keep
         )
     }
 

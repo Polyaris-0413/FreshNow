@@ -183,16 +183,23 @@ internal class SyncServer(
             call.respond(HttpStatusCode.OK)
         }
 
-        get("$PATH_IMAGE/{syncId}") {
+        get("$PATH_IMAGE/{syncId}/{name}") {
             val peer = call.authenticatedPeer() ?: return@get
             val syncId = call.parameters["syncId"]
+                ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val name = call.parameters["name"]
                 ?: return@get call.respond(HttpStatusCode.BadRequest)
             val record = records.findBySyncId(syncId)
             // 墓碑记录的照片不给：那在用户眼里已经是删掉的东西，没有取回来的道理
             if (record == null || record.deletedAt != 0L) {
                 return@get call.respond(HttpStatusCode.NotFound)
             }
-            val bytes = records.imageBytes(record.imageName)
+            // 只发这条记录确实引用的那些。名字虽然猜不到（内容散列的十六进制），但拿一个名字就能取
+            // 任意照片，与「取对端某条记录的某一张图」是两件事：授权的范围应当只有后者
+            if (name !in record.imageNames) {
+                return@get call.respond(HttpStatusCode.NotFound)
+            }
+            val bytes = records.imageBytes(name)
                 ?: return@get call.respond(HttpStatusCode.NotFound)
             call.respondBytes(
                 SyncCrypto.seal(peer.key(), bytes),

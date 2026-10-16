@@ -473,11 +473,11 @@ internal class SyncCoordinator private constructor(context: Context) {
         return null
     }
 
-    /** 把一条记录的照片从对端取回来。已经有的直接返回 true，不会去打扰对端 */
+    /** 把一条记录缺的照片从对端取回来。本地都齐了就直接返回 true，不会去打扰对端 */
     suspend fun fetchPhoto(record: ScanRecord): Boolean {
         val peer = peers.find(record.updatedBy) ?: peers.all().firstOrNull() ?: return false
         val address = addressOf(peer) ?: return false
-        return engine.fetchImage(record, peer, address)
+        return engine.fetchImages(record, peer, address)
     }
 
     /**
@@ -502,7 +502,7 @@ internal class SyncCoordinator private constructor(context: Context) {
             val order = all.sortedByDescending { it.deviceId == record.updatedBy }
             for (peer in order) {
                 val address = addressOf(peer) ?: continue
-                if (engine.fetchImage(record, peer, address)) break
+                if (engine.fetchImages(record, peer, address)) break
             }
         }
     }

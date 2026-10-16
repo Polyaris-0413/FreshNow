@@ -143,6 +143,9 @@ class ScanRecordRepository(
     /** 记录的代表图（第一张），没有图片或文件已不在时返回 null */
     fun imageFile(record: ScanRecord): File? = imageStore.find(record.imageName)
 
+    /** 本地有没有这张照片（名字对得上形态且文件还在） */
+    fun hasImage(name: String): Boolean = imageStore.find(name) != null
+
     /** 记录名下所有还在磁盘上的照片，顺序与 [ScanRecord.imageNames] 一致 */
     fun imageFiles(record: ScanRecord): List<File> = record.imageNames.mapNotNull { imageStore.find(it) }
 
@@ -200,14 +203,21 @@ class ScanRecordRepository(
     suspend fun findBySyncId(syncId: String): ScanRecord? = dao.findBySyncId(syncId)
 
     /**
-     * 把从对端取回的照片存下并挂到记录上。
+     * 把从对端取回的一张照片存下并挂到记录末尾；写盘失败返回 false，表示这一张还没补上。
      *
-     * 刻意不盖 [ScanRecord.updatedAt]：这只是把本机缺的一张图缓存下来，用户并没有修改这条记录，
-     * 盖了时间戳就等于凭空造出一次「本机改了这条」，会把对端真正的新版本顶掉。
+     * 名字以**实际写盘算出来的**为准，不用对端给的那个：内容寻址下两者本该相同，但万一不同
+     * （对端实现有 bug、传输被截断），挂上对端那个名字就指向一个不存在的文件，界面从此永远显示
+     * 占位图；用本地算出来的名字，至少这张图能显示出来。重复收到同一张图也不会重复写盘
+     * （见 [ScanImageStore.write]）。
+     *
+     * 刻意不盖 [ScanRecord.updatedAt]（见 [ScanRecordDao.appendImageName]）：这只是把本机缺的一张图
+     * 缓存下来，用户并没有修改这条记录，盖了时间戳就等于凭空造出一次「本机改了这条」，
+     * 会把对端真正的新版本顶掉。
      */
-    suspend fun attachImage(syncId: String, bytes: ByteArray) {
-        val name = imageStore.write(bytes) ?: return
+    suspend fun attachImage(syncId: String, bytes: ByteArray): Boolean {
+        val name = imageStore.write(bytes) ?: return false
         dao.appendImageName(syncId, name)
+        return true
     }
 
     /**

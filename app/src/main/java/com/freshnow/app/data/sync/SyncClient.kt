@@ -109,10 +109,11 @@ internal class SyncClient(
         address: String,
         myDeviceId: String,
         peer: SyncPeer,
-        syncId: String
+        syncId: String,
+        name: String
     ): ByteArray? {
         val response = request("向 $address 取图") {
-            client.get(url(address, "$PATH_IMAGE/$syncId")) {
+            client.get(url(address, "$PATH_IMAGE/$syncId/$name")) {
                 header(HEADER_DEVICE, myDeviceId)
             }
         } ?: return null

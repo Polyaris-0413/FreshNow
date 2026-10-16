@@ -68,18 +68,22 @@ internal class SyncEngine(
         }
     }
     /**
-     * 把一条记录的照片取到本地。本地已经有了就直接返回 true，不去打扰对端。
+     * 把一条记录缺的照片都取到本地。本地都齐了就直接返回 true，不去打扰对端。
      *
-     * 取回来只挂在本地记录上（见 [ScanRecordRepository.attachImage]），**不参与下一次同步**：
-     * 它只是把对方那张图缓存在本机，用户并没有改这条记录。
+     * 返回 false 只表示这一趟没能把全部补齐（对端不在线、或者它那里也缺）：已经取回来的那些留着，
+     * 下一次再补剩下的。取回来只挂在本地记录上（见 [ScanRecordRepository.attachImage]），
+     * **不参与下一次同步**：它只是把对方的图缓存在本机，用户并没有改这条记录。
      */
-    suspend fun fetchImage(record: ScanRecord, peer: SyncPeer, address: String): Boolean {
-        // 本地已经有这张图（名字对得上且文件在），没什么可取的
-        if (record.imageName.isNotEmpty() && records.imageFile(record) != null) return true
-        val bytes = client.fetchImage(address, identity.deviceId(), peer, record.syncId)
-            ?: return false
-        records.attachImage(record.syncId, bytes)
-        return true
+    suspend fun fetchImages(record: ScanRecord, peer: SyncPeer, address: String): Boolean {
+        val missing = record.imageNames.filterNot { records.hasImage(it) }
+        if (missing.isEmpty()) return true
+
+        var allFetched = true
+        for (name in missing) {
+            val bytes = client.fetchImage(address, identity.deviceId(), peer, record.syncId, name)
+            if (bytes == null || !records.attachImage(record.syncId, bytes)) allFetched = false
+        }
+        return allFetched
     }
 
     private companion object {

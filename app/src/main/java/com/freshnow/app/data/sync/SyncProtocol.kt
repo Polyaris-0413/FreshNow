@@ -29,6 +29,10 @@ internal data class SyncPayload(
  * [imageName] 取对端设备上的文件名，接收方据此判断「这张图我有没有」——两边都按内容散列命名，
  * 所以同一张照片的名字在同一对设备上必然相同。对端换了照片名字就跟着变，接收方看到名字对不上，
  * 就知道本地那份缓存已经过时，该重新取了。
+ *
+ * 现在这根键只服务旧版本：新版本看 [imageNames]，它只当「第一张」。不能把它去掉——旧版本解码
+ * 一个缺了 `imageName` 的载荷会当场抛异常（那边这个字段没有默认值），那时丢的不是一张图，是那条
+ * 记录整个同步不过来。
  */
 @Serializable
 internal data class SyncRecordDto(
@@ -45,6 +49,13 @@ internal data class SyncRecordDto(
      */
     val location: String = "",
     val imageName: String,
+    /**
+     * 全部照片名，顺序即展示顺序。
+     *
+     * 带默认值不是省事：对端可能还是只知道 [imageName] 的版本，它发来的载荷里根本没有这个键（与
+     * [location] 同一个理由）。收到旧载荷时当成「只有一张」，见 [toRecord]。
+     */
+    val imageNames: List<String> = emptyList(),
     val savedAt: Long,
     val updatedAt: Long,
     val updatedBy: String,
@@ -83,6 +94,7 @@ internal fun ScanRecord.toDto(): SyncRecordDto = SyncRecordDto(
     shelfLife = shelfLife,
     location = location,
     imageName = imageName,
+    imageNames = imageNames,
     savedAt = savedAt,
     updatedAt = updatedAt,
     updatedBy = updatedBy,
@@ -95,6 +107,9 @@ internal fun ScanRecord.toDto(): SyncRecordDto = SyncRecordDto(
  * [imageName] 直接采用对端给的名字而不是清空：两边按内容算名字，名字相同就说明本地已经有
  * 这张图（内容寻址的好处），[com.freshnow.app.data.ScanImageStore.find] 一查就命中；
  * 名字不同则本地查不到文件，界面显示占位图，等到真正要看这张图时再去对端取。
+ *
+ * [imageNames] 为空而 [imageName] 非空时，说明对端是旧版本（它只知道一根名字）：当成单元素列表。
+ * 两个都空就是这条记录没有图片。
  */
 internal fun SyncRecordDto.toRecord(): ScanRecord = ScanRecord(
     id = 0,
@@ -103,7 +118,7 @@ internal fun SyncRecordDto.toRecord(): ScanRecord = ScanRecord(
     expiryDate = expiryDate,
     shelfLife = shelfLife,
     location = location,
-    imageNames = listOfNotNull(imageName.takeIf { it.isNotEmpty() }),
+    imageNames = imageNames.ifEmpty { listOfNotNull(imageName.takeIf { it.isNotEmpty() }) },
     savedAt = savedAt,
     syncId = syncId,
     updatedAt = updatedAt,
