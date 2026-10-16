@@ -200,11 +200,7 @@ internal fun SyncContent(
         item(key = KEY_LOCAL_HEADING) {
             SectionHeading(
                 text = stringResource(R.string.sync_local_device_title),
-                // 左右那一档写在调用处：这一页标题下面是平铺的行，行自己带 16dp 内边距，
-                // 标题补上同一档才对得齐（见 SectionHeading）
-                modifier = animatedItem()
-                    .padding(top = FreshNowSpacing.sm)
-                    .padding(horizontal = FreshNowSpacing.sm)
+                modifier = animatedItem().padding(top = FreshNowSpacing.sm)
             )
         }
         // 设备名那一行把动作写在标题上，整行可点，尾部不放按钮：M3 的列表项尾部
@@ -248,9 +244,7 @@ internal fun SyncContent(
         item(key = KEY_PAIRED_HEADING) {
             SectionHeading(
                 text = stringResource(R.string.sync_paired_devices_title),
-                modifier = animatedItem()
-                    .padding(top = FreshNowSpacing.md)
-                    .padding(horizontal = FreshNowSpacing.sm)
+                modifier = animatedItem().padding(top = FreshNowSpacing.md)
             )
         }
         // 没配对过就说一句：这一段空着的话，用户看不出是「还没有」还是「没加载出来」
@@ -277,9 +271,7 @@ internal fun SyncContent(
         item(key = KEY_NEARBY_HEADING) {
             SectionHeading(
                 text = stringResource(R.string.sync_nearby_devices_title),
-                modifier = animatedItem()
-                    .padding(top = FreshNowSpacing.md)
-                    .padding(horizontal = FreshNowSpacing.sm)
+                modifier = animatedItem().padding(top = FreshNowSpacing.md)
             )
         }
         if (candidates.isEmpty()) {
