@@ -9,19 +9,21 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,12 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.painterResource
+
+
+
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+
+
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -181,26 +183,62 @@ private fun RecordDetailContent(
                     .padding(FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {
-                val image = uiState.mainImage
+                val images = uiState.images
+                val pagerState = rememberPagerState(
+                    initialPage = uiState.mainIndex,
+                    pageCount = { images.size }
+                )
+                // 滑到哪一张就报给上层：主图下标归 ViewModel（旋转重建之后还在那一张上）
+                LaunchedEffect(pagerState.settledPage) {
+                    if (pagerState.settledPage != uiState.mainIndex) {
+                        onSelectImage(pagerState.settledPage)
+                    }
+                }
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    ScanPhoto(
-                        image = image,
-                        modifier = photoModifier,
-                        // 占位图不可点：那里没有图可看，能点开一张空图只会让人以为坏了
-                        onClick = if (image != null) onOpenImage else null,
-                        onClickLabel = if (image != null) stringResource(R.string.record_image_open) else null
-                    )
+                    if (images.isEmpty()) {
+                        // 一张都没有时是占位图，且点不开看图页（那里没图可看）
+                        ScanPhoto(image = null, modifier = photoModifier)
+                    } else {
+                        // 主图自己做横向翻页：照片本来就该能左右滑着看，而滑动是跟手的——
+                        // 换成箭头或缩略图来切换都是硬切（用户反馈）
+                        HorizontalPager(
+                            state = pagerState,
+                            // 一页一张。页与页之间留一格缝：滑到两张中间时看得出这是两张
+                            pageSpacing = FreshNowSpacing.xs,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { page ->
+                            ScanPhoto(
+                                image = images[page],
+                                // 共享元素只挂在当前那一页上：每页都挂的话，进出看图时框架认不出能动的是哪一块
+                                modifier = if (page == pagerState.currentPage) photoModifier else Modifier,
+                                onClick = onOpenImage,
+                                onClickLabel = stringResource(R.string.record_image_open)
+                            )
+                        }
+                    }
 
-                    // 翻页的指引压在照片的左右边缘：原来这里是下面一排缩略图，它把正文往下挤了
-                    // 一大截（用户反馈「挡住下面的卡片」）。箭头不占版面，同时把「左右也能翻」说出来。
-                    // 手也挂在这一层：指哪都能滑
-                    if (uiState.hasSeveralImages && image != null) {
-                        PhotoPagingAffordance(
-                            hasPrevious = uiState.mainIndex > 0,
-                            hasNext = uiState.mainIndex < uiState.images.lastIndex,
-                            onPrevious = { onSelectImage(uiState.mainIndex - 1) },
-                            onNext = { onSelectImage(uiState.mainIndex + 1) },
-                            modifier = Modifier.matchParentSize()
+                    // 页码压在照片右下角：不占正文的版面，同时把「共有几张、现在第几张」说出来——
+                    // 少了它，用户不知道那边还能滑（底下那排缩略图就是为这个加的，但它把正文挤下去了）
+                    if (images.size > 1) {
+                        Text(
+                            text = stringResource(
+                                R.string.record_image_page,
+                                pagerState.currentPage + 1,
+                                images.size
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.inverseOnSurface,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(FreshNowSpacing.xs)
+                                .clip(MaterialTheme.shapes.small)
+                                .background(
+                                    MaterialTheme.colorScheme.scrim.copy(alpha = PAGE_BADGE_SCRIM_ALPHA)
+                                )
+                                .padding(
+                                    horizontal = FreshNowSpacing.xs,
+                                    vertical = FreshNowSpacing.xxs
+                                )
                         )
                     }
                 }
@@ -219,96 +257,11 @@ private fun RecordDetailContent(
     }
 }
 
-/**
- * 主图上的翻页指引：左右各一枚半透明箭头（只在那一侧还有图时出现），整块都能横向滑。
- *
- * 箭头压在图上而不是排在下面：详情页的纵向位置得留给正文（用户反馈「挡住下面的卡片」）。
- * 箭头本身也可点：滑是给知道能滑的人的，箭头是给不知道的人的。
- */
-@Composable
-private fun PhotoPagingAffordance(
-    hasPrevious: Boolean,
-    hasNext: Boolean,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier.pointerInput(hasPrevious, hasNext) {
-            var travelled = 0f
-            detectHorizontalDragGestures(
-                onDragStart = { travelled = 0f },
-                onHorizontalDrag = { change, amount ->
-                    change.consume()
-                    travelled += amount
-                },
-                onDragEnd = {
-                    val threshold = SWIPE_THRESHOLD.toPx()
-                    when {
-                        travelled <= -threshold && hasNext -> onNext()
-                        travelled >= threshold && hasPrevious -> onPrevious()
-                    }
-                }
-            )
-        }
-    ) {
-        if (hasPrevious) {
-            PagingArrow(
-                forward = false,
-                onClick = onPrevious,
-                modifier = Modifier.align(Alignment.CenterStart)
-            )
-        }
-        if (hasNext) {
-            PagingArrow(
-                forward = true,
-                onClick = onNext,
-                modifier = Modifier.align(Alignment.CenterEnd)
-            )
-        }
-    }
-}
 
 /**
- * 一枚翻页箭头。
+ * 压在照片上的页码底的不透明度。
  *
- * 底取 scrim 半透明：M3 没有给「压在图片上的浮层」这一档，而 scrim 本来就是给内容之上的
- * 遮罩用的——纯色底会把照片盖掉一块，半透明才既看得见箭头又看得出底下有图。
+ * M3 没有给「压在图片上的浮层」这一档，取到「看得出底下有图、页码又读得清」为止；
+ * 纯色底会把照片盖掉一块。
  */
-@Composable
-private fun PagingArrow(forward: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(
-        if (forward) R.string.record_image_next else R.string.record_image_previous
-    )
-    Box(
-        modifier = modifier
-            .padding(FreshNowSpacing.xs)
-            .size(FreshNowSize.icon)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = ARROW_SCRIM_ALPHA))
-            .clickable(onClick = onClick, onClickLabel = label)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_arrow_back),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.inverseOnSurface,
-            modifier = Modifier
-                .size(FreshNowSize.smallIcon)
-                // 只有一枚返回箭头图标，往右那一侧把它翻过来
-                .graphicsLayer { if (forward) scaleX = -1f }
-        )
-    }
-}
-
-/**
- * 横滑多少 dp 才算「翻一张」。
- *
- * M3 没给横向翻页的手势阈值（它规定的是拖拽与滑动退出这类），这里取 48dp：与 M3 的最小触摸
- * 目标同一档，手指走过这一段必然是有意的。
- */
-private val SWIPE_THRESHOLD = 48.dp
-
-/** 箭头底的不透明度。M3 没有这一档，取到「看得出底下有图、箭头又清楚」为止 */
-private const val ARROW_SCRIM_ALPHA = 0.32f
+private const val PAGE_BADGE_SCRIM_ALPHA = 0.32f

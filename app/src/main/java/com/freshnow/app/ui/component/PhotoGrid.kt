@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.component
 
 import android.graphics.Bitmap
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +44,8 @@ import androidx.compose.ui.zIndex
 import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowTransitions
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /** 一条记录最多几张照片：九宫格放满为止。再多就变成相册了，记录页也放不下 */
@@ -98,6 +102,7 @@ internal fun PhotoGrid(
     // 正在拖的是哪一格，以及它跟手的位移。这两个只在拖动期间有值
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val scope = rememberCoroutineScope()
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 三列等宽：总宽减去两条缝再三等分。高度得自己算出来——惰性网格不接受无界高度，
@@ -122,8 +127,11 @@ internal fun PhotoGrid(
                     item = item,
                     onRemove = { onRemove(index) },
                     modifier = Modifier
-                        // 增删时的淡入淡出与其余格子的让位都由它演
-                        .animateItem()
+                        // 增删时淡入淡出、其余格子让位。正在被拿住的那一格不给位移动画：
+                        // 它的位置由手指决定，再叠一层动画就是「拖泥带水」
+                        .animateItem(
+                            placementSpec = if (dragging) null else FreshNowTransitions.defaultSpatial()
+                        )
                         // 被拿着的那一格浮到其余格子之上，否则它会被后画的格子盖住
                         .zIndex(if (dragging) 1f else 0f)
                         .graphicsLayer {
@@ -147,15 +155,24 @@ internal fun PhotoGrid(
                                     val target = gridTargetIndex(index, dragOffset, stepPx, items.size)
                                     if (target != index) {
                                         onMove(index, target)
-                                        // 换过位之后，这一格的中心已经在新位置上，
-                                        // 跟手位移得从头算，否则它会继续往同一方向多挪一格
+                                        // 换过位之后这一格已经在新的格子上，跟手位移要把这两格之间
+                                        // 的那段扣掉，否则图会从手指下跳走（「松手硬切」就是这么来的）
+                                        dragOffset -= gridDelta(index, target, stepPx)
                                         draggingIndex = target
-                                        dragOffset = Offset.Zero
                                     }
                                 },
                                 onDragEnd = {
                                     draggingIndex = null
-                                    dragOffset = Offset.Zero
+                                    // 松手之后弹回格子正中，不是直接归零：直接归零就是一次硬切
+                                    val travelled = dragOffset
+                                    scope.launch {
+                                        animate(
+                                            initialValue = 0f,
+                                            targetValue = 1f,
+                                            animationSpec = FreshNowTransitions.fastSpatial()
+                                        ) { value, _ -> dragOffset = travelled * (1f - value) }
+                                        dragOffset = Offset.Zero
+                                    }
                                 },
                                 onDragCancel = {
                                     draggingIndex = null
@@ -173,6 +190,16 @@ internal fun PhotoGrid(
         }
     }
 }
+
+/**
+ * 从一格移到另一格，位置差了多少像素。
+ *
+ * 列差乘一个步长（格宽 + 缝），行差乘一个步长——网格是等宽等高的，所以两轴共用同一个步长。
+ */
+private fun gridDelta(from: Int, to: Int, stepPx: Float): Offset = Offset(
+    x = ((to % COLUMNS) - (from % COLUMNS)) * stepPx,
+    y = ((to / COLUMNS) - (from / COLUMNS)) * stepPx
+)
 
 /**
  * 拖到哪儿算落在哪一格。

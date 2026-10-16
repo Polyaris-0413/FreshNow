@@ -50,6 +50,7 @@ import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
+import com.freshnow.app.ui.component.RemovePhotoSheet
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.data.RecordField
@@ -57,10 +58,15 @@ import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.ImageCropScreen
 import com.freshnow.app.ui.theme.FreshNowSize
+import com.freshnow.app.ui.theme.backEnter
+import com.freshnow.app.ui.theme.backExit
+import com.freshnow.app.ui.theme.forwardEnter
+import com.freshnow.app.ui.theme.forwardExit
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.AnimatedVisibility
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,6 +85,9 @@ fun ScanScreen(
     // 加照片这条路与编辑页同一套（见 PhotoSourceSheet）：面板挑来源，相册走选择器再裁剪，
     // 拍照走那个整屏的拍照页
     var showImageSources by remember { mutableStateOf(false) }
+    // 点了哪一张要移除：先起一片面板问一句（见 RemovePhotoSheet）
+    var removingPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val removeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showCamera by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -104,70 +113,96 @@ fun ScanScreen(
         if (!permission.granted) permission.request()
     }
 
-    // 裁剪是整屏的一步（与编辑页同一套）：相册选来的图是任意比例，必须先裁成方的
-    val cropSource = uiState.cropSource
-    if (cropSource != null) {
-        BackHandler { viewModel.cancelCrop() }
-        ImageCropScreen(
-            image = cropSource,
-            onCancel = viewModel::cancelCrop,
-            onConfirm = viewModel::applyCrop,
-            modifier = modifier.fillMaxSize()
-        )
-        return
+    // 扫描页的整屏步骤（与编辑页同一套）：扫描态、编辑态、裁剪、拍照。四种都是一整屏、
+    // 平级替换，所以它们走同一套方向明确的过渡；硬切会把项目里已有的页面转场丢掉
+    val step: ScanStep = when {
+        uiState.cropSource != null -> ScanStep.Crop
+        showCamera -> ScanStep.Capture
+        uiState.stage == ScanStage.EDITING -> ScanStep.Editing
+        else -> ScanStep.Scanning
     }
 
-    // 拍照是整屏的一步（与编辑页同一套）：相机给的字节已经是正方形 JPEG，不必再过裁剪页
-    if (showCamera) {
-        BackHandler { showCamera = false }
-        PhotoCaptureScreen(
-            onCancel = { showCamera = false },
-            onCaptured = { jpeg ->
-                showCamera = false
-                viewModel.onPhotoCaptured(jpeg)
-            },
-            modifier = modifier.fillMaxSize()
-        )
-        return
-    }
-
-    FreshNowSubPage(
-        // 翻面之后这一页做的是「把这条记录补齐」（位置、照片、校对那几个字），与补全信息是同一件事，
-        // 所以沿用那个名字（设计文档 D8）；扫描态才叫「扫描」
-        title = stringResource(
-            if (uiState.stage == ScanStage.EDITING) {
-                R.string.record_supplement_title
-            } else {
-                R.string.scan
-            }
-        ),
-        onBack = { if (hasResult) showSaveDialog = true else onBack() },
+    Box(
         modifier = modifier
-    ) { innerPadding ->
-        // 翻面是同一页里换一份内容（见 ScanStage），所以用淡入淡出：左右滑动在这套导航里
-        // 说的是「上一级 / 下一级」，而这里并没有换页
+            .fillMaxSize()
+            // 退场那帧两页同时在、各自半透明地叠着，底下不垫主题背景色的话会透出窗口背景，
+            // 深色模式下表现为一下黑闪（与编辑页、NavHost 同一个理由）
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         AnimatedContent(
-            targetState = uiState.stage,
-            transitionSpec = { FreshNowTransitions.fadeSwap() },
-            label = "scanStage"
-        ) { stage ->
-            if (stage == ScanStage.EDITING) {
-                ScanEditStage(
-                    uiState = uiState,
-                    onFieldChange = viewModel::onFieldChange,
-                    onRemovePhoto = viewModel::onPhotoRemoved,
-                    onMovePhoto = viewModel::onPhotoMoved,
-                    onAddPhoto = { showImageSources = true },
-                    onContinueScanning = viewModel::backToScanning,
-                    onSave = { viewModel.save { onBack() } },
+            targetState = step,
+            transitionSpec = {
+                when {
+                    // 回到扫描态、或从裁剪/拍照退回表单：都是「回到上一级」
+                    targetState is ScanStep.Scanning -> backEnter() togetherWith backExit()
+                    initialState is ScanStep.Crop || initialState is ScanStep.Capture ->
+                        backEnter() togetherWith backExit()
+
+                    // 其余都是往下一级：翻一面接着编、进裁剪、进拍照
+                    else -> forwardEnter() togetherWith forwardExit()
+                }
+            },
+            label = "scanStep"
+        ) { current ->
+            when (current) {
+                // 相册选来的图是任意比例，必须先裁成方的
+                ScanStep.Crop -> {
+                    BackHandler { viewModel.cancelCrop() }
+                    val source = uiState.cropSource
+                    if (source != null) {
+                        ImageCropScreen(
+                            image = source,
+                            onCancel = viewModel::cancelCrop,
+                            onConfirm = viewModel::applyCrop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                // 相机给的字节已经是正方形 JPEG，不必再过裁剪页
+                ScanStep.Capture -> {
+                    BackHandler { showCamera = false }
+                    PhotoCaptureScreen(
+                        onCancel = { showCamera = false },
+                        onCaptured = { jpeg ->
+                            showCamera = false
+                            viewModel.onPhotoCaptured(jpeg)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                ScanStep.Scanning, ScanStep.Editing -> FreshNowSubPage(
+                    // 翻面之后这一页做的是「把这条记录补齐」（位置、照片、校对那几个字），
+                    // 与补全信息是同一件事，所以沿用那个名字（设计文档 D8）；扫描态才叫「扫描」
+                    title = stringResource(
+                        if (current == ScanStep.Editing) {
+                            R.string.record_supplement_title
+                        } else {
+                            R.string.scan
+                        }
+                    ),
+                    onBack = { if (hasResult) showSaveDialog = true else onBack() },
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(FreshNowSpacing.sm)
-                )
-                return@AnimatedContent
-            }
-                // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
+                ) { innerPadding ->
+                    if (current == ScanStep.Editing) {
+                        ScanEditStage(
+                            uiState = uiState,
+                            onFieldChange = viewModel::onFieldChange,
+                            onRemovePhoto = { removingPhotoIndex = it },
+                            onMovePhoto = viewModel::onPhotoMoved,
+                            onAddPhoto = { showImageSources = true },
+                            onContinueScanning = viewModel::backToScanning,
+                            onSave = { viewModel.save { onBack() } },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                                .padding(FreshNowSpacing.sm)
+                        )
+                        return@FreshNowSubPage
+                    }
+
+                    // 两种排布下相机的回调完全相同，只有尺寸约束不同，因此只把尺寸交给调用方决定
             val cameraBox: @Composable (Modifier) -> Unit = { sizeConstraint ->
                 CameraBox(
                     permission = permission,
@@ -229,8 +264,22 @@ fun ScanScreen(
                 actionBar()
             }
         }
+            }
+        }
     }
 
+
+    val removingPhoto = removingPhotoIndex
+    if (removingPhoto != null) {
+        RemovePhotoSheet(
+            sheetState = removeSheetState,
+            onDismissRequest = { removingPhotoIndex = null },
+            onConfirm = {
+                removingPhotoIndex = null
+                viewModel.onPhotoRemoved(removingPhoto)
+            }
+        )
+    }
 
     if (showImageSources) {
         PhotoSourceSheet(

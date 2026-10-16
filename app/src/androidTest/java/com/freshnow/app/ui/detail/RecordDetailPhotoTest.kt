@@ -15,6 +15,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.freshnow.app.data.ScanImageStore
@@ -159,51 +161,38 @@ class RecordDetailPhotoTest {
     }
 
     /**
-     * 两张时主图右侧给一枚「下一张」的箭头：缩略图那一排已经拆了（它把正文挤下去），
-     * 翻页的指引改压在照片边缘上
+     * 多于一张时：右下角有页码，横滑一下能翻到下一张。
+     *
+     * 页码是缩略图那排的替身：既不占正文的版面，又回答了「共有几张」——少了它，
+     * 用户不知道那边还能滑。
      */
     @Test
-    fun twoImagesShowNextArrow() {
+    fun severalImagesCanBeSwipedAndShowAPageBadge() {
         seedRecordWithPhoto(count = 2)
         setContent()
-
         composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithContentDescription(NEXT).fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithContentDescription(PHOTO).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithContentDescription(NEXT).assertIsDisplayed()
-        // 站在第一张上，左侧没有上一张
-        composeRule.onNodeWithContentDescription(PREVIOUS).assertDoesNotExist()
+        composeRule.onNodeWithText("1/2").assertIsDisplayed()
+
+        composeRule.onRoot().performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertEquals("滑一下该翻到第二张", 1, viewModel.uiState.value.mainIndex)
+        composeRule.onNodeWithText("2/2").assertIsDisplayed()
     }
 
-    /** 一张时两枚箭头都不给：没得翻，画了反而让人以为还有图 */
+    /** 一张时不画页码：没得翻，画了反而让人以为还有图 */
     @Test
-    fun singleImageHasNoPagingArrows() {
+    fun singleImageHasNoPageBadge() {
         seedRecordWithPhoto()
         setContent()
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.onAllNodesWithContentDescription(PHOTO).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithContentDescription(NEXT).assertDoesNotExist()
-        composeRule.onNodeWithContentDescription(PREVIOUS).assertDoesNotExist()
-    }
-
-    /** 点「下一张」，主图换成它，并且这时左边出现「上一张」 */
-    @Test
-    fun tappingNextArrowSwapsTheMainImage() {
-        seedRecordWithPhoto(count = 2)
-        setContent()
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithContentDescription(NEXT).fetchSemanticsNodes().isNotEmpty()
-        }
-
-        composeRule.onNodeWithContentDescription(NEXT).performClick()
-        composeRule.waitForIdle()
-
-        assertEquals("主图下标该跟着换", 1, viewModel.uiState.value.mainIndex)
-        composeRule.onNodeWithContentDescription(PREVIOUS).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription(NEXT).assertDoesNotExist()
+        composeRule.onNodeWithText("1/1").assertDoesNotExist()
     }
 
     /**
@@ -269,9 +258,6 @@ class RecordDetailPhotoTest {
         const val PHOTO = "扫描照片"
         /** 没有照片时的占位图描述 */
         const val MISSING = "无图片"
-        /** 主图左右那两枚翻页箭头 */
-        const val NEXT = "下一张"
-        const val PREVIOUS = "上一张"
         /** 取样与步进：一帧 16ms，开头取一帧当「半路」的样本 */
         const val FRAME_MS = 16L
         const val MID_SAMPLE_MS = 80L

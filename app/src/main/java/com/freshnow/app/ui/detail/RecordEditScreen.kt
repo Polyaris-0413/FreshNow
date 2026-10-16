@@ -52,6 +52,7 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
+import com.freshnow.app.ui.component.RemovePhotoSheet
 import com.freshnow.app.ui.component.MenuSheetItem
 import com.freshnow.app.ui.component.PhotoGrid
 import com.freshnow.app.ui.component.PhotoGridItem
@@ -148,6 +149,9 @@ fun RecordEditScreen(
 
     // 换照片的来源选择是本页的状态，不进 ViewModel：它只是「面板开着吗」，不需要跨进程重建
     var showImageSources by remember { mutableStateOf(false) }
+    // 点了哪一张要移除：先起一片面板问一句（见 RemovePhotoSheet）
+    var removingPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val removeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showCamera by remember { mutableStateOf(false) }
     val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -205,12 +209,24 @@ fun RecordEditScreen(
                 uiState = uiState,
                 onBack = onBack,
                 onSave = viewModel::save,
-                onRemovePhoto = viewModel::onPhotoRemoved,
+                onRemovePhoto = { removingPhotoIndex = it },
                 onMovePhoto = viewModel::onPhotoMoved,
                 onAddPhoto = { showImageSources = true },
                 viewModel = viewModel
             )
         }
+    }
+
+    val removingPhoto = removingPhotoIndex
+    if (removingPhoto != null) {
+        RemovePhotoSheet(
+            sheetState = removeSheetState,
+            onDismissRequest = { removingPhotoIndex = null },
+            onConfirm = {
+                removingPhotoIndex = null
+                viewModel.onPhotoRemoved(removingPhoto)
+            }
+        )
     }
 
     if (showImageSources) {

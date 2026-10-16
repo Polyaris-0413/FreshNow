@@ -73,6 +73,7 @@
     <string name="record_supplement_title">补充信息</string>
     <string name="record_image_previous">上一张</string>
     <string name="record_image_next">下一张</string>
+    <string name="record_image_page">%1$d/%2$d</string>
     <string name="record_image_read_failed">无法读取这张照片</string>
     <string name="record_image_save_failed">照片保存失败，已保留原照片</string>
     <string name="photo_capture_title">拍照</string>

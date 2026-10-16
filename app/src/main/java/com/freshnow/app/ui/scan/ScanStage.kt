@@ -86,3 +86,24 @@ internal fun ScanUiState.storedResult(): ScanResult = record.copy(
     expiryDate = ScanValueFormat.date(record.expiryDate.trim()),
     shelfLife = ScanValueFormat.shelfLife(record.shelfLife.trim())
 )
+
+/**
+ * 扫描页的整屏步骤（见 [com.freshnow.app.ui.scan.ScanScreen]）。
+ *
+ * 四种都是一整屏、平级替换，所以它们之间走同一套方向明确的转场（见
+ * [com.freshnow.app.ui.theme.forwardEnter]）。裁剪与拍照也在这里，而不是像早先那样在页面里
+ * 提前 `return` 掉：那样进出一趟是硬切，项目里已经有的整屏转场就用不上了。
+ */
+internal sealed interface ScanStep {
+    /** 扫描态：只有相机与只读结果 */
+    data object Scanning : ScanStep
+
+    /** 编辑态：记录表单（设计文档里叫「补充信息」） */
+    data object Editing : ScanStep
+
+    /** 裁剪相册选来的图 */
+    data object Crop : ScanStep
+
+    /** 拍照 */
+    data object Capture : ScanStep
+}
