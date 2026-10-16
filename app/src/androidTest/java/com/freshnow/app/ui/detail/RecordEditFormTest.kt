@@ -19,7 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 编辑表单：四项都在、改动能传出去、写错了怎么报、过期日期的来源交代清楚。
+ * 编辑表单：五项都在、改动能传出去、写错了怎么报、过期日期的来源交代清楚。
  *
  * 只摆表单本体（不含读库与落盘）：走真的 RecordEditScreen 要连数据库一起测进来，
  * 而这里要盯的是三件事——「留空即跟随推算」「写错了在失焦之后才报」「打开就写错的旧值当场报」。
@@ -30,12 +30,12 @@ class RecordEditFormTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 四项一项都不能少：编辑页的意义就是把这四项都改一遍 */
+    /** 五项一项都不能少：编辑页的意义就是把这五项都改一遍 */
     @Test
     fun showsEveryEditableField() {
         setContent()
 
-        listOf("名称", "生产日期", "保质期", "过期日期").forEach { label ->
+        listOf("名称", "位置", "生产日期", "保质期", "过期日期").forEach { label ->
             composeRule.onNodeWithText(label).assertIsDisplayed()
         }
     }
@@ -100,6 +100,17 @@ class RecordEditFormTest {
         assertEquals(listOf("牛奶"), changed)
     }
 
+    /** 位置同样是可改的：它是本页唯一一项模型读不到的字段，全靠这里写进去 */
+    @Test
+    fun typingLocationReportsNewValue() {
+        val changed = mutableListOf<String>()
+        setContent(uiState = EMPTY, onLocationChange = { changed += it })
+
+        composeRule.onNodeWithText("位置").performTextInput("冰箱冷藏室")
+
+        assertEquals(listOf("冰箱冷藏室"), changed)
+    }
+
     /** 过期日期留空时，推算结果显示在同一屏里——这正是编辑页存在的理由 */
     @Test
     fun blankExpiryShowsDerivedDate() {
@@ -142,6 +153,7 @@ class RecordEditFormTest {
                 RecordEditForm(
                     uiState = uiState,
                     onProductNameChange = {},
+                    onLocationChange = {},
                     // 上层是 ViewModel 的 revalidate，这里直接摆它算出来的结果
                     onProductionDateChange = { value ->
                         uiState = uiState.copy(
@@ -190,6 +202,7 @@ class RecordEditFormTest {
     private fun setContent(
         uiState: RecordEditUiState = EMPTY,
         onProductNameChange: (String) -> Unit = {},
+        onLocationChange: (String) -> Unit = {},
         onChangePhoto: () -> Unit = {}
     ) {
         composeRule.setContent {
@@ -197,6 +210,7 @@ class RecordEditFormTest {
                 RecordEditForm(
                     uiState = uiState,
                     onProductNameChange = onProductNameChange,
+                    onLocationChange = onLocationChange,
                     onProductionDateChange = {},
                     onExpiryDateChange = {},
                     onShelfLifeChange = {},

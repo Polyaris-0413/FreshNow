@@ -48,6 +48,9 @@
     <string name="home_delete_dialog_message">记录和扫描照片都会被删除，无法恢复。</string>
     <string name="record_detail_title">记录详情</string>
     <string name="record_detail_missing">记录不存在</string>
+    <!-- 位置是唯一一项模型读不到的字段，所以它空着时不能说「未知」——那个词在本应用里是「这一项没读到」 -->
+    <string name="record_location">位置</string>
+    <string name="record_location_unset">未填</string>
     <string name="record_edit_title">编辑记录</string>
     <!-- 过期日期可编也可留空：留空即跟随推算，所以把推算结果当场给出来；推不出时只说推不出，
          具体哪个字段写错了由该字段自己的错误文案报（一个错只说一次） -->

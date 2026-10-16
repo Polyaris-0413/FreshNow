@@ -300,6 +300,7 @@ private fun EditForm(
         RecordEditForm(
             uiState = uiState,
             onProductNameChange = viewModel::onProductNameChange,
+            onLocationChange = viewModel::onLocationChange,
             onProductionDateChange = viewModel::onProductionDateChange,
             onExpiryDateChange = viewModel::onExpiryDateChange,
             onShelfLifeChange = viewModel::onShelfLifeChange,
@@ -404,6 +405,7 @@ private fun PhotoSourceAction(text: String, onClick: () -> Unit, modifier: Modif
 internal fun RecordEditForm(
     uiState: RecordEditUiState,
     onProductNameChange: (String) -> Unit,
+    onLocationChange: (String) -> Unit,
     onProductionDateChange: (String) -> Unit,
     onExpiryDateChange: (String) -> Unit,
     onShelfLifeChange: (String) -> Unit,
@@ -427,6 +429,13 @@ internal fun RecordEditForm(
             value = uiState.productName,
             onValueChange = onProductNameChange,
             label = stringResource(R.string.scan_product_name)
+        )
+        // 排在名称之后：名称说的是「这是什么」，位置说的是「它在哪」，两句是一件事；
+        // 而下面三项是一条推算链（生产日期 + 保质期 → 过期日期），插在它们中间会把链子打断
+        EditField(
+            value = uiState.location,
+            onValueChange = onLocationChange,
+            label = stringResource(R.string.record_location)
         )
         EditField(
             value = uiState.productionDate,

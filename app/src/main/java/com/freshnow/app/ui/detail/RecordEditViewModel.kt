@@ -41,6 +41,11 @@ data class RecordEditUiState(
     /** 这是一条还没落库的新记录（手动录入）：保存时是首次写入而不是覆盖，标题也不一样 */
     val isNew: Boolean = false,
     val productName: String = "",
+    /**
+     * 位置。它是本页唯一一项不由模型读入、只能由用户写的字段，也是扫描页从不显示的一项
+     * （见 ScanRecord.location）。它没有「认不出的写法」这一说，所以不参与任何校验
+     */
+    val location: String = "",
     val productionDate: String = "",
     val expiryDate: String = "",
     val shelfLife: String = "",
@@ -86,6 +91,7 @@ val RecordEditUiState.hasAnyValue: Boolean
  */
 private data class StoredFields(
     val productName: String,
+    val location: String,
     val productionDate: String,
     val expiryDate: String,
     val shelfLife: String
@@ -93,6 +99,8 @@ private data class StoredFields(
 
 private fun RecordEditUiState.storedFields() = StoredFields(
     productName = productName.trim(),
+    // 自由文本，不参与任何规整：位置怎么写由用户说了算，这里只去掉首尾空白
+    location = location.trim(),
     productionDate = ScanValueFormat.date(productionDate.trim()),
     expiryDate = ScanValueFormat.date(expiryDate.trim()),
     shelfLife = ScanValueFormat.shelfLife(shelfLife.trim())
@@ -145,6 +153,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 loaded = true,
                 found = true,
                 productName = record.productName,
+                location = record.location,
                 productionDate = record.productionDate,
                 expiryDate = record.expiryDate,
                 shelfLife = record.shelfLife,
@@ -155,6 +164,10 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
 
     fun onProductNameChange(value: String) {
         _uiState.update { it.copy(productName = value) }
+    }
+
+    fun onLocationChange(value: String) {
+        _uiState.update { it.copy(location = value) }
     }
 
     /**
@@ -285,6 +298,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                     current.isNew -> repository.insert(
                         ScanRecord(
                             productName = fields.productName,
+                            location = fields.location,
                             productionDate = fields.productionDate,
                             expiryDate = fields.expiryDate,
                             shelfLife = fields.shelfLife,
@@ -300,6 +314,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                     else -> repository.update(
                         record.copy(
                             productName = fields.productName,
+                            location = fields.location,
                             productionDate = fields.productionDate,
                             expiryDate = fields.expiryDate,
                             shelfLife = fields.shelfLife
