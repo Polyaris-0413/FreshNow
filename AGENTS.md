@@ -42,4 +42,7 @@ Material Symbols 的 SVG 官方坐标系是负 Y，且 `viewBox` 从 -960 开始
 
 - 禁止私自在真机进行与键盘输入有关的调试，这会导致输入法的 BUG；应要求用户进行手动调试。
 - baseline profile 无法在真机上录制，原因未知，需要使用虚拟机。
-- 因调试所产生的文件，应分类并放入 `C:\Users\Administrator\ai_workspace` 路径下
+- 因调试所产生的文件，应分类并放入 `C:\Users\Administrator\ai_workspace` 路径下。
+
+## 5.  编译
+- 测试时默认编译的包为debug包；而debug包的包名带有 .debug 后缀。
