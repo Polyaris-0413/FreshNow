@@ -263,10 +263,8 @@ fun ScanScreen(
         RemovePhotoSheet(
             sheetState = removeSheetState,
             onDismissRequest = { removingPhotoIndex = null },
-            onConfirm = {
-                removingPhotoIndex = null
-                viewModel.onPhotoRemoved(removingPhoto)
-            }
+            // 收起动画由面板自己等完再回调（见 RemovePhotoSheet），这里只负责删哪一张
+            onConfirm = { viewModel.onPhotoRemoved(removingPhoto) }
         )
     }
 
