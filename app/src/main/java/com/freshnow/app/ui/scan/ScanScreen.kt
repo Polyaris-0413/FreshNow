@@ -311,7 +311,7 @@ fun ScanScreen(
                         onBack()
                     }
                 ) {
-                    Text(text = stringResource(R.string.scan_save_dialog_discard))
+                    Text(text = stringResource(R.string.action_discard))
                 }
             }
         )

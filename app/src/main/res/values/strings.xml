@@ -11,6 +11,8 @@
     <string name="action_open_settings">去设置</string>
     <string name="action_edit">编辑</string>
     <string name="action_confirm">确定</string>
+    <!-- 「不保存」这个词两处用的是同一句，所以共用一条：往后要把它们改成各自说法，才需要拆 -->
+    <string name="action_discard">不保存</string>
     <string name="action_take_photo">拍照</string>
     <string name="action_sort">排序</string>
     <string name="about">关于</string>
@@ -36,7 +38,10 @@
     <!-- 问的是「要不要离开」，而不是重复一遍保存动作：这里的处境是刚扫到的东西还没存就要走 -->
     <string name="scan_save_dialog_title">离开扫描页？</string>
     <string name="scan_save_dialog_message">本次扫描结果尚未保存。</string>
-    <string name="scan_save_dialog_discard">不保存</string>
+    <!-- 编辑记录与手动输入共用：问的是同一件事——这次输入还没存就要走；
+         页面名有两种（编辑记录 / 手动输入），所以只说「此页」 -->
+    <string name="record_leave_dialog_title">离开此页？</string>
+    <string name="record_leave_dialog_message">本次输入尚未保存。</string>
     <string name="home_records_empty">还没有扫描记录</string>
     <string name="home_expiry_days_left">还剩 %1$d 天</string>
     <string name="home_expiry_today">今天到期</string>

@@ -69,6 +69,12 @@ data class RecordEditUiState(
     val saving: Boolean = false
 )
 
+/** 进页时那条记录的字段（已按落库写法规整）与照片名，判「有没有改动」的基准（见 [isDirtyAgainst]） */
+internal data class RecordBaseline(
+    val fields: StoredFields,
+    val imageNames: List<String>
+)
+
 /** 交给共用表单的那几项（见 [com.freshnow.app.ui.component.RecordEditForm]）*/
 internal fun RecordEditUiState.toFormFields() = RecordFormFields(
     productName = productName,
@@ -103,13 +109,35 @@ val RecordEditUiState.hasAnyValue: Boolean
     get() = anyFieldFilled(productName, productionDate, expiryDate, shelfLife)
 
 /**
+ * 这一页有没有东西会因为返回而丢掉：有才先问一句（与扫描页「有结果才问」同一条规矩），
+ * 没有就直接退，不拿一句「尚未保存」去拦一个什么都没改的人。
+ *
+ * 新记录比的是「输没输入过」：字段一项没填就是空页，照片也是这次输入的一部分。
+ * 已有记录比的是「与进页时那条记录差多少」，所以改了一种写法又改回去（落库只有一种写法，
+ * 见 [ScanValueFormat]）、或者删了照片又原样加回来，都不算改动。
+ *
+ * 位置也算：它在这份草稿里，返回时一样会丢。
+ *
+ * [baseline] 为 null 表示手上是一份手填的新记录，没有可比的旧版。
+ */
+internal fun RecordEditUiState.isDirtyAgainst(baseline: RecordBaseline?): Boolean {
+    // 还没读到库时「有没有改动」无从谈起，此刻拦住返回只会卡住一个空白页
+    if (!loaded || !found) return false
+    val base = baseline ?: return hasAnyValue || photos.isNotEmpty()
+    val images = photoChange
+    return storedFields() != base.fields ||
+        images.kept != base.imageNames ||
+        images.added.isNotEmpty()
+}
+
+/**
  * 草稿里的字段按落库写法规整后的样子（见 [RecordEditViewModel.save]）。
  *
  * 提着它是因为插入与覆盖两条路要的是同一套规整（[ScanValueFormat]）：各写一遍的话，
  * 「值不管谁写的、落库只有一种写法」这条规矩会从一个分支漏掉，而那就是同一个日期在库里
  * 存成两种写法的来处。
  */
-private data class StoredFields(
+internal data class StoredFields(
     val productName: String,
     val location: String,
     val productionDate: String,
@@ -131,8 +159,10 @@ private fun RecordEditUiState.storedFields() = StoredFields(
  *
  * 当场从草稿推出来，而不是每次增删都维护一份：草稿是唯一真相，关系是它的函数——
  * 两处各记一份的话，「删了又加回来」「同一张图选两次」这类操作迟早会让它们分家。
+ *
+ * 返回 [ImageChange.Update] 而不是基类：这里描的总是「目标状态」，没有「原样保留」那一支。
  */
-private val RecordEditUiState.photoChange: ImageChange
+private val RecordEditUiState.photoChange: ImageChange.Update
     get() = ImageChange.Update(
         kept = photos.mapNotNull { photo -> photo.name.takeIf { it.isNotEmpty() } },
         added = photos.mapNotNull { it.bytes }
@@ -157,11 +187,22 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     /** 读进来的那条记录，保存时在它上面改字段：照片文件名、保存时间都靠它原样带过去。新记录时为 null */
     private var loaded: ScanRecord? = null
 
+    /** 进页时那条记录的原样（手填的新记录为 null），返回时判「有没有东西会丢」全靠它 */
+    private var baseline: RecordBaseline? = null
+
     /** 已经读过哪条记录。用它判重而不是 uiState.loaded：后者是给界面看的状态，不是「已经读过库」的证据 */
     private var loadedId: Long? = null
 
     /** 已经开过手填的草稿。与 [loadedId] 一样只是个判重标记，两者不会同时成立 */
     private var startedNew = false
+
+    /**
+     * 这一页有没有东西会因为返回而丢掉，询问方是界面（见 [RecordEditScreen]）。
+     *
+     * 不在 [RecordEditUiState] 里存一个 Boolean：那份状态是「草稿长什么样」，而这是草稿与基准的差，
+     * 两者各存一份就得在每处改动后面补一次重算。
+     */
+    fun hasUnsavedChanges(): Boolean = _uiState.value.isDirtyAgainst(baseline)
 
 /** 草稿照片的 id 发到哪儿了。只在草稿内部流转，不与库里的任何东西对应 */
     private var nextPhotoId = 0L
@@ -182,11 +223,12 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
             val record = repository.find(id)
             loaded = record
             if (record == null) {
+                baseline = null
                 _uiState.value = RecordEditUiState(loaded = true, found = false)
                 return@launch
             }
             val photos = loadPhotos(record)
-            _uiState.value = RecordEditUiState(
+            val draft = RecordEditUiState(
                 loaded = true,
                 found = true,
                 productName = record.productName,
@@ -196,6 +238,10 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 shelfLife = record.shelfLife,
                 photos = photos
             ).revalidate()
+            // 基准取的是刚读进来的这条记录，而不是库里那一行：两个字段的写法要经过同一套规整，
+            // 否则「只是换了个写法」会被当成改动（见 isDirtyAgainst）
+            baseline = RecordBaseline(fields = draft.storedFields(), imageNames = record.imageNames)
+            _uiState.value = draft
         }
     }
 
@@ -229,6 +275,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         startedNew = true
         loadedId = null
         loaded = null
+        baseline = null
         viewModelScope.launch {
             _uiState.value = RecordEditUiState(
                 loaded = true,

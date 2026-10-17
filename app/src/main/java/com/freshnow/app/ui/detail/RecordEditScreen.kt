@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -49,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.ExpiryOutcome
+import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
@@ -103,9 +105,12 @@ fun RecordEditScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val readFailedToast = stringResource(R.string.record_image_read_failed)
+    val saveFailedToast = stringResource(R.string.record_image_save_failed)
 
     // 换照片的来源选择是本页的状态，不进 ViewModel：它只是「面板开着吗」，不需要跨进程重建
     var showImageSources by remember { mutableStateOf(false) }
+    // 有改动时返回先问一句（见 [RecordLeaveDialog]），没改动就直接退
+    var showLeaveDialog by remember { mutableStateOf(false) }
     // 点了哪一张要移除：先起一片面板问一句（见 RemovePhotoSheet）
     var removingPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val removeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -134,6 +139,20 @@ fun RecordEditScreen(
     val cropSource = uiState.cropSource
     val step: EditStep = cropSource?.let { EditStep.Crop(it) }
         ?: if (showCamera) EditStep.Capture else EditStep.Edit
+
+    // 有改动才问一句（与扫描页「有结果才问」同一条规矩，判据见 [isDirtyAgainst]）。
+    // 顶栏返回箭头与系统返回键走同一套判断，否则箭头会绕过这里静默丢掉改动
+    val hasUnsavedChanges = viewModel.hasUnsavedChanges()
+    fun requestLeave() = if (hasUnsavedChanges) showLeaveDialog = true else onBack()
+
+    // 照片写盘失败也照旧退回去：其余字段已经存好了，而提示只说照片这一件事，
+    // 留在本页只会让人以为整个保存都失败了。顶栏那颗保存与弹窗里那颗共用这一下
+    fun saveAndLeave() {
+        viewModel.save { imageSaved ->
+            if (!imageSaved) showToast(context, saveFailedToast)
+            onBack()
+        }
+    }
 
     // 三个整屏步骤之间的转场（见 [StepTransition]）：回到表单是退回方向，从表单出去是前进方向，
     // 而裁剪与拍照之间留一段淡入淡出——它们不会直接互换，但也不该硬切
@@ -175,14 +194,17 @@ fun RecordEditScreen(
                 )
             }
 
-            EditStep.Edit -> EditForm(
-                uiState = uiState,
-                onBack = onBack,
-                onSave = viewModel::save,
-                onRemovePhoto = { removingPhotoIndex = it },
-                onAddPhoto = { showImageSources = true },
-                viewModel = viewModel
-            )
+            EditStep.Edit -> {
+                BackHandler(enabled = hasUnsavedChanges) { showLeaveDialog = true }
+                EditForm(
+                    uiState = uiState,
+                    onBack = ::requestLeave,
+                    onSave = ::saveAndLeave,
+                    onFieldChange = viewModel::onFieldChange,
+                    onRemovePhoto = { removingPhotoIndex = it },
+                    onAddPhoto = { showImageSources = true }
+                )
+            }
         }
     }
 
@@ -212,6 +234,55 @@ fun RecordEditScreen(
             onTakePhoto = { dismissSheetThen { showCamera = true } }
         )
     }
+
+    if (showLeaveDialog) {
+        RecordLeaveDialog(
+            // 一项都填不出来、或日期认不出时不给一颗按下去也写不进库的保存（表单那颗也是置灰的）
+            canSave = uiState.canSave,
+            onSave = {
+                showLeaveDialog = false
+                saveAndLeave()
+            },
+            onDiscard = {
+                showLeaveDialog = false
+                onBack()
+            },
+            onDismiss = { showLeaveDialog = false }
+        )
+    }
+}
+
+/**
+ * 「这次输入还没存就要走」的那一问。
+ *
+ * 扫描页问的是同一件事，但那边说的是「离开扫描页」（见 ScanScreen），而本页有两个名字
+ * （编辑记录 / 手动输入），所以这里只说「此页」。
+ *
+ * 提为 internal 是为了能在仪器化测试里直接断言三个出入口：设备上要把整页走一遍
+ * （新记录与已有记录、改过与没改过），得先往库里造记录。
+ */
+@Composable
+internal fun RecordLeaveDialog(
+    canSave: Boolean,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.record_leave_dialog_title)) },
+        text = { Text(text = stringResource(R.string.record_leave_dialog_message)) },
+        confirmButton = {
+            TextButton(onClick = onSave, enabled = canSave) {
+                Text(text = stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDiscard) {
+                Text(text = stringResource(R.string.action_discard))
+            }
+        }
+    )
 }
 
 /**
@@ -223,14 +294,12 @@ fun RecordEditScreen(
 private fun EditForm(
     uiState: RecordEditUiState,
     onBack: () -> Unit,
-    onSave: ((imageSaved: Boolean) -> Unit) -> Unit,
+    onSave: () -> Unit,
+    onFieldChange: (RecordField, String) -> Unit,
     onRemovePhoto: (Int) -> Unit,
-    onAddPhoto: () -> Unit,
-    viewModel: RecordEditViewModel
+    onAddPhoto: () -> Unit
 ) {
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val saveFailedToast = stringResource(R.string.record_image_save_failed)
 
     FreshNowSubPage(
         // 新记录还没有名字可提，标题换成功能名：「编辑记录」会让人去找那条并不存在的记录
@@ -244,14 +313,7 @@ private fun EditForm(
             // 记录都读不到了就没有可存的东西，不留一个按下去没反应的按钮
             if (uiState.found) {
                 TextButton(
-                    // 照片写盘失败也照旧退回去：其余字段已经存好了，而提示只说照片这一件事，
-                    // 留在本页只会让人以为整个保存都失败了
-                    onClick = {
-                        onSave { imageSaved ->
-                            if (!imageSaved) showToast(context, saveFailedToast)
-                            onBack()
-                        }
-                    },
+                    onClick = onSave,
                     enabled = uiState.canSave
                 ) {
                     Text(text = stringResource(R.string.action_save))
@@ -296,7 +358,7 @@ private fun EditForm(
                 fields = uiState.toFormFields(),
                 photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
                 derivedExpiry = uiState.derivedExpiry,
-                onFieldChange = viewModel::onFieldChange,
+                onFieldChange = onFieldChange,
                 onRemovePhoto = onRemovePhoto,
                 onAddPhoto = onAddPhoto,
                 modifier = Modifier
