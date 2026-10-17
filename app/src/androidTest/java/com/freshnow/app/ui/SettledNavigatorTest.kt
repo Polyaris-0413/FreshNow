@@ -130,32 +130,6 @@ class SettledNavigatorTest {
     }
 
     /**
-     * backTo：退回 [route] 那一页，中间那几页要真的撤掉。
-     *
-     * 【为什么盯它】补充信息页的「保存」走这一支。撤不掉的话，保存完会先落在扫描页上——
-     * 而那一页在这一程里已经用完了，多停一下会让人以为还得再退一次。
-     */
-    @Test
-    fun backTo_dropsThePagesInBetween() {
-        setContent()
-
-        composeRule.runOnUiThread { navigator.navigate(B) }
-        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
-        composeRule.runOnUiThread { navigator.navigate(C) }
-        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
-
-        composeRule.runOnUiThread { navigator.backTo(A) }
-        composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
-
-        composeRule.onNodeWithText(A).assertExists()
-        assertEquals(
-            "B 与 C 都要撤掉：栈里是 导航图 + 起点",
-            listOf(null, A),
-            navController.currentBackStack.value.map { it.destination.route }
-        )
-    }
-
-    /**
      * 一帧一帧推到 [text] 那一页出现为止。
      *
      * 不按「推多久」写死：转场结束、延迟那一程出发、新页开始进场，这几步各有一两帧的调度延迟，

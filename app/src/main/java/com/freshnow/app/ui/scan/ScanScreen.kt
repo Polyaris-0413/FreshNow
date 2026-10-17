@@ -59,13 +59,11 @@ import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordEditForm
-import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.ImageCropScreen
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
-import androidx.compose.animation.AnimatedVisibility
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

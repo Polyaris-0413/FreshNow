@@ -46,15 +46,6 @@ class SettledNavigator internal constructor(
     /** 退回上一页；同上 */
     fun navigateUp() = navigateWhenSettled { navController.navigateUp() }
 
-    /**
-     * 退回 [route] 那一页，并把中间的页面一并撤掉——不新建那一页，回到栈里已有的那一条。
-     *
-     * 补充信息页的「保存」走这一支：那一按下去表示这条记录的事办完了，该回列表看它，
-     * 而扫描页是刚才那一程的中间站——从这条路退出去不该再在它上面停一下。
-     * 「返回」不走这里：那一下是「还没填完，回去接着扫」，得落在扫描页。
-     */
-    fun backTo(route: String) = navigateWhenSettled { navController.popBackStack(route, false) }
-
     private fun navigateWhenSettled(action: () -> Unit) {
         // 常规情况：没有转场在演，立刻出发，不进任何队列
         if (!isTransitioning()) {

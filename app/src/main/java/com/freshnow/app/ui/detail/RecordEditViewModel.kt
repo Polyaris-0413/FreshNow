@@ -26,7 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -204,7 +203,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
      */
     fun hasUnsavedChanges(): Boolean = _uiState.value.isDirtyAgainst(baseline)
 
-/** 草稿照片的 id 发到哪儿了。只在草稿内部流转，不与库里的任何东西对应 */
+    /** 草稿照片的 id 发到哪儿了。只在草稿内部流转，不与库里的任何东西对应 */
     private var nextPhotoId = 0L
 
     /**
@@ -417,9 +416,8 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                     // 记录已经读不到了（比如在别处被删掉）就没有可存的东西，当作照片也没问题，直接退出
                     record == null -> true
 
-                    // 只改自己这一类字段：位置归「补充信息」页，这里 copy 时不提它，它就不会被清掉
-                    // 本页单稿里也带着位置（进来时从库里读到的），所以保存会把它原样写回去：
-                    // 在补充信息页刚填的位置不会被这里清掉。两页都是先读整条记录、只写自己单稿里那几个字段
+                    // 五项一起写回：这份草稿里就带着全部五项（位置也在本页表单里改），
+                    // 在原记录上 copy 它们，照片文件名与保存时间原样带过去（见 repository.update）
                     else -> repository.update(
                         record.copy(
                             productName = fields.productName,

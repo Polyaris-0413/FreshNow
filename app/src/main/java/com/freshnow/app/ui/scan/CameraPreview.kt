@@ -27,7 +27,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.freshnow.app.data.squareCrop
 import com.freshnow.app.data.toSquareJpegBytes
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.suspendCancellableCoroutine

@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -13,7 +12,6 @@ import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.freshnow.app.R
 import com.freshnow.app.ui.detail.RecordDetailScreen
 import com.freshnow.app.ui.detail.RecordEditScreen
 import com.freshnow.app.ui.home.HomeRoute

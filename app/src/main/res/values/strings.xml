@@ -29,7 +29,7 @@
     <string name="scan_status_recognizing">正在识别…</string>
     <string name="scan_status_found">已读到 %1$d 项</string>
     <string name="scan_clear">清空</string>
-    <!-- 开关打开时那颗按钮的字：这一按下去还要接着填位置，叫「保存」会让人以为这一步完了（见 ScanScreen） -->
+    <!-- 这一按下去不是保存：翻面进编辑态接着补内容，叫「保存」会让人以为这一步完了（见 ScanScreen） -->
     <string name="scan_next_step">下一步</string>
     <string name="scan_continue">继续扫描</string>
     <!-- 两条文案说的是「点一下会发生什么」，不是「当前是什么状态」：切换态图标的读法在两种设备上不一致 -->
@@ -70,15 +70,13 @@
     <string name="record_image">扫描照片</string>
     <string name="record_image_missing">无图片</string>
     <string name="record_image_add">添加照片</string>
-    <string name="record_image_change">更换照片</string>
     <string name="record_image_source_gallery">相册</string>
     <string name="record_image_remove">移除照片</string>
     <!-- 详情页点照片可看大图，编辑页点照片是换照片：两处都有动作，读屏软件要能说清点下去会怎样 -->
     <string name="record_image_open">查看大图</string>
     <string name="record_supplement_title">补充信息</string>
-    <string name="record_image_previous">上一张</string>
-    <string name="record_image_next">下一张</string>
-    <string name="record_image_page">%1$d/%2$d</string>    <string name="record_image_read_failed">无法读取这张照片</string>
+    <string name="record_image_page">%1$d/%2$d</string>
+    <string name="record_image_read_failed">无法读取这张照片</string>
     <string name="record_image_save_failed">照片保存失败，已保留原照片</string>
     <string name="photo_capture_title">拍照</string>
     <string name="photo_capture_permission_required">需要相机权限才能拍照</string>

@@ -5,28 +5,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -40,38 +27,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
-import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.RecordField
-import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.LeaveDialog
 import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.StepDirection
 import com.freshnow.app.ui.component.StepTransition
 import com.freshnow.app.ui.component.RemovePhotoSheet
-import com.freshnow.app.ui.component.MenuSheetItem
-import com.freshnow.app.ui.component.PhotoGrid
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.component.hideSheetThen
-import com.freshnow.app.ui.component.splicedShape
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
-import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
-import com.freshnow.app.ui.theme.FreshNowTransitions
-import com.freshnow.app.ui.theme.backEnter
-import com.freshnow.app.ui.theme.backExit
-import com.freshnow.app.ui.theme.forwardEnter
-import com.freshnow.app.ui.theme.forwardExit
 import kotlinx.coroutines.launch
 
 /**
@@ -109,7 +83,7 @@ fun RecordEditScreen(
 
     // 换照片的来源选择是本页的状态，不进 ViewModel：它只是「面板开着吗」，不需要跨进程重建
     var showImageSources by remember { mutableStateOf(false) }
-    // 有改动时返回先问一句（见 [RecordLeaveDialog]），没改动就直接退
+    // 有改动时返回先问一句（见 LeaveDialog），没改动就直接退
     var showLeaveDialog by remember { mutableStateOf(false) }
     // 点了哪一张要移除：先起一片面板问一句（见 RemovePhotoSheet）
     var removingPhotoIndex by remember { mutableStateOf<Int?>(null) }

@@ -23,8 +23,6 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
@@ -35,7 +33,6 @@ import com.freshnow.app.data.ExpiryCalculator
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.ui.CHANNEL_TOLERANCE
-import com.freshnow.app.ui.channelDifference
 import com.freshnow.app.ui.differs
 import com.freshnow.app.ui.drawsSomethingBetween
 import com.freshnow.app.ui.maxContrast
