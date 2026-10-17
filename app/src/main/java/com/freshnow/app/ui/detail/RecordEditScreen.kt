@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -53,6 +52,7 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.EditField
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.LeaveDialog
 import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.StepDirection
 import com.freshnow.app.ui.component.StepTransition
@@ -234,7 +234,9 @@ fun RecordEditScreen(
     }
 
     if (showLeaveDialog) {
-        RecordLeaveDialog(
+        LeaveDialog(
+            title = stringResource(R.string.record_leave_dialog_title),
+            message = stringResource(R.string.record_leave_dialog_message),
             // 一项都填不出来、或日期认不出时不给一颗按下去也写不进库的保存（表单那颗也是置灰的）
             canSave = uiState.canSave,
             onSave = {
@@ -248,39 +250,6 @@ fun RecordEditScreen(
             onDismiss = { showLeaveDialog = false }
         )
     }
-}
-
-/**
- * 「这次输入还没存就要走」的那一问。
- *
- * 扫描页问的是同一件事，但那边说的是「离开扫描页」（见 ScanScreen），而本页有两个名字
- * （编辑记录 / 手动输入），所以这里只说「此页」。
- *
- * 提为 internal 是为了能在仪器化测试里直接断言三个出入口：设备上要把整页走一遍
- * （新记录与已有记录、改过与没改过），得先往库里造记录。
- */
-@Composable
-internal fun RecordLeaveDialog(
-    canSave: Boolean,
-    onSave: () -> Unit,
-    onDiscard: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.record_leave_dialog_title)) },
-        text = { Text(text = stringResource(R.string.record_leave_dialog_message)) },
-        confirmButton = {
-            TextButton(onClick = onSave, enabled = canSave) {
-                Text(text = stringResource(R.string.action_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDiscard) {
-                Text(text = stringResource(R.string.action_discard))
-            }
-        }
-    )
 }
 
 /**

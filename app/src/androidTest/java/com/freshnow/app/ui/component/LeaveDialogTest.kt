@@ -1,4 +1,4 @@
-package com.freshnow.app.ui.detail
+package com.freshnow.app.ui.component
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -17,26 +17,25 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 编辑记录页返回时的「这次输入还没存」那一问。
+ * 「这次的内容还没存」那一问：正文说的是代价（会丢），两个出入口分别是「保存」与「不保存」。
  *
- * 只摆对话框本体：出现时机由 `isDirtyAgainst` 判（那条判据在 JVM 测试里逐条盖过，
- * 见 RecordEditUnsavedChangesTest），设备上要验的是三个出入口各自通到哪儿。
+ * 出现时机由各页自己判（编辑页那条判据在 JVM 测试里逐条盖过，见 RecordEditUnsavedChangesTest），
+ * 这里验的是组件本身的三个出入口各自通到哪儿。文案由调用方给，所以扫描页那份也从这里过一遍。
  */
 @RunWith(AndroidJUnit4::class)
-class RecordLeaveDialogTest {
+class LeaveDialogTest {
 
     @get:Rule
     val composeRule = createComposeRule()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-    /** 正文说的是代价（这次输入会丢），两个出入口各自是「保存」与「不保存」 */
     @Test
     fun showsQuestionAndBothActions() {
         setContent()
 
-        composeRule.onNodeWithText(context.getString(R.string.record_leave_dialog_title)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.record_leave_dialog_message)).assertIsDisplayed()
+        composeRule.onNodeWithText(TITLE).assertIsDisplayed()
+        composeRule.onNodeWithText(MESSAGE).assertIsDisplayed()
         composeRule.onNodeWithText("保存").assertIsEnabled()
         composeRule.onNodeWithText("不保存").assertIsEnabled()
     }
@@ -84,7 +83,20 @@ class RecordLeaveDialogTest {
         assertEquals(0, discarded)
     }
 
+    /** 扫描页那份文案也走这个组件：两处问的是同一件事，只是页面名不同 */
+    @Test
+    fun scanWordingShowsTheSameActions() {
+        val title = context.getString(R.string.scan_save_dialog_title)
+        setContent(title = title, message = context.getString(R.string.scan_save_dialog_message))
+
+        composeRule.onNodeWithText(title).assertIsDisplayed()
+        composeRule.onNodeWithText("保存").assertIsEnabled()
+        composeRule.onNodeWithText("不保存").assertIsEnabled()
+    }
+
     private fun setContent(
+        title: String = TITLE,
+        message: String = MESSAGE,
         canSave: Boolean = true,
         onSave: () -> Unit = {},
         onDiscard: () -> Unit = {},
@@ -92,13 +104,20 @@ class RecordLeaveDialogTest {
     ) {
         composeRule.setContent {
             FreshNowTheme {
-                RecordLeaveDialog(
-                    canSave = canSave,
+                LeaveDialog(
+                    title = title,
+                    message = message,
                     onSave = onSave,
                     onDiscard = onDiscard,
-                    onDismiss = onDismiss
+                    onDismiss = onDismiss,
+                    canSave = canSave
                 )
             }
         }
+    }
+
+    private companion object {
+        const val TITLE = "离开此页？"
+        const val MESSAGE = "本次输入尚未保存。"
     }
 }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.freshnow.app.R
 import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
+import com.freshnow.app.ui.component.LeaveDialog
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.StepDirection
@@ -286,32 +287,18 @@ fun ScanScreen(
     }
 
     if (showSaveDialog) {
-        AlertDialog(
-            onDismissRequest = { showSaveDialog = false },
-            title = { Text(text = stringResource(R.string.scan_save_dialog_title)) },
-            // 正文说清这一问的代价。只有标题的话，标题下面空出一块，对话框显得又扁又空；
-            // 主页那个删除对话框同样带正文，两者就此一致
-            text = { Text(text = stringResource(R.string.scan_save_dialog_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showSaveDialog = false
-                        saveAndLeave()
-                    }
-                ) {
-                    Text(text = stringResource(R.string.action_save))
-                }
+        LeaveDialog(
+            title = stringResource(R.string.scan_save_dialog_title),
+            message = stringResource(R.string.scan_save_dialog_message),
+            onSave = {
+                showSaveDialog = false
+                saveAndLeave()
             },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showSaveDialog = false
-                        onBack()
-                    }
-                ) {
-                    Text(text = stringResource(R.string.action_discard))
-                }
-            }
+            onDiscard = {
+                showSaveDialog = false
+                onBack()
+            },
+            onDismiss = { showSaveDialog = false }
         )
     }
 
