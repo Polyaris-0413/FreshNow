@@ -35,9 +35,9 @@
 
 ## 截图
 <p align="center">
-  <img width="32%" src="https://github.com/user-attachments/assets/c7709299-c99e-4f62-9542-c592afa5623f" alt="截图 1" />
-  <img width="32%" src="https://github.com/user-attachments/assets/5c3ffda5-9f0c-487d-94c6-02a71abedaae" alt="截图 2" />
-  <img width="32%" src="https://github.com/user-attachments/assets/a5ccd538-8653-4902-9d36-7c776598afda" alt="截图 3" />
+  <img width="32%" alt="58847" src="https://github.com/user-attachments/assets/d16383f4-ea54-4c7b-8911-1957c57a6d46" />
+  <img width="32%" alt="58845" src="https://github.com/user-attachments/assets/09b3067c-9cc7-4c9b-a217-2353ffd33c39" />
+  <img width="32%" alt="58846" src="https://github.com/user-attachments/assets/28709e44-af38-444c-93c0-3ffed861a689" />
 </p>
 
 ## 贡献
