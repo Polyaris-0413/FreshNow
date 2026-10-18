@@ -26,6 +26,15 @@ internal fun ScanUiState.backToScanning(): ScanUiState =
     if (stage == ScanStage.SCANNING) this else copy(stage = ScanStage.SCANNING)
 
 /**
+ * 记下「这一次已经提交落库了」。
+ *
+ * 草稿留在屏幕上到页面离场为止（保存之后这一页就要离开，见 [ScanViewModel.save]），
+ * 所以防连点不能再靠「清空后保存自动置灰」，改由 [canSave] 看这一项。
+ */
+internal fun ScanUiState.startSaving(): ScanUiState =
+    if (saving) this else copy(saving = true)
+
+/**
  * 编辑态里改一项。
  *
  * 改的就是扫描累加的那份 [ScanUiState.record] 本身，不另开一份编辑草稿：两份状态并存的话，
@@ -72,7 +81,7 @@ internal val ScanUiState.formFields: RecordFormFields
  * 判据沿用编辑页那一条：写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」。
  */
 internal val ScanUiState.canSave: Boolean
-    get() = with(formFields) {
+    get() = !saving && with(formFields) {
         !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid && record.hasAnyValue
     }
 

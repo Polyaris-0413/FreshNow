@@ -68,6 +68,14 @@ class ScanStageTest {
         assertEquals(false, ScanUiState().startEditing().canSave)
     }
 
+    /** 落库还没回来：这一页还在台上，按钮就此置灰，否则连点两下会写出两条 */
+    @Test
+    fun aPendingSaveBlocksTheNextOne() {
+        val state = ScanUiState(record = ScanResult(productName = "牛奶")).startEditing()
+
+        assertEquals(false, state.startSaving().canSave)
+    }
+
     /** 落库前把首尾空白去掉：两条保存路径（扫描、编辑）用的是同一种写法 */
     @Test
     fun storedResultTrimsTheTextFields() {

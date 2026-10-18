@@ -22,6 +22,7 @@ import com.freshnow.app.ui.component.EditPhoto
 import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.croppedTo
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -67,7 +68,9 @@ data class ScanUiState(
     /** 取景框里那枚状态胶囊该说什么，见 [ScanStatus] */
     val status: ScanStatus = ScanStatus.Hidden,
     /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
-    val serviceProblem: ServiceProblem? = null
+    val serviceProblem: ServiceProblem? = null,
+    /** 这一次已经提交落库、正等着离开这一页（见 [ScanViewModel.save]）*/
+    val saving: Boolean = false
 )
 
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
@@ -190,23 +193,34 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 保存当前累加记录，成功后清空以便接着扫描下一件商品。无可保存内容时返回 false
-     */
-    /**
-     * 落库之后回调新记录的 id，界面凭它决定接着去哪（开关打开时进这条记录的表单去补填）。
+     * 落库之后回调新记录的 id，界面凭它决定接着去哪（两条入口都把这一页带走）。
      *
      * 用回调而不是返回 id：那是一次挂在本 ViewModel 作用域上的异步写入，方法当场返回时还没有 id。
      * 一个字段都没读到就不写、也不回调——与「清空 / 保存」置灰用的是同一条判据。
+     *
+     * 这里不清场：清场里带着「翻回扫描态」，而整屏步骤跟着那一项走，于是保存完先把扫描页演一遍
+     * （相机重新展开、整屏转场走完）才回主页。草稿留到离场为止，防连点交给 [ScanUiState.saving]。
      */
     fun save(onSaved: (Long) -> Unit) {
         val state = _uiState.value
-        if (!state.record.hasAnyValue) return
+        if (state.saving || !state.record.hasAnyValue) return
 
         val frames = state.photos.mapNotNull { it.bytes }
+        _uiState.update { it.startSaving() }
         viewModelScope.launch {
-            onSaved(recordRepository.save(state.storedResult(), state.location, frames))
+            val id = try {
+                recordRepository.save(state.storedResult(), state.location, frames)
+            } catch (e: CancellationException) {
+                // 本页被销毁时这次写入会随作用域一起取消；取消是 Exception 的子类，不原样抛出
+                // 就会被下面那一支记成「写入失败」（与编辑页同一条规矩）
+                throw e
+            } catch (e: Exception) {
+                // 写库本身就失败了：留在本页并放开保存，让用户再试一次
+                _uiState.update { it.copy(saving = false) }
+                return@launch
+            }
+            onSaved(id)
         }
-        clearRecord()
     }
 
     /**
@@ -336,7 +350,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 清空累加记录，开始扫描下一件商品
+     * 清空累加记录，开始扫描下一件商品。整体复位到刚进页的样子
      */
     fun clearRecord() {
         latestFrame = null
@@ -348,7 +362,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 location = "",
                 photos = emptyList(),
                 lockedFields = emptySet(),
-                cropSource = null
+                cropSource = null,
+                saving = false
             )
         }
         // 不走停留：四个字段已经当场变成「未知」，胶囊若还被上一句拦着就跟眼前对不上了
