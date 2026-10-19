@@ -104,8 +104,8 @@ class AboutScreenTest {
         // 页面只列清单，不铺许可全文（副本由仓库的 LICENSE 承担）：全文里有独有句，清单里没有
         composeRule.onAllNodesWithText("Version 2.0, January 2004", substring = true)
             .assertCountEquals(0)
-        // 5 个依赖都是 Apache-2.0，一行一个，所以按数量而不是「存在」断言
-        composeRule.onAllNodesWithText("Apache License 2.0").assertCountEquals(5)
+        // 每个依赖一行，所以按数量而不是「存在」断言
+        composeRule.onAllNodesWithText("Apache License 2.0").assertCountEquals(7)
     }
 
     /**
