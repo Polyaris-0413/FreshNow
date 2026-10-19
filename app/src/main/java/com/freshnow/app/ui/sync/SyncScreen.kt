@@ -21,7 +21,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.data.local.SyncPeer
 import com.freshnow.app.data.sync.DiscoveredPeer
+import com.freshnow.app.ui.component.FreshNowBottomSheet
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.SectionHeading
@@ -131,7 +131,7 @@ internal fun SyncScreen(
     }
 
     pairingCode?.let { code ->
-        ModalBottomSheet(onDismissRequest = viewModel::closePairingCode) {
+        FreshNowBottomSheet(onDismissRequest = viewModel::closePairingCode) {
             PairingCodeContent(code = code, addresses = localAddresses)
         }
     }

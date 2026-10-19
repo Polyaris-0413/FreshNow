@@ -26,6 +26,8 @@ Material Symbols 的 SVG 官方坐标系是负 Y，且 `viewBox` 从 -960 开始
 
 在设计界面时，需遵循 Material 3 技能的规范，路径为 `C:\Users\Administrator\.pi\agent\skills\material-3`。
 
+M3 底部面板一律通过 `app/src/main/java/com/freshnow/app/ui/component/FreshNowBottomSheet.kt` 创建，不要直接调用 `ModalBottomSheet`：拖动手柄那圈与胶囊形状不符的方形涟漪在那里统一关掉（原因见该文件 KDoc）。`BottomSheetDragHandleRippleTest` 会拦下直接调用。
+
 ## 3. 更新日志
 
 项目包含一个更新日志文件，路径为 `C:\Users\Administrator\AndroidStudioProjects\FreshNow`，文件名为 `更新日志.txt`。

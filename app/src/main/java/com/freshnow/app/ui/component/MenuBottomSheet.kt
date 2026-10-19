@@ -10,13 +10,10 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -33,11 +30,8 @@ import kotlinx.coroutines.launch
  * 底部面板——面板本身没问题，这里定的是它**里面装什么**：M3 的列表项（ListItem）是给设置页
  * 那种「一行一条、左图右文」的清单用的，换成一叠居中的卡片，才读得出是「挑一个动作」。
  *
- * 拖动手柄那段涟漪处理：M3 把拖动手柄整个槽（一块 32×48 的触摸区）包了一层不带形状的
- * clickable，涟漪于是按那块矩形铺开，与里面 4dp 的胶囊完全不是一回事。手柄这里本来也不需要
- * 按压反馈——「点它收起面板」没有歧义——所以直接关掉：给 LocalRippleConfiguration 传 null
- * 就是 M3 为这件事留的开关（见 Ripple.kt 的 KDoc）。手柄的点击、长按提示与无障碍语义都不受影响。
- * 面板内部要把默认配置恢复回去，否则卡片的按压反馈也会一起被关掉。
+ * 容器是 [FreshNowBottomSheet]，所有面板共用的那层（含拖动手柄不出现涟漪）在那边，这里只管
+ * 往面板里装什么。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,25 +41,19 @@ fun MenuBottomSheet(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val defaultRippleConfiguration = LocalRippleConfiguration.current
-
-    CompositionLocalProvider(LocalRippleConfiguration provides null) {
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = sheetState,
-            modifier = modifier
+    FreshNowBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = FreshNowSpacing.sm)
+                .padding(bottom = FreshNowSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
         ) {
-            CompositionLocalProvider(LocalRippleConfiguration provides defaultRippleConfiguration) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = FreshNowSpacing.sm)
-                        .padding(bottom = FreshNowSpacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
-                ) {
-                    content()
-                }
-            }
+            content()
         }
     }
 }

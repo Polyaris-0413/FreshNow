@@ -17,7 +17,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -42,6 +41,7 @@ import com.freshnow.app.R
 import com.freshnow.app.data.SortOrder
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import com.freshnow.app.ui.component.AiBasicConfigForm
+import com.freshnow.app.ui.component.FreshNowBottomSheet
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
@@ -131,7 +131,7 @@ fun SettingsScreen(
     }
 
     editing?.let { editor ->
-        ModalBottomSheet(
+        FreshNowBottomSheet(
             onDismissRequest = { editing = null },
             sheetState = sheetState
         ) {
@@ -301,7 +301,7 @@ internal fun SettingsList(
 }
 
 /**
- * 「基础配置」的编辑面板，承载在 ModalBottomSheet 内
+ * 「基础配置」的编辑面板，承载在 [FreshNowBottomSheet] 内
  */
 @Composable
 private fun AiBasicConfigEditor(
@@ -352,7 +352,7 @@ private fun AiBasicConfigEditor(
 }
 
 /**
- * 「思考参数」的编辑面板，承载在 ModalBottomSheet 内
+ * 「思考参数」的编辑面板，承载在 [FreshNowBottomSheet] 内
  */
 @Composable
 private fun ExtraRequestEditor(
