@@ -3,12 +3,16 @@ package com.freshnow.app.ui.scan
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.util.Size
 import android.view.ViewGroup
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,7 +45,14 @@ import kotlin.coroutines.resumeWithException
  */
 internal const val CAMERA_ASPECT_RATIO = 1f
 
-private const val OPAQUE_ALPHA = 0xFF shl 24
+/**
+ * 分析流的取帧尺寸。CameraX 的默认值是 640×480，而这条流同时是送 AI 的图与落盘照片的来源：
+ * 裁成正方形后只剩 480×480，详情页铺满屏幕时是硬放大，字边全是糊的。
+ *
+ * 要 4:3 是因为传感器原生比例就是它，正方形裁切因此与预览看到的一致；尺寸由设备的相机
+ * 自己给，给不了 1280×960 就按 CameraX 的兜底规则退到最接近的（见下）。
+ */
+private val ANALYSIS_RESOLUTION = Size(1280, 960)
 
 /**
  * 实时预览 + 取帧回调。取帧前先问 [canAcceptFrame]，避免在请求进行或冷却期内白做一次 JPEG 编码
@@ -108,7 +119,20 @@ fun CameraPreview(
             .apply { setSurfaceProvider(previewView.surfaceProvider) }
         val analysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+            // 不显式要尺寸时 CameraX 给的是 VGA，这条流因此一直是 480 见方的图。
+            // 4:3 优先、要不到就换别的比例（RATIO_4_3_FALLBACK_AUTO）：只支持 16:9 的设备
+            // 也拿得到最接近的尺寸，而不是绑定失败——正方形裁切与比例无关，画面依然一致
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            ANALYSIS_RESOLUTION,
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                        )
+                    )
+                    .build()
+            )
             .build()
             .apply {
                 setAnalyzer(executor) { imageProxy ->
@@ -150,38 +174,19 @@ private suspend fun Context.awaitCameraProvider(): ProcessCameraProvider =
     }
 
 /**
- * RGBA_8888 输出的字节序是 R,G,B,A（见 ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888），
- * 而 Bitmap 的 ARGB_8888 内存序是 B,G,R,A，直接 copyPixelsFromBuffer 会红蓝互换，
- * 因此这里逐像素打包成 0xAARRGGBB
+ * 取一帧、摆正、裁成正方形 JPEG。
+ *
+ * 转位图交给 [ImageProxy.toBitmap]（CameraX 自带的转换，走的是 native 的 YUV→RGB），
+ * 而不是自己逐像素搬：手写的循环在 VGA 下勉强够用，到 1280×960 就是每帧一百多万像素，
+ * 分析线程扛不住。它也顺带省掉了 CameraX 为 RGBA 输出多插的那道转换。
  */
 private fun ImageProxy.toUprightJpeg(): ByteArray? {
-    val plane = planes.firstOrNull() ?: return null
-    val buffer = plane.buffer
-    val rowStride = plane.rowStride
-    val pixelStride = plane.pixelStride
-    buffer.rewind()
-
-    val pixels = IntArray(width * height)
-    val row = ByteArray(rowStride)
-    for (y in 0 until height) {
-        val available = minOf(rowStride, buffer.remaining())
-        if (available <= 0) break
-        buffer.get(row, 0, available)
-        val rowStart = y * width
-        for (x in 0 until width) {
-            val index = x * pixelStride
-            if (index + 2 >= available) break
-            val red = row[index].toInt() and 0xFF
-            val green = row[index + 1].toInt() and 0xFF
-            val blue = row[index + 2].toInt() and 0xFF
-            pixels[rowStart + x] = OPAQUE_ALPHA or (red shl 16) or (green shl 8) or blue
-        }
-    }
-
-    var bitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+    val bitmap = runCatching { toBitmap() }.getOrNull() ?: return null
     val rotation = imageInfo.rotationDegrees
-    if (rotation != 0) {
-        bitmap = Bitmap.createBitmap(
+    val upright = if (rotation == 0) {
+        bitmap
+    } else {
+        Bitmap.createBitmap(
             bitmap,
             0,
             0,
@@ -195,5 +200,5 @@ private fun ImageProxy.toUprightJpeg(): ByteArray? {
     // 取景框是正方形、预览也是居中裁剪填满的，所以整帧同样裁成中间的正方形：
     // 看到什么就存什么、也就识别什么，三者画面一致。裁方、缩放、压缩与相册那条路共用
     // ScanImageCodec，规格只有一份
-    return bitmap.toSquareJpegBytes().also { bitmap.recycle() }
+    return upright.toSquareJpegBytes().also { upright.recycle() }
 }
