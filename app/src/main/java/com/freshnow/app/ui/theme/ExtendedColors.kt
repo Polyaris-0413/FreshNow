@@ -26,21 +26,6 @@ data class FreshNowWarningColors(
 private val LocalWarningColors = staticCompositionLocalOf { LightWarningColors }
 
 /**
- * 压在相机实景上的提示层（目前只有点按对焦的角标）。
- *
- * 【M3 没有这一角色】M3 的颜色都是相对界面底色定义的，而这层东西压在实景上：背景的明暗与色相
- * 不可控。取界面主色不合适——主色在白墙、白包装上会糊掉，而且会读成界面控件。白线加深色衬边
- * 是相机应用的通行做法：衬边保证任何背景上都读得出来，白色也不与界面控件撞语义。
- */
-internal object FreshNowCameraOverlay {
-    /** 角标本体 */
-    val indicator = Color(0xFFFFFFFF)
-
-    /** 角标底下那圈深色衬边，只在白线下面打底，不单独出现 */
-    val indicatorUnderlay = Color(0x8C000000)
-}
-
-/**
  * 扩展角色的取用入口，用法与 MaterialTheme.colorScheme 一致：
  * `MaterialTheme.warningColors.warning`
  */

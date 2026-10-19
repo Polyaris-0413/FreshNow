@@ -60,22 +60,20 @@ object FreshNowSize {
     val welcomeHero = 96.dp
 
     /**
-     * 点按对焦的角标尺寸。
+     * 点按对焦的取景圈边长。
      *
      * 【规范缺席：M3 没有相机取景的组件，也没有这一档】取 64dp：比列表缩略图（48dp）大一圈，
-     * 在满宽的取景框里看得清落点；图形是 [R.drawable.ic_focus]（Material Symbols 的
-     * filter_center_focus），它的角标与中心点都按 24dp 网格画，放大后线粗随尺寸一起长，
-     * 这一档在真机上约 2.7dp。
+     * 在满宽的取景框里点下去看得清落点，又不至于盖住被摄物本身。
      */
-    val focusBracket = 64.dp
+    val focusRing = 64.dp
 
     /**
-     * 角标底下那层深色衬边相对本体的放大倍数。
+     * 取景圈的描边宽度。
      *
-     * 图标是实心填充，描不了边，只能把整枚图形放大一份垫在底下，露出那一圈深色就是可见性。
-     * 取 1.06：64dp 上每侧多出约 2dp，恰好是一道看得见的边；再大图形自身也会变形得能被看出来。
+     * 参照 M3 outlined 组件的厚度档位取 2dp（与 [selectionOutlineWidth] 同档）：1dp 的细线
+     * 在明亮的预览画面上会消失，而这个圈只存在一秒，看不到就等于没有反馈。
      */
-    val focusMarkUnderlayScale = 1.06f
+    val focusRingWidth = 2.dp
 
     /**
      * M3 线形进度指示器的轨道高度（规范值 4dp）。欢迎页的进度条在第 1 步是隐着的，

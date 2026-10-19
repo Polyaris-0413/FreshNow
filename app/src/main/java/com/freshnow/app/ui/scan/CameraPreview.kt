@@ -18,12 +18,14 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,15 +42,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.freshnow.app.R
 import com.freshnow.app.data.toSquareJpegBytes
-import com.freshnow.app.ui.theme.FreshNowCameraOverlay
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.delay
@@ -157,7 +156,7 @@ fun CameraPreview(
                 }
         )
         focusPoint?.let { point ->
-            FocusMark(point = point, request = focusRequest) { focusPoint = null }
+            FocusRing(point = point, request = focusRequest) { focusPoint = null }
         }
     }
 
@@ -227,24 +226,21 @@ private suspend fun Context.awaitCameraProvider(): ProcessCameraProvider =
     }
 
 /**
- * 点按对焦的落点回执：图形从大一圈收到位、停一拍、淡出。
- *
- * 图形是 Material Symbols 的 filter_center_focus（[R.drawable.ic_focus]）：四个角加中心一点。
- * 中心点比手画的四角多了一个信息，但它本来就是「对焦标记」这一语义的现成图形。
+ * 点按对焦的落点回执：从大一圈收到位、停一拍、淡出。
  *
  * 坐标直接用取景框内的像素：预览铺满本组件的这个 Box，所以这里的坐标与 [PreviewView]
- * 的坐标系是同一套，既能画图形也能拿来算测光点。
+ * 的坐标系是同一套，既能画圈也能拿来算测光点。
  */
 @Composable
-private fun FocusMark(point: Offset, request: Int, onFinished: () -> Unit) {
-    val side = with(LocalDensity.current) { FreshNowSize.focusBracket.toPx() }
-    val scale = remember(request) { Animatable(FreshNowTransitions.FOCUS_MARK_START_SCALE) }
+private fun FocusRing(point: Offset, request: Int, onFinished: () -> Unit) {
+    val diameter = with(LocalDensity.current) { FreshNowSize.focusRing.toPx() }
+    val scale = remember(request) { Animatable(FreshNowTransitions.FOCUS_RING_START_SCALE) }
     val alpha = remember(request) { Animatable(1f) }
     val finish by rememberUpdatedState(onFinished)
 
     LaunchedEffect(request) {
         scale.animateTo(1f, FreshNowTransitions.fastSpatial())
-        delay(FreshNowTransitions.FOCUS_MARK_HOLD_MS)
+        delay(FreshNowTransitions.FOCUS_RING_HOLD_MS)
         alpha.animateTo(0f, FreshNowTransitions.stateChange())
         finish()
     }
@@ -253,38 +249,22 @@ private fun FocusMark(point: Offset, request: Int, onFinished: () -> Unit) {
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (point.x - side / 2f).roundToInt(),
-                    (point.y - side / 2f).roundToInt()
+                    (point.x - diameter / 2f).roundToInt(),
+                    (point.y - diameter / 2f).roundToInt()
                 )
             }
-            .size(FreshNowSize.focusBracket)
+            .size(FreshNowSize.focusRing)
             .graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
                 this.alpha = alpha.value
             }
-    ) {
-        val painter = painterResource(R.drawable.ic_focus)
-        // 图标是实心填充，不能像线那样在外面再描一圈；把整枚图形复制一份放大当衬边，
-        // 露出来的那圈边就是它在白墙、白包装上的可见性
-        Icon(
-            painter = painter,
-            contentDescription = null,
-            tint = FreshNowCameraOverlay.indicatorUnderlay,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = FreshNowSize.focusMarkUnderlayScale
-                    scaleY = FreshNowSize.focusMarkUnderlayScale
-                }
-        )
-        Icon(
-            painter = painter,
-            contentDescription = null,
-            tint = FreshNowCameraOverlay.indicator,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
+            .border(
+                width = FreshNowSize.focusRingWidth,
+                color = MaterialTheme.colorScheme.primary,
+                shape = CircleShape
+            )
+    )
 }
 
 /**
