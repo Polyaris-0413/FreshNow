@@ -18,14 +18,12 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -48,6 +49,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.freshnow.app.data.toSquareJpegBytes
+import com.freshnow.app.ui.theme.FreshNowCameraOverlay
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.delay
@@ -156,7 +158,7 @@ fun CameraPreview(
                 }
         )
         focusPoint?.let { point ->
-            FocusRing(point = point, request = focusRequest) { focusPoint = null }
+            FocusBrackets(point = point, request = focusRequest) { focusPoint = null }
         }
     }
 
@@ -226,45 +228,78 @@ private suspend fun Context.awaitCameraProvider(): ProcessCameraProvider =
     }
 
 /**
- * 点按对焦的落点回执：从大一圈收到位、停一拍、淡出。
+ * 点按对焦的落点回执：四个 L 形角从大一圈收到位、停一拍、淡出。
  *
  * 坐标直接用取景框内的像素：预览铺满本组件的这个 Box，所以这里的坐标与 [PreviewView]
- * 的坐标系是同一套，既能画圈也能拿来算测光点。
+ * 的坐标系是同一套，既能画角标也能拿来算测光点。
  */
 @Composable
-private fun FocusRing(point: Offset, request: Int, onFinished: () -> Unit) {
-    val diameter = with(LocalDensity.current) { FreshNowSize.focusRing.toPx() }
-    val scale = remember(request) { Animatable(FreshNowTransitions.FOCUS_RING_START_SCALE) }
+private fun FocusBrackets(point: Offset, request: Int, onFinished: () -> Unit) {
+    val side = with(LocalDensity.current) { FreshNowSize.focusBracket.toPx() }
+    val scale = remember(request) { Animatable(FreshNowTransitions.FOCUS_MARK_START_SCALE) }
     val alpha = remember(request) { Animatable(1f) }
     val finish by rememberUpdatedState(onFinished)
 
     LaunchedEffect(request) {
         scale.animateTo(1f, FreshNowTransitions.fastSpatial())
-        delay(FreshNowTransitions.FOCUS_RING_HOLD_MS)
+        delay(FreshNowTransitions.FOCUS_MARK_HOLD_MS)
         alpha.animateTo(0f, FreshNowTransitions.stateChange())
         finish()
     }
 
-    Box(
+    Canvas(
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (point.x - diameter / 2f).roundToInt(),
-                    (point.y - diameter / 2f).roundToInt()
+                    (point.x - side / 2f).roundToInt(),
+                    (point.y - side / 2f).roundToInt()
                 )
             }
-            .size(FreshNowSize.focusRing)
+            .size(FreshNowSize.focusBracket)
             .graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
                 this.alpha = alpha.value
             }
-            .border(
-                width = FreshNowSize.focusRingWidth,
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape
-            )
+    ) {
+        drawFocusBrackets()
+    }
+}
+
+/**
+ * 四个 L 形角：先铺一圈更宽的深色衬边，再把白线压在它正中。
+ *
+ * 衬边不是阴影，是可见性：在白墙或白包装前面，没它这四个角就不存在。
+ */
+private fun DrawScope.drawFocusBrackets() {
+    val stroke = FreshNowSize.focusBracketWidth.toPx()
+    val underlay = FreshNowSize.focusBracketUnderlayWidth.toPx()
+    val arm = FreshNowSize.focusBracketArm.toPx()
+    val far = size.minDimension
+
+    // 四个顶点，以及每个顶点两条臂的指向（从顶点指向取景框内部）
+    val corners = listOf(
+        Triple(Offset(0f, 0f), Offset(arm, 0f), Offset(0f, arm)),
+        Triple(Offset(far, 0f), Offset(-arm, 0f), Offset(0f, arm)),
+        Triple(Offset(0f, far), Offset(arm, 0f), Offset(0f, -arm)),
+        Triple(Offset(far, far), Offset(-arm, 0f), Offset(0f, -arm))
     )
+
+    // 线有宽度，顶点要往里挪半个笔宽，否则两头会被画布切掉一半
+    fun drawBrackets(width: Float, color: Color) {
+        val inset = width / 2f
+        for ((corner, dx, dy) in corners) {
+            val origin = Offset(
+                if (corner.x == 0f) inset else far - inset,
+                if (corner.y == 0f) inset else far - inset
+            )
+            drawLine(color, origin, origin + dx, strokeWidth = width, cap = StrokeCap.Round)
+            drawLine(color, origin, origin + dy, strokeWidth = width, cap = StrokeCap.Round)
+        }
+    }
+
+    drawBrackets(underlay, FreshNowCameraOverlay.indicatorUnderlay)
+    drawBrackets(stroke, FreshNowCameraOverlay.indicator)
 }
 
 /**
