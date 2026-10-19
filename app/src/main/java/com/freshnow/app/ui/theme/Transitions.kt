@@ -268,6 +268,25 @@ object FreshNowTransitions {
     fun <T> previewFadeIn(): FiniteAnimationSpec<T> =
         tween(DURATION_MEDIUM1, easing = StandardDecelerate)
 
+    // ---- 点按对焦的回执 ----
+
+    /**
+     * 取景圈出现时从多大收到位。
+     *
+     * 【规范缺席：M3 没有这一项，主流相机应用也没有公认值，本项目自定】做法借鉴相机应用
+     * 通行的「从外收到位」：起点比成品大四成，与 [fastSpatial] 的弹簧配合，落下去像一下合焦。
+     */
+    const val FOCUS_RING_START_SCALE = 1.4f
+
+    /**
+     * 取景圈合到位之后在画面里留多久，然后淡出。
+     *
+     * 【规范缺席：M3 没有这一项，本项目自定】取 500ms：比页内状态切换（[DURATION_SHORT4] 的
+     * 200ms）长，让眼睛能跟到落点；再长就会盖在画面上等着下一件事，而它只是「这次点击收到了」的
+     * 回执，不是状态。出圈走 [stateChange]。
+     */
+    const val FOCUS_RING_HOLD_MS = 500L
+
 
     // ---- 扫描页那枚状态胶囊 ----
 

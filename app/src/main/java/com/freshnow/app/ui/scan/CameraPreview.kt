@@ -7,6 +7,7 @@ import android.util.Size
 import android.view.ViewGroup
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -15,28 +16,46 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.freshnow.app.data.toSquareJpegBytes
+import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowTransitions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.roundToInt
 
 /**
  * 取景框的宽高比。必须是 1f：本组件会把送给 AI 的整帧裁成居中正方形，
@@ -56,6 +75,9 @@ private val ANALYSIS_RESOLUTION = Size(1280, 960)
 
 /**
  * 实时预览 + 取帧回调。取帧前先问 [canAcceptFrame]，避免在请求进行或冷却期内白做一次 JPEG 编码
+ *
+ * 点一下画面就在那一点合焦并测光：本应用没有变焦，凑近拍包装上的小字时全靠这一下把焦点
+ * 从前后背景上拉回到字上（不点就一直是系统的连续对焦，它未必选得中有字的那一块）。
  *
  * [torchOn] 由调用方持有：相机实例每次重新绑定（Activity 重建就会重新绑定）都会回到关灯状态，
  * 状态留在这里就会与硬件失步——调用方拿着它，重绑后本组件按它再下发一次，两端始终一致。
@@ -102,15 +124,45 @@ fun CameraPreview(
         onDispose { previewView.previewStreamState.removeObserver(observer) }
     }
 
-    AndroidView(factory = { previewView }, modifier = modifier.alpha(previewAlpha))
+    // 绑定后才存在，故用状态保存：开关变化、以及重新绑定之后，都靠它下发一次
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    // 对焦落点与它的序号：序号每点一次加一，取景圈靠它从头演一遭
+    var focusPoint by remember { mutableStateOf<Offset?>(null) }
+    var focusRequest by remember { mutableIntStateOf(0) }
+    val notifyTorchAvailability by rememberUpdatedState(onTorchAvailabilityChange)
+
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = { previewView },
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(previewAlpha)
+                .pointerInput(camera) {
+                    detectTapGestures { point ->
+                        val bound = camera ?: return@detectTapGestures
+                        // 相机已解绑或正在切换时 startFocusAndMetering 会抛，而这一次点击
+                        // 落空只意味着没对上焦，不该把整个取景框带崩
+                        runCatching {
+                            bound.cameraControl.startFocusAndMetering(
+                                FocusMeteringAction.Builder(
+                                    previewView.meteringPointFactory.createPoint(point.x, point.y),
+                                    FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+                                ).build()
+                            )
+                        }
+                        focusPoint = point
+                        focusRequest++
+                    }
+                }
+        )
+        focusPoint?.let { point ->
+            FocusRing(point = point, request = focusRequest) { focusPoint = null }
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose { executor.shutdown() }
     }
-
-    // 绑定后才存在，故用状态保存：开关变化、以及重新绑定之后，都靠它下发一次
-    var camera by remember { mutableStateOf<Camera?>(null) }
-    val notifyTorchAvailability by rememberUpdatedState(onTorchAvailabilityChange)
 
     LaunchedEffect(Unit) {
         val cameraProvider = context.awaitCameraProvider()
@@ -172,6 +224,48 @@ private suspend fun Context.awaitCameraProvider(): ProcessCameraProvider =
             ContextCompat.getMainExecutor(this)
         )
     }
+
+/**
+ * 点按对焦的落点回执：从大一圈收到位、停一拍、淡出。
+ *
+ * 坐标直接用取景框内的像素：预览铺满本组件的这个 Box，所以这里的坐标与 [PreviewView]
+ * 的坐标系是同一套，既能画圈也能拿来算测光点。
+ */
+@Composable
+private fun FocusRing(point: Offset, request: Int, onFinished: () -> Unit) {
+    val diameter = with(LocalDensity.current) { FreshNowSize.focusRing.toPx() }
+    val scale = remember(request) { Animatable(FreshNowTransitions.FOCUS_RING_START_SCALE) }
+    val alpha = remember(request) { Animatable(1f) }
+    val finish by rememberUpdatedState(onFinished)
+
+    LaunchedEffect(request) {
+        scale.animateTo(1f, FreshNowTransitions.fastSpatial())
+        delay(FreshNowTransitions.FOCUS_RING_HOLD_MS)
+        alpha.animateTo(0f, FreshNowTransitions.stateChange())
+        finish()
+    }
+
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    (point.x - diameter / 2f).roundToInt(),
+                    (point.y - diameter / 2f).roundToInt()
+                )
+            }
+            .size(FreshNowSize.focusRing)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                this.alpha = alpha.value
+            }
+            .border(
+                width = FreshNowSize.focusRingWidth,
+                color = MaterialTheme.colorScheme.primary,
+                shape = CircleShape
+            )
+    )
+}
 
 /**
  * 取一帧、摆正、裁成正方形 JPEG。
