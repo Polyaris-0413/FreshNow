@@ -48,16 +48,18 @@ class BottomSheetDragHandleRippleTest {
     @Test
     fun sharedWrapper_keepsTheHandleRippleOffAndRestoresContentRipple() {
         val wrapper = appSourceRoot().resolve(WRAPPER_PATH)
-        assertTrue("找不到 $WRAPPER_PATH", wrapper.isFile)
+        val providedValues = RIPPLE_PROVISION
+            .findAll(wrapper.readText())
+            .map { it.groupValues[1] }
+            .toSet()
 
-        val text = wrapper.readText()
         assertTrue(
-            "FreshNowBottomSheet 关掉手柄涟漪的那一行没了",
-            "LocalRippleConfiguration provides null" in text
+            "FreshNowBottomSheet 里没有「LocalRippleConfiguration provides null」，手柄的方形涟漪会回来",
+            "null" in providedValues
         )
         assertTrue(
-            "FreshNowBottomSheet 没把调用方的涟漪配置恢复给面板内容，面板里的卡片与按钮会一起没有按压反馈",
-            "provides callerRippleConfiguration" in text
+            "FreshNowBottomSheet 只把涟漪关掉了、没把调用方的配置恢复给面板内容，面板里的卡片与按钮会一起没有按压反馈",
+            providedValues.any { it != "null" }
         )
     }
 
@@ -74,5 +76,8 @@ class BottomSheetDragHandleRippleTest {
 
         /** 带左括号：避开 import 行，也避开 rememberModalBottomSheetState */
         val MODAL_BOTTOM_SHEET = Regex("""ModalBottomSheet\s*\(""")
+
+        /** 任意空白、任意变量名都认：容器里换行重排或变量改名不算违规 */
+        val RIPPLE_PROVISION = Regex("""LocalRippleConfiguration\s+provides\s+(\w+)""")
     }
 }
