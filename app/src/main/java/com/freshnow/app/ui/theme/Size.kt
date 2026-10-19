@@ -73,9 +73,10 @@ object FreshNowSize {
     /**
      * 角标本体的粗细。
      *
-     * 取 3dp：角标只有四段短线，1dp 的细线在明亮的预览画面上会消失；再粗就不像「框」而像「边」。
+     * 取 2dp：3dp 在 640dpi 上是 12 物理像素，四段短线压下来像四条粗边，读起来不是「框」；
+     * 1dp 又在明亮画面上会消失。2dp 是这两种失败之间的那档。
      */
-    val focusBracketWidth = 3.dp
+    val focusBracketWidth = 2.dp
 
     /**
      * 角标底下那圈深色衬边的粗细。
@@ -83,7 +84,7 @@ object FreshNowSize {
      * 比本体每侧宽 1dp：衬边与本体同宽就完全被盖住，再宽会发胖。白墙、白包装上全靠这 1dp
      * 把白线勒出来，否则角标在那个方向上看不见。
      */
-    val focusBracketUnderlayWidth = 5.dp
+    val focusBracketUnderlayWidth = 3.5.dp
 
     /**
      * M3 线形进度指示器的轨道高度（规范值 4dp）。欢迎页的进度条在第 1 步是隐着的，
