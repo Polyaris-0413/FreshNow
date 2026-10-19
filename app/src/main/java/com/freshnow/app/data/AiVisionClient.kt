@@ -4,10 +4,14 @@ import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 
 /**
  * 一次识别的完整返回：日期字段，外加模型给出的思维链（模型没有思考过程时为空串）
@@ -24,58 +28,51 @@ class AiVisionClient {
     }
 
     private fun requestCompletion(settings: AiSettings, jpeg: ByteArray): String {
-        val connection = (URL(settings.baseUrl.trimEnd('/') + CHAT_COMPLETIONS_PATH).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Authorization", "Bearer ${settings.apiKey}")
+        val response = httpRequest(
+            url = settings.baseUrl.trimEnd('/') + CHAT_COMPLETIONS_PATH,
+            method = "POST",
+            connectTimeoutMs = CONNECT_TIMEOUT_MS,
+            readTimeoutMs = READ_TIMEOUT_MS,
+            headers = mapOf(
+                "Content-Type" to "application/json",
+                "Authorization" to "Bearer ${settings.apiKey}"
+            ),
+            body = buildPayload(settings, jpeg).toByteArray(Charsets.UTF_8)
+        )
+        if (response.code !in 200..299) {
+            throw IllegalStateException("HTTP ${response.code} ${response.body.take(ERROR_BODY_LIMIT)}")
         }
-
-        return try {
-            connection.outputStream.use { it.write(buildPayload(settings, jpeg).toByteArray(Charsets.UTF_8)) }
-            val code = connection.responseCode
-            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
-                ?.bufferedReader()
-                ?.use { it.readText() }
-                .orEmpty()
-            if (code !in 200..299) throw IllegalStateException("HTTP $code ${body.take(ERROR_BODY_LIMIT)}")
-            body
-        } finally {
-            connection.disconnect()
-        }
+        return response.body
     }
 
     /** 提为 internal 是为了能在仪器化测试里直接断言请求体内容，不必真发一次请求 */
     internal fun buildPayload(settings: AiSettings, jpeg: ByteArray): String {
-        val payload = JSONObject()
-            .put("model", settings.modelName)
-            .put(
-                "messages",
-                JSONArray().put(
-                    JSONObject()
-                        .put("role", "user")
-                        .put(
-                            "content",
-                            JSONArray()
-                                .put(JSONObject().put("type", "text").put("text", PROMPT))
-                                .put(
-                                    JSONObject()
-                                        .put("type", "image_url")
-                                        .put(
-                                            "image_url",
-                                            JSONObject().put(
-                                                "url",
-                                                "data:image/jpeg;base64," + Base64.encodeToString(jpeg, Base64.NO_WRAP)
-                                            )
-                                        )
+        val payload = buildJsonObject {
+            put("model", settings.modelName)
+            put("messages", buildJsonArray {
+                add(buildJsonObject {
+                    put("role", "user")
+                    put("content", buildJsonArray {
+                        add(buildJsonObject {
+                            put("type", "text")
+                            put("text", PROMPT)
+                        })
+                        add(buildJsonObject {
+                            put("type", "image_url")
+                            put("image_url", buildJsonObject {
+                                put(
+                                    "url",
+                                    "data:image/jpeg;base64," +
+                                        Base64.encodeToString(jpeg, Base64.NO_WRAP)
                                 )
-                        )
-                )
-            )
-        applyExtraRequestParams(payload, settings.extraRequestJson)
-        return payload.toString()
+                            })
+                        })
+                    })
+                })
+            })
+        }
+        val withExtra = applyExtraRequestParams(payload, settings.extraRequestJson)
+        return appJson.encodeToString(JsonObject.serializer(), withExtra)
     }
 
     /**
@@ -85,19 +82,28 @@ class AiVisionClient {
      * 通义是 enable_thinking），服务商自己也不提供"支持哪些参数"的元数据，所以这里不替用户猜，
      * 只把他写的原样带上；写坏了（不是合法 JSON）等同于没填。
      */
-    private fun applyExtraRequestParams(payload: JSONObject, extraJson: String) {
-        val extra = runCatching { JSONObject(extraJson) }.getOrNull() ?: return
-        extra.keys().forEach { key ->
-            if (key !in RESERVED_KEYS) payload.put(key, extra.get(key))
-        }
+    private fun applyExtraRequestParams(payload: JsonObject, extraJson: String): JsonObject {
+        val extra = runCatching { appJson.parseToJsonElement(extraJson).jsonObject }.getOrNull()
+            ?: return payload
+        return JsonObject(
+            payload.toMutableMap().apply {
+                extra.forEach { (key, value) ->
+                    if (key !in RESERVED_KEYS) put(key, value)
+                }
+            }
+        )
     }
 
     private fun parseAnalysis(responseBody: String): AiAnalysis {
-        val message = JSONObject(responseBody)
-            .getJSONArray("choices")
-            .getJSONObject(0)
-            .getJSONObject("message")
-        val content = message.optString("content")
+        val message = appJson.parseToJsonElement(responseBody)
+            .jsonObject
+            .getValue("choices")
+            .jsonArray
+            .first()
+            .jsonObject
+            .getValue("message")
+            .jsonObject
+        val content = message.text("content")
         Log.d(TAG, "模型返回内容：$content")
 
         val json = extractJsonObject(content)
@@ -106,25 +112,34 @@ class AiVisionClient {
         return AiAnalysis(
             // 模型每帧独立作答，同一项的写法规整一遍，免得换了一帧就变成另一种写法
             result = ScanResult(
-                productName = ScanValueFormat.text(json.optString("productName")),
-                productionDate = ScanValueFormat.date(json.optString("productionDate")),
-                expiryDate = ScanValueFormat.date(json.optString("expiryDate")),
-                shelfLife = ScanValueFormat.shelfLife(json.optString("shelfLife"))
+                productName = ScanValueFormat.text(json.text("productName")),
+                productionDate = ScanValueFormat.date(json.text("productionDate")),
+                expiryDate = ScanValueFormat.date(json.text("expiryDate")),
+                shelfLife = ScanValueFormat.shelfLife(json.text("shelfLife"))
             ),
             reasoning = REASONING_KEYS
-                .firstNotNullOfOrNull { key -> message.optString(key).trim().takeIf { it.isNotEmpty() } }
+                .firstNotNullOfOrNull { key -> message.text(key).trim().takeIf { it.isNotEmpty() } }
                 .orEmpty()
         )
+    }
+
+    /** 取字段文本：与 org.json 的 optString 同一套规矩——缺失与 null 为空串，对象/数组取其 JSON 文本 */
+    private fun JsonObject.text(key: String): String = when (val value = this[key]) {
+        null, is JsonNull -> ""
+        is JsonPrimitive -> value.content
+        else -> value.toString()
     }
 
     /**
      * 模型常把 JSON 包在 ``` 代码块或多余文字里，这里取首尾花括号之间的内容
      */
-    private fun extractJsonObject(text: String): JSONObject? {
+    private fun extractJsonObject(text: String): JsonObject? {
         val start = text.indexOf('{')
         val end = text.lastIndexOf('}')
         if (start < 0 || end <= start) return null
-        return runCatching { JSONObject(text.substring(start, end + 1)) }.getOrNull()
+        return runCatching {
+            appJson.parseToJsonElement(text.substring(start, end + 1)).jsonObject
+        }.getOrNull()
     }
 
     private companion object {

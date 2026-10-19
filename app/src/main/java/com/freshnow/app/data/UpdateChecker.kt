@@ -3,9 +3,10 @@ package com.freshnow.app.data
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * 接口地址前缀。仓库标识拼在它后面
@@ -74,39 +75,35 @@ class UpdateChecker(private val repositoryUrl: String) {
     private val latestReleaseUrl: String get() = latestReleaseApiUrl(repositoryUrl)
 
     suspend fun checkLatest(): UpdateCheckResult = withContext(Dispatchers.IO) {
-        val connection = runCatching {
-            (URL(latestReleaseUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
-                setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "FreshNow")
-            }
-        }.getOrNull() ?: return@withContext UpdateCheckResult.Failed
-
-        try {
-            when (val code = connection.responseCode) {
-                // 仓库一个 release 都没发过时接口就是 404
-                HttpURLConnection.HTTP_NOT_FOUND -> UpdateCheckResult.NoRelease
-                in 200..299 -> {
-                    val body = connection.inputStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                    parseLatestRelease(body, releasesPageUrl(repositoryUrl))
-                        ?.let { UpdateCheckResult.Latest(it) }
-                        ?: UpdateCheckResult.Failed
-                }
-
-                else -> {
-                    Log.w(TAG, "检查更新失败：HTTP $code")
-                    UpdateCheckResult.Failed
-                }
-            }
-        } catch (e: Exception) {
+        val response = runCatching {
+            httpRequest(
+                url = latestReleaseUrl,
+                method = "GET",
+                connectTimeoutMs = CONNECT_TIMEOUT_MS,
+                readTimeoutMs = READ_TIMEOUT_MS,
+                headers = mapOf(
+                    "Accept" to "application/vnd.github+json",
+                    // GitHub 的接口要求带 User-Agent，缺了直接 403；HttpURLConnection 不自带
+                    "User-Agent" to "FreshNow"
+                )
+            )
+        }.getOrElse { e ->
             // 断网、超时、地址写错都归到「失败」：调用方对这三者的反应是同一个——说一句没查成就完，
             // 检查更新失败不该打断用户手上的事，所以不往上抛
             Log.w(TAG, "检查更新失败：${e.message}")
-            UpdateCheckResult.Failed
-        } finally {
-            connection.disconnect()
+            return@withContext UpdateCheckResult.Failed
+        }
+
+        when (response.code) {
+            // 仓库一个 release 都没发过时接口就是 404
+            HttpURLConnection.HTTP_NOT_FOUND -> UpdateCheckResult.NoRelease
+            in 200..299 -> parseLatestRelease(response.body, releasesPageUrl(repositoryUrl))
+                ?.let { UpdateCheckResult.Latest(it) }
+                ?: UpdateCheckResult.Failed
+            else -> {
+                Log.w(TAG, "检查更新失败：HTTP ${response.code}")
+                UpdateCheckResult.Failed
+            }
         }
     }
 
@@ -126,12 +123,13 @@ class UpdateChecker(private val repositoryUrl: String) {
  * 「拿到的版本号对不对」的判据。
  */
 internal fun parseLatestRelease(body: String, fallbackUrl: String): LatestRelease? {
-    val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
-    val version = json.optString("tag_name").takeIf { it.isNotBlank() } ?: return null
-    return LatestRelease(
-        version = version,
-        htmlUrl = json.optString("html_url").ifBlank { fallbackUrl }
-    )
+    val json = runCatching { appJson.parseToJsonElement(body).jsonObject }.getOrNull()
+        ?: return null
+    val version = json["tag_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        ?: return null
+    val htmlUrl = json["html_url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        ?: fallbackUrl
+    return LatestRelease(version = version, htmlUrl = htmlUrl)
 }
 
 /**

@@ -24,6 +24,9 @@ import com.freshnow.app.ui.openInBrowser
  * 列的是第三方依赖，给 Apache-2.0 那批做署名——该协议要求分发时保留版权与许可声明，惯例就是
  * 这样列出来。页面只列清单、不铺许可全文：全文的载体是分发物（本仓库的 LICENSE），摊在手机上
  * 要滚很久，也挤掉了这一页本身要传达的信息。
+ *
+ * 清单与依赖声明不在同一处（依赖在 gradle/libs.versions.toml），没有编译器会提醒两边对齐；
+ * 新增第三方依赖时要同时改这里。
  */
 private data class OpenSourceProject(
     val name: String,
@@ -35,6 +38,11 @@ private const val APACHE = "Apache License 2.0"
 
 private val PROJECTS = listOf(
     OpenSourceProject("Kotlin / kotlinx.coroutines", APACHE, "https://kotlinlang.org"),
+    OpenSourceProject(
+        "kotlinx.serialization",
+        APACHE,
+        "https://github.com/Kotlin/kotlinx.serialization"
+    ),
     OpenSourceProject(
         "Jetpack Compose（androidx.compose.*）",
         APACHE,
@@ -50,7 +58,8 @@ private val PROJECTS = listOf(
         "Android CameraX",
         APACHE,
         "https://developer.android.com/media/camera/camerax"
-    )
+    ),
+    OpenSourceProject("Ktor（server-cio / client-cio）", APACHE, "https://ktor.io")
 )
 
 /**

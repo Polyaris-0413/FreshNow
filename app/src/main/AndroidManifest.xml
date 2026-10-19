@@ -16,10 +16,11 @@
         android:name="android.hardware.camera.any"
         android:required="false" />
 
+    <!-- 系统备份整体关闭：allowBackup=false 管 Cloud 备份，dataExtractionRules 把换机直传也排除；
+         API Key、同步密钥与设备身份不该离开本机，换机走应用内的局域网同步。 -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
