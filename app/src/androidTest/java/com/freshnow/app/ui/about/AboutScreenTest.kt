@@ -3,10 +3,13 @@ package com.freshnow.app.ui.about
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.BuildConfig
 import com.freshnow.app.ui.theme.FreshNowTheme
@@ -90,26 +93,33 @@ class AboutScreenTest {
     }
 
     /**
-     * 开源声明页：项目清单来自构建期生成、打进 APK 的 artifacts.json，缺一组就说明归并或
-     * 打包出了岔子。页面也不含许可全文——副本由仓库的 LICENSE 承担，不摊在界面上。
+     * 开源声明页：依赖图里的每一个都占一行（不归并、不遗漏），且不铺许可全文——
+     * 副本由仓库的 LICENSE 承担，不摊在界面上。
      */
     @Test
-    fun openSourceScreenListsProjectsWithoutLicenseText() {
+    fun openSourceScreenListsEveryDependencyWithoutLicenseText() {
         composeRule.setContent {
             FreshNowTheme() {
                 OpenSourceScreen(onBack = {})
             }
         }
 
-        // 清单是从 assets 异步读的：等它到位再断言，否则空列表也能让后面的断言糊过去
+        // 清单是从 assets 异步读的：等第一条到位再断言，否则空列表也能让后面的断言糊过去
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Ktor").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText("Activity").fetchSemanticsNodes().isNotEmpty()
         }
 
-        // 这几条来自不同 group：各自在就说明归并规则与数据都对上了
-        listOf("Jetpack Compose", "Android Room", "Ktor", "Kotlin / kotlinx").forEach { name ->
-            composeRule.onNodeWithText(name).assertExists()
-        }
+        // 逐条列出：首屏就不止一个依赖
+        assertTrue(
+            "首屏应当列出多个依赖，而不是被归并成几行",
+            composeRule.onAllNodesWithText("Apache License 2.0").fetchSemanticsNodes().size >= 5
+        )
+
+        // 能滚到列表末尾那条（SLF4J），说明确实是完整清单而不是挑着列的
+        composeRule.onNode(hasScrollAction())
+            .performScrollToNode(hasText("SLF4J API Module"))
+        composeRule.onNodeWithText("SLF4J API Module").assertExists()
+
         // 页面只列清单，不铺许可全文（副本由仓库的 LICENSE 承担）：全文里有独有句，清单里没有
         composeRule.onAllNodesWithText("Version 2.0, January 2004", substring = true)
             .assertCountEquals(0)

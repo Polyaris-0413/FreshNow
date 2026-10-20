@@ -1,38 +1,64 @@
 package com.freshnow.app.ui.about
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 开源声明页的数据现在来自构建期生成的 `artifacts.json`（见 app/build.gradle.kts 的 licensee），
- * 这里只验「把 217 条依赖归成几条给人看」这一步。
- *
- * 归组的取舍：已知前缀按模块归并（Compose 一组、Ktor 一组……），认不出的 group 原样用 groupId
- * 单独列一条——**宁可难看，不可漏掉**。漏了就是署名缺失，难看只是多一行。
+ * 开源声明页的数据来自构建期生成的 `artifacts.json`（见 app/build.gradle.kts 的 licensee），
+ * 这里只验「把依赖图摊成一行行给人看」这一步：一个依赖一行，不归并、不遗漏。
  */
 class OpenSourceProjectsTest {
 
     @Test
-    fun `同一个前缀下的依赖归成一条并合并协议`() {
+    fun `每个依赖各占一行且顺序不变`() {
         val projects = parseProjects(
             """
             [
-              {"groupId":"androidx.compose.ui","artifactId":"ui","name":"ui",
+              {"groupId":"androidx.activity","artifactId":"activity","name":"Activity",
                "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}],
                "scm":{"url":"https://cs.android.com/androidx"}},
-              {"groupId":"androidx.compose.runtime","artifactId":"runtime","name":"runtime",
+              {"groupId":"androidx.activity","artifactId":"activity-compose","name":"Activity Compose",
                "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}],
                "scm":{"url":"https://cs.android.com/androidx"}}
             ]
             """.trimIndent()
         )
 
-        assertEquals(1, projects.size)
-        val compose = projects.single()
-        assertEquals("Jetpack Compose", compose.name)
-        assertEquals("Apache License 2.0", compose.license)
-        assertEquals("https://cs.android.com/androidx", compose.url)
+        assertEquals(listOf("Activity", "Activity Compose"), projects.map { it.name })
+    }
+
+    /** 一个依赖可能同时列了多个协议（CameraX 里就有 Apache + BSD 的），都保留 */
+    @Test
+    fun `一个依赖的多个协议合在一行显示`() {
+        val projects = parseProjects(
+            """
+            [
+              {"groupId":"androidx.camera","artifactId":"camera-core","name":"Camera Core",
+               "spdxLicenses":[
+                 {"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"},
+                 {"identifier":"BSD-3-Clause","name":"BSD 3-Clause License","url":"https://b"}
+               ],
+               "scm":{"url":"https://cs.android.com/androidx"}}
+            ]
+            """.trimIndent()
+        )
+
+        assertEquals("Apache License 2.0 / BSD 3-Clause License", projects.single().license)
+    }
+
+    /** POM 里没写 <name> 的退回坐标，不能露出一行空白 */
+    @Test
+    fun `没有名称的依赖用坐标顶替`() {
+        val projects = parseProjects(
+            """
+            [
+              {"groupId":"com.example","artifactId":"widget",
+               "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}]}
+            ]
+            """.trimIndent()
+        )
+
+        assertEquals("com.example:widget", projects.single().name)
     }
 
     /** SLF4J 这类在 POM 里没写 SPDX id 的走 unknownLicenses，同样要显示出来 */
@@ -43,48 +69,28 @@ class OpenSourceProjectsTest {
             [
               {"groupId":"org.slf4j","artifactId":"slf4j-api","name":"SLF4J API Module",
                "unknownLicenses":[{"name":"MIT","url":"https://opensource.org/license/mit"}],
-               "scm":{"url":"https://github.com/qos-ch/slf4j"}}
+               "scm":{"url":"https://github.com/qos-ch/slf4j.git"}}
             ]
             """.trimIndent()
         )
 
-        assertEquals("SLF4J", projects.single().name)
         assertEquals("MIT", projects.single().license)
+        assertEquals("https://github.com/qos-ch/slf4j", projects.single().url)
     }
 
-    /** 没有规则认领的 group 也不能消失：用 groupId 当名字 */
+    /** 没有仓库地址的依赖不该变成可点：点开一个空链接比不可点更糟 */
     @Test
-    fun `认不出的分组用 groupId 现形`() {
+    fun `没有仓库地址时给空串`() {
         val projects = parseProjects(
             """
             [
-              {"groupId":"com.google.guava","artifactId":"guava","name":"Guava",
-               "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}],
-               "scm":{"url":"https://github.com/google/guava"}}
+              {"groupId":"com.example","artifactId":"widget","name":"Widget",
+               "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}]}
             ]
             """.trimIndent()
         )
 
-        assertEquals("com.google.guava", projects.single().name)
-        assertEquals("https://github.com/google/guava", projects.single().url)
-    }
-
-    /** 同一份 JSON 解析两次给出同样的顺序：列表不能每次进页面都换个排列 */
-    @Test
-    fun `顺序稳定且已知分组排在前面`() {
-        val json = """
-            [
-              {"groupId":"com.google.guava","artifactId":"guava","name":"Guava",
-               "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}]},
-              {"groupId":"io.ktor","artifactId":"ktor-client-cio","name":"ktor-client-cio",
-               "spdxLicenses":[{"identifier":"Apache-2.0","name":"Apache License 2.0","url":"https://a"}],
-               "scm":{"url":"https://github.com/ktorio/ktor.git"}}
-            ]
-        """.trimIndent()
-
-        val names = parseProjects(json).map { it.name }
-        assertEquals(listOf("Ktor", "com.google.guava"), names)
-        assertTrue("ktor 的仓库地址不该带 .git", parseProjects(json).first().url.isNotEmpty())
+        assertEquals("", projects.single().url)
     }
 
     /** 坏数据不该把整页搞崩：读不出来就当没有 */
