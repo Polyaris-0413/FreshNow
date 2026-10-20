@@ -1,5 +1,6 @@
 package com.freshnow.app.baselineprofile
 
+import android.util.Log
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,11 +37,9 @@ class BaselineProfileGenerator {
             startActivityAndWait()
             // 每轮录制都是重装后的干净包，所以本轮首屏是欢迎页——但只有**第一次**启动才是：
             // 引导走完会写下「已看过」标记，而录制要跑多轮（本次配置下 10 轮），后面几轮直接进首页。
-            // 所以不能无脑等欢迎页：先看首页在不在（在就说明这一轮不用走引导），再看欢迎页在不在
-            // （在就把它走完）；两个都没看到就不插手，交给下面那个等「添加」去报真实的错。
-            if (!device.wait(Until.hasObject(By.desc(ADD)), PROBE_TIMEOUT_MS) &&
-                device.wait(Until.hasObject(By.text(WELCOME_NEXT)), PROBE_TIMEOUT_MS)
-            ) {
+            // 所以不能无脑等欢迎页：先看哪种首屏在，再决定要不要引导；两种都没看到就不插手，
+            // 交给下面那个等「添加」去报真实的错。
+            if (awaitFirstScreen(LAUNCH_TIMEOUT_MS) == FirstScreen.Welcome) {
                 walkThroughWelcome()
             }
             awaitDesc(ADD, LAUNCH_TIMEOUT_MS)
@@ -101,6 +100,24 @@ class BaselineProfileGenerator {
         clickText(WELCOME_START)
     }
 
+    /**
+     * 等两种首屏中的一种出现。
+     *
+     * 不用两段串行的 `wait`：那等于给每一种首屏各自一个窗口，而慢设备上第一个窗口就耗光了
+     * 整个判定期，第二个窗口开始时应用才刚画完（2026-10-20 就挂在这里：GMD 上 `Displayed`
+     * 花了 10.4 秒，两段各 10 秒的探针全空，于是既没走引导又等不到首页的「添加」）。
+     * 现在是一个窗口内轮询两个信号，谁先到算谁；正常设备几百毫秒就返回。
+     */
+    private fun MacrobenchmarkScope.awaitFirstScreen(timeoutMs: Long): FirstScreen? {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (device.hasObject(By.desc(ADD))) return FirstScreen.Home
+            if (device.hasObject(By.text(WELCOME_NEXT))) return FirstScreen.Welcome
+            Thread.sleep(PROBE_POLL_MS)
+        }
+        return null
+    }
+
     private fun MacrobenchmarkScope.openOverflow() {
         clickDesc(MORE_OPTIONS)
         // 面板是弹出后才可点的，等它展开再点里面的项
@@ -118,12 +135,18 @@ class BaselineProfileGenerator {
     private fun MacrobenchmarkScope.backToHome() {
         repeat(MAX_BACK_STEPS) {
             if (device.wait(Until.hasObject(By.desc(ADD)), HOME_WAIT_MS)) return
-            device.pressBack()
+            // 优先点应用内的返回箭头：模拟器用全面屏手势，系统返回要走一枚边缘手势、经 SystemUI，
+            // 设备过载时那条路会卡住（2026-10-20：back 事件在 systemui 里积压到 ANR，连按三次
+            // 都没退出去，而页面自己的返回按钮只是一次普通点击）。扫描页没有这个箭头，再退回系统返回。
+            device.findObject(By.desc(BACK))?.click() ?: device.pressBack()
             // 扫描页有结果时返回会先问「离开扫描页？」；没有结果时直接退，因此这一支不一定会走到
             if (device.wait(Until.hasObject(By.text(LEAVE_SCAN)), SHORT_TIMEOUT_MS)) {
                 clickText(DISCARD)
             }
             device.waitForIdle()
+        }
+        if (!device.wait(Until.hasObject(By.desc(ADD)), HOME_WAIT_MS)) {
+            reportScreen("回不到首页")
         }
         check(device.wait(Until.hasObject(By.desc(ADD)), HOME_WAIT_MS)) { "回不到首页（等不到描述符「$ADD」）" }
     }
@@ -147,12 +170,35 @@ class BaselineProfileGenerator {
     }
 
     private fun MacrobenchmarkScope.awaitText(text: String, timeoutMs: Long = TIMEOUT_MS) {
-        check(device.wait(Until.hasObject(By.text(text)), timeoutMs)) { "等不到文案「$text」" }
+        if (!device.wait(Until.hasObject(By.text(text)), timeoutMs)) {
+            reportScreen("等不到文案「$text」")
+            error("等不到文案「$text」")
+        }
     }
 
     private fun MacrobenchmarkScope.awaitDesc(desc: String, timeoutMs: Long = TIMEOUT_MS) {
-        check(device.wait(Until.hasObject(By.desc(desc)), timeoutMs)) { "等不到描述符「$desc」" }
+        if (!device.wait(Until.hasObject(By.desc(desc)), timeoutMs)) {
+            reportScreen("等不到描述符「$desc」")
+            error("等不到描述符「$desc」")
+        }
     }
+
+    /**
+     * 失败时把当时的窗口树写进 logcat。
+     *
+     * 托管虚拟机是测完即抛的：截图与 `/sdcard` 下的文件都随设备一起消失，而**只有 logcat 会被
+     * GMD 收回来**。没有这一行，失败现场就只能靠猜（2026-10-20 连挂四次，前三次都只能从
+     * `Displayed` 与点击日志倒推屏幕状态）。
+     */
+    private fun MacrobenchmarkScope.reportScreen(why: String) {
+        val tree = runCatching {
+            device.executeShellCommand("uiautomator dump /sdcard/_bp_fail.xml >/dev/null 2>&1; cat /sdcard/_bp_fail.xml")
+        }.getOrNull()
+        Log.w(LOG_TAG, "失败现场（$why）：${tree?.take(SCREEN_DUMP_LIMIT)}")
+    }
+
+    /** 启动后第一屏是哪一个；null 表示窗口内两种都没看到 */
+    private enum class FirstScreen { Home, Welcome }
 
     private companion object {
         const val PACKAGE_NAME = "com.freshnow.app"
@@ -160,6 +206,7 @@ class BaselineProfileGenerator {
         // 文案取自 app/src/main/res/values/strings.xml
         const val MORE_OPTIONS = "更多选项"
         const val ADD = "添加"
+        const val BACK = "返回"
         const val SCAN_TITLE = "扫描"
         const val SETTINGS = "设置"
         const val BASIC_CONFIG = "基础配置"
@@ -187,11 +234,17 @@ class BaselineProfileGenerator {
         const val LAUNCH_TIMEOUT_MS = 90_000L
         const val SHORT_TIMEOUT_MS = 1_000L
 
-        /** 判「这一轮到底在首页还是在欢迎页」的等待：只花这点时间探一下，到了就不再多等 */
-        const val PROBE_TIMEOUT_MS = 10_000L
+        /** 失败现场写日志的上限：logcat 单条消息太长会被截断，留最前面的层次结构就够看首屏 */
+        const val SCREEN_DUMP_LIMIT = 4_000
+        const val LOG_TAG = "FreshNowBaselineProfile"
 
-        /** 判「到首页了没有」的等待：给足，免得无障碍树慢一次就被当成没到而多按返回 */
-        const val HOME_WAIT_MS = 10_000L
+        /**
+     * 探两次无障碍树之间的间隔。托管虚拟机负载重时一次查询能到秒级，密了只是白烧 CPU
+     */
+        const val PROBE_POLL_MS = 500L
+
+        /** 判「到首页了没有」的等待：给足，慢设备上触摸事件本身就能拖到秒级 */
+        const val HOME_WAIT_MS = 20_000L
         const val MAX_BACK_STEPS = 3
     }
 }
