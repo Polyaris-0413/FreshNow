@@ -17,7 +17,8 @@
         android:required="false" />
 
     <!-- 系统备份整体关闭：allowBackup=false 管 Cloud 备份，dataExtractionRules 把换机直传也排除；
-         API Key、同步密钥与设备身份不该离开本机，换机走应用内的局域网同步。 -->
+         API Key、同步密钥与设备身份不该离开本机。换机走应用内的局域网同步，或者用户在设置里
+         自行导出备份文件（只含记录与照片，同样不含这些密钥，去哪存由用户决定）。 -->
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"

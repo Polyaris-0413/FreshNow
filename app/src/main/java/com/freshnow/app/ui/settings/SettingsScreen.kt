@@ -1,5 +1,7 @@
 package com.freshnow.app.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -49,9 +53,11 @@ import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.component.SortOrderMenuItems
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.label
+import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 /** 当前打开的是哪个编辑面板，null 表示没打开 */
 private enum class SettingsEditor { BasicConfig, ExtraRequest }
@@ -65,11 +71,22 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var editing by remember { mutableStateOf<SettingsEditor?>(null) }
     // 「排序方式」是单选，用的是动作面板而不是编辑面板（见 MenuBottomSheet），单独一个开关
     var choosingSortOrder by remember { mutableStateOf(false) }
+
+    // 备份走系统文件选择器（SAF）：不需要任何存储权限，文件存哪儿也由用户决定
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE)
+    ) { uri -> if (uri != null) viewModel.exportBackup(uri) }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) viewModel.importBackup(uri) }
+    // 建议文件名在合成期算好：launch 的参数不能在点击那一刻现取资源
+    val backupFileName = stringResource(R.string.backup_file_name, LocalDate.now().toString())
 
     // 收起编辑面板。收起动画结束再清 editing：动画期间面板还在，提前清掉会闪一下
     fun closeEditor() {
@@ -91,6 +108,9 @@ fun SettingsScreen(
                 },
                 showReasoning = uiState.saved.showReasoning,
                 manualEntry = uiState.behavior.manualEntry,
+                backupRunning = uiState.backupRunning,
+                onBackupExportClick = { exportLauncher.launch(backupFileName) },
+                onBackupImportClick = { importLauncher.launch(BACKUP_OPEN_MIME_TYPES) },
                 onBasicConfigClick = {
                     viewModel.startEditing()
                     editing = SettingsEditor.BasicConfig
@@ -109,6 +129,17 @@ fun SettingsScreen(
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
             )
+        }
+    }
+
+    // 一次备份操作的结果用 Toast 报，与同步页同一套约定（见 ui/Toast.kt）
+    val context = LocalContext.current
+    // 文案先在合成上下文里算好：text() 是 @Composable，而 LaunchedEffect 里跑的是普通协程
+    val backupText = backupMessage?.text()
+    backupMessage?.let {
+        LaunchedEffect(it) {
+            showToast(context, backupText.orEmpty())
+            viewModel.consumeBackupMessage()
         }
     }
 
@@ -162,6 +193,26 @@ fun SettingsScreen(
 }
 
 /**
+ * 一次备份操作的结果。文案与提示的时机在界面这边定（与 SyncMessage.text 同一个做法）
+ */
+@Composable
+internal fun BackupMessage.text(): String = when (this) {
+    is BackupMessage.Exported -> stringResource(R.string.backup_export_done, records, images)
+    BackupMessage.ExportFailed -> stringResource(R.string.backup_export_failed)
+    is BackupMessage.Imported -> stringResource(R.string.backup_import_done, records, images)
+    BackupMessage.NothingNew -> stringResource(R.string.backup_import_nothing_new)
+    BackupMessage.ImportFailed -> stringResource(R.string.backup_import_failed)
+}
+
+/** 备份文件的 MIME 类型：CreateDocument 用它决定新文件的类型 */
+private const val BACKUP_MIME_TYPE = "application/zip"
+
+/**
+ * 选文件时的过滤器。有些文件管理器把 .zip 标成 x-zip-compressed，只给一个的话，
+ * 用户能看见自己的备份文件却选不中它
+ */
+private val BACKUP_OPEN_MIME_TYPES = arrayOf("application/zip", "application/x-zip-compressed")
+/**
  * 设置项本体，不含编辑面板与落盘：便于按定值直接断言分区归属（见 SettingsScreenTest）
  */
 @Composable
@@ -170,11 +221,14 @@ internal fun SettingsList(
     extraSummary: String,
     showReasoning: Boolean,
     manualEntry: Boolean,
+    backupRunning: Boolean,
     sortOrder: SortOrder,
     onBasicConfigClick: () -> Unit,
     onExtraRequestClick: () -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
     onManualEntryChange: (Boolean) -> Unit,
+    onBackupExportClick: () -> Unit,
+    onBackupImportClick: () -> Unit,
     onSortOrderClick: () -> Unit,
     onSyncClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -265,6 +319,43 @@ internal fun SettingsList(
                 )
             },
             modifier = Modifier.clickable(onClick = onSyncClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        SectionHeading(
+            text = stringResource(R.string.backup_section_title),
+            // 与上一段之间留段间距（设计源的 24）
+            modifier = Modifier.padding(top = FreshNowSpacing.md)
+        )
+
+        // 导出与导入成对排在一起：一个把数据交出去，一个把交出去的那份拿回来。
+        // 两者都不带 API Key 与同步密钥（见 BackupArchive），备份文件可以放心放进网盘
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_upload), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(
+                    stringResource(R.string.backup_export_title),
+                    stringResource(R.string.backup_export_support)
+                )
+            },
+            // 读写期间两行一起置灰：同一次操作还没完就再点一次，只会让两份写入撞在一起
+            modifier = Modifier.clickable(enabled = !backupRunning, onClick = onBackupExportClick),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_download), contentDescription = null)
+            },
+            headlineContent = {
+                ListItemText(
+                    stringResource(R.string.backup_import_title),
+                    stringResource(R.string.backup_import_support)
+                )
+            },
+            modifier = Modifier.clickable(enabled = !backupRunning, onClick = onBackupImportClick),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 

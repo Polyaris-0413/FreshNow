@@ -106,6 +106,19 @@
     <string name="sort_order_created_at">创建时间</string>
     <string name="sort_order_expiry_date">过期日期</string>
     <string name="debug_settings_section_title">调试</string>
+    <!-- 备份只包记录与照片，不含 API Key、同步密钥与设备身份（见 AndroidManifest 里关掉系统备份的理由） -->
+    <string name="backup_section_title">备份</string>
+    <string name="backup_export_title">导出备份</string>
+    <string name="backup_export_support">把记录与照片存成一个文件</string>
+    <string name="backup_import_title">导入备份</string>
+    <string name="backup_import_support">并入备份里的记录，不覆盖现有数据</string>
+    <!-- 建议文件名里的日期不做本地化：文件按名字排序时，各语言混排很乱 -->
+    <string name="backup_file_name" translatable="false">freshnow-%1$s.zip</string>
+    <string name="backup_export_done">已导出 %1$d 条记录、%2$d 张照片</string>
+    <string name="backup_export_failed">导出失败，请换个位置再试</string>
+    <string name="backup_import_done">已导入 %1$d 条记录、%2$d 张照片</string>
+    <string name="backup_import_nothing_new">备份里的记录都已是最新的</string>
+    <string name="backup_import_failed">这个文件读不出来，可能不是 FreshNow 的备份</string>
     <string name="app_settings_section_title">应用</string>
     <string name="app_settings_version_title">版本</string>
     <string name="app_settings_check_update_title">检查更新</string>

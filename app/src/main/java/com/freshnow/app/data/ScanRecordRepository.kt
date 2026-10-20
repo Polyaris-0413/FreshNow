@@ -205,6 +205,15 @@ class ScanRecordRepository(
         imageStore.find(name)?.let { file -> runCatching { file.readBytes() }.getOrNull() }
     }
 
+    /**
+     * 只把一张照片按内容落盘，不挂到任何记录上，返回落盘后的名字；写不成功返回 null。
+     *
+     * 备份导入用它：照片先全部落盘，记录再按名字引用（见 data/backup/）。走
+     * [attachImage] 不行——那个是「给某条记录补一张同步缺的图」，会往记录末尾追加名字，
+     * 而备份里的名字本来就该原样保留。
+     */
+    suspend fun writeImage(bytes: ByteArray): String? = imageStore.write(bytes)
+
     suspend fun findBySyncId(syncId: String): ScanRecord? = dao.findBySyncId(syncId)
 
     /**

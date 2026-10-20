@@ -1,5 +1,6 @@
 package com.freshnow.app.ui.settings
 
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -121,6 +122,49 @@ class SettingsScreenTest {
         }
     }
 
+    /** 备份夹在「行为」与「调试」之间：它既不是可调项，也不属于调试工具 */
+    @Test
+    fun backupRowsSitBetweenBehaviorAndDebug() {
+        setContent()
+
+        val behaviorTitle = top("行为")
+        val exportRow = top("导出备份")
+        val importRow = top("导入备份")
+        val debugTitle = top("调试")
+
+        assertTrue("「导出备份」应当在「行为」之下：behavior=$behaviorTitle export=$exportRow", exportRow > behaviorTitle)
+        assertTrue("「导入备份」应当紧跟在导出之后：export=$exportRow import=$importRow", importRow > exportRow)
+        assertTrue("备份两行应当排在「调试」之前：import=$importRow debug=$debugTitle", importRow < debugTitle)
+    }
+
+    /** 两行各自只做一件事：点导出不该顺手也去读文件 */
+    @Test
+    fun tappingBackupRowsStartsOnlyItsOwnAction() {
+        var exports = 0
+        var imports = 0
+        setContent(
+            onBackupExportClick = { exports++ },
+            onBackupImportClick = { imports++ }
+        )
+
+        composeRule.onNodeWithText("导出备份").performClick()
+        assertEquals(1, exports)
+        assertEquals(0, imports)
+
+        composeRule.onNodeWithText("导入备份").performClick()
+        assertEquals(1, exports)
+        assertEquals(1, imports)
+    }
+
+    /** 一次读写还没完时两行都不能再点：连续两次导出会往同一个位置上写两份数据 */
+    @Test
+    fun backupRowsAreDisabledWhileRunning() {
+        setContent(backupRunning = true)
+
+        composeRule.onNodeWithText("导出备份").assertIsNotEnabled()
+        composeRule.onNodeWithText("导入备份").assertIsNotEnabled()
+    }
+
     private fun top(text: String) = composeRule.onNodeWithText(text).getBoundsInRoot().top
 
     private fun setContent(
@@ -128,7 +172,10 @@ class SettingsScreenTest {
         onManualEntryChange: (Boolean) -> Unit = {},
         sortOrder: SortOrder = SortOrder.CREATED_AT,
         onSortOrderClick: () -> Unit = {},
-        onSyncClick: () -> Unit = {}
+        onSyncClick: () -> Unit = {},
+        backupRunning: Boolean = false,
+        onBackupExportClick: () -> Unit = {},
+        onBackupImportClick: () -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme() {
@@ -137,11 +184,14 @@ class SettingsScreenTest {
                     extraSummary = "跟随服务商默认",
                     showReasoning = true,
                     manualEntry = false,
+                    backupRunning = backupRunning,
                     sortOrder = sortOrder,
                     onBasicConfigClick = {},
                     onExtraRequestClick = {},
                     onShowReasoningChange = onShowReasoningChange,
                     onManualEntryChange = onManualEntryChange,
+                    onBackupExportClick = onBackupExportClick,
+                    onBackupImportClick = onBackupImportClick,
                     onSortOrderClick = onSortOrderClick,
                     onSyncClick = onSyncClick
                 )

@@ -1,13 +1,16 @@
 package com.freshnow.app.ui.settings
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.AiSettings
 import com.freshnow.app.data.AiSettingsRepository
 import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.BehaviorSettingsRepository
+import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.SortOrder
+import com.freshnow.app.data.backup.BackupRepository
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,15 +30,32 @@ data class SettingsUiState(
     val behavior: BehaviorSettings = BehaviorSettings(),
     val basicConfig: AiBasicConfigDraft = AiBasicConfigDraft(),
     val extraJson: String = "",
+    /** 正在导出或导入：两行备份条目在期间置灰，避免同一次读写被连点叠上 */
+    val backupRunning: Boolean = false,
 )
+
+/**
+ * 一次备份操作的结果。与 SyncMessage 同一个做法：带参数而不是拼好的句子，文案由界面按当前语言取
+ */
+sealed interface BackupMessage {
+    data class Exported(val records: Int, val images: Int) : BackupMessage
+    data object ExportFailed : BackupMessage
+    data class Imported(val records: Int, val images: Int) : BackupMessage
+    data object NothingNew : BackupMessage
+    data object ImportFailed : BackupMessage
+}
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AiSettingsRepository(application)
     private val behaviorRepository = BehaviorSettingsRepository(application)
+    private val backupRepository = BackupRepository(ScanRecordRepository(application))
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    private val _backupMessage = MutableStateFlow<BackupMessage?>(null)
+    val backupMessage: StateFlow<BackupMessage?> = _backupMessage.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -43,6 +63,59 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val behavior = behaviorRepository.behaviorSettings.first()
             _uiState.update { it.copy(loaded = true, saved = saved, behavior = behavior) }
         }
+    }
+
+    /**
+     * 把当前数据写成备份文件。
+     *
+     * 失败一律当「没导成」提示：写不进去的原因（空间不足、位置只读、用户刚把 U 盘拔了）
+     * 用户看得到、也只能自己换个位置，给一串系统错误码不如直接请他重试。
+     */
+    fun exportBackup(uri: Uri) {
+        if (_uiState.value.backupRunning) return
+        _uiState.update { it.copy(backupRunning = true) }
+        viewModelScope.launch {
+            val result = runCatching {
+                // "wt" 会截断已有内容，避免覆盖一个更长的旧文件时留下尾巴；
+                // 少数文档提供方不认这个模式，退回普通写入
+                val resolver = getApplication<Application>().contentResolver
+                val output = runCatching { resolver.openOutputStream(uri, "wt") }.getOrNull()
+                    ?: resolver.openOutputStream(uri, "w")
+                    ?: error("打不开写入位置")
+                output.use { backupRepository.exportTo(it) }
+            }.getOrNull()
+            _uiState.update { it.copy(backupRunning = false) }
+            _backupMessage.value = result
+                ?.let { BackupMessage.Exported(it.records, it.images) }
+                ?: BackupMessage.ExportFailed
+        }
+    }
+
+    /**
+     * 把备份文件并进本机数据。读不懂的文件与合并后一条没变是两件事：前者要用户换文件，
+     * 后者说明本机已经是最新的——都报「失败」会让第二种情况看起来像出了事。
+     */
+    fun importBackup(uri: Uri) {
+        if (_uiState.value.backupRunning) return
+        _uiState.update { it.copy(backupRunning = true) }
+        viewModelScope.launch {
+            val result = runCatching {
+                val input = getApplication<Application>().contentResolver.openInputStream(uri)
+                    ?: error("打不开备份文件")
+                input.use { backupRepository.restoreFrom(it) }
+            }.getOrNull()
+            _uiState.update { it.copy(backupRunning = false) }
+            _backupMessage.value = when {
+                result == null -> BackupMessage.ImportFailed
+                result.applied == 0 -> BackupMessage.NothingNew
+                else -> BackupMessage.Imported(result.applied, result.images)
+            }
+        }
+    }
+
+    /** 报完就销掉：留在状态里的话，切走再回来会再弹一次，而那次什么都没发生 */
+    fun consumeBackupMessage() {
+        _backupMessage.value = null
     }
 
     /**
