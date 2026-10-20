@@ -7,6 +7,20 @@ plugins {
     // 同一个插件在 app 侧是「消费方」：负责给录制用的构建类型补 <profileable> 与签名兜底，
     // 并决定 profile 落到哪个源集。只把它用在 :baselineprofile 上时，app 侧这套不会启用。
     alias(libs.plugins.baselineprofile)
+    // 开源署名的数据源：从依赖元数据生成 artifacts.json 并打进 APK（见 OpenSourceScreen）
+    alias(libs.plugins.licensee)
+}
+
+licensee {
+    // 本项目用到的第三方库集中在这几个协议；未允许的协议会让构建失败，免得静默下发
+    allow("Apache-2.0")
+    allow("MIT")
+    // DataStore 那个 external-protobuf 走的协议
+    allow("BSD-3-Clause")
+    // slf4j（Ktor 的传递依赖）在 POM 里写的是这个 URL 而不是 SPDX id，只能按 URL 放行
+    allowUrl("https://opensource.org/license/mit")
+    // 把清单打进 APK 的 assets，界面直接读它——不再有一份手写列表要维护
+    bundleAndroidAsset = true
 }
 
 android {

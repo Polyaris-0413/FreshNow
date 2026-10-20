@@ -48,6 +48,28 @@ class AboutScreenTest {
         )
     }
 
+    /**
+     * 开源页的数据来自构建期生成、打进 APK 的 artifacts.json。这条验的是「真读到了」：
+     * 打包漏了、解析写错、归组规则把整组吃掉，都会在这里变红。
+     */
+    @Test
+    fun openSourcePageListsProjectsBuiltIntoTheApk() {
+        composeRule.setContent {
+            FreshNowTheme() {
+                OpenSourceScreen(onBack = {})
+            }
+        }
+
+        // 清单是异步从 assets 读的，等它到位再断言
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Ktor").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        listOf("Ktor", "Jetpack Compose", "Android Room", "Kotlin / kotlinx").forEach { name ->
+            composeRule.onNodeWithText(name).assertExists()
+        }
+    }
+
     /** 分区顺序：应用 → 项目 → 法律信息 */
     @Test
     fun sectionsAreOrdered() {
