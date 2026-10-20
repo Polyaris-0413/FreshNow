@@ -50,6 +50,13 @@ data class HomeRecordItem(
  * 过期日期：快到期的在前（升序），**已过期的因此排在最上面**——那正是「该先处理」的语义。
  * 过期日期算不出来的（印刷值认不出、或推不出）一律排到最后：它们不参与比较，谁先谁后由稳定
  * 排序保留（也就是维持创建时间的顺序）。
+ *
+ * **这个排序是用户得知「有东西该处理了」的唯一途径**：主动的到期通知没做（2026-10-20 决定）。
+ * 不是因为不重要，是因为送不到：国产 ROM 里有一部分把「从最近任务划掉」实现成强制停止，而被强停
+ * 的包处于 stopped state，收不到任何广播（含开机广播）、重启也不恢复，只能等用户手动打开应用
+ * （Android 15 行为变更「Changes to package stopped state」）；而「吃东西前先打开应用看一眼」
+ * 本身就不符合使用习惯，应用内的排序顶不上那个缺口。唯一真正可靠的手段是常驻前台服务，
+ * 与「不在后台常驻」相冲突。
  */
 internal fun List<HomeRecordItem>.sortedFor(order: SortOrder): List<HomeRecordItem> = when (order) {
     SortOrder.CREATED_AT -> sortedByDescending { it.record.savedAt }
