@@ -20,9 +20,41 @@
 
 入口只有这一个聚合任务。接线（app 侧的消费方插件、`baselineProfile` 依赖）已经在仓库里，见附录 B-4。
 
+### GMD 跑不通时：手动录一次
+
+GMD 从快照恢复后 GMS 后台任务还在跑时，脚本会假失败而**不是**报错（判据与成因见附录 A-8）。这时整条 AGP 编排绕不过去，但录制本身可以自己做：同一个镜像、同一个脚本、同一个 APK。
+
+```bash
+# 1. 自己起一台与 GMD 同镜像的 AVD（google_apis / API 36 / x86_64）
+emulator -avd FreshNow_API36 -no-boot-anim -no-audio -gpu swiftshader_indirect -port 5556 &
+
+# 2. 装两个 APK：目标应用与录制模块
+adb -s emulator-5556 install -r -t app/build/outputs/apk/nonMinifiedRelease/app-nonMinifiedRelease.apk
+adb -s emulator-5556 install -r -t baselineprofile/build/outputs/apk/nonMinifiedRelease/baselineprofile-nonMinifiedRelease.apk
+
+# 3. 清应用数据再跑（清掉才会第一轮真的走欢迎页）
+adb -s emulator-5556 shell pm clear com.freshnow.app
+adb -s emulator-5556 shell am instrument -w -r com.freshnow.app.baselineprofile/androidx.test.runner.AndroidJUnitRunner
+
+# 4. 取回录制结果（成功后 instrumentation 会打印这个路径）
+adb -s emulator-5556 pull \
+  /storage/emulated/0/Android/media/com.freshnow.app.baselineprofile/BaselineProfileGenerator_generate-baseline-prof.txt
+```
+
+产出与 AGP 那条路**格式完全一致**（同一份 `BaselineProfileRule` 输出），直接覆盖入库的那份，然后照上面三条判据核一遍：
+
+```bash
+cp <pull 下来的文件> app/src/release/generated/baselineProfiles/baseline-prof.txt
+./gradlew :app:assembleRelease
+```
+
+2026-10-20 实测：原始条目 2058、应用类命中 218/379（57.5%）、APK 内 13589 + 1653 字节。
+
+## 怎么判断「跑成功」和「录到了」
+
 **「跑成功」不等于「录到了」**，三段各取一个判据：
 
-1. **录制结果**：`baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/BaselineProfileGenerator_generate-baseline-prof-<时间戳>.txt` 里应有**上千条**应用侧原始类名：
+1. **录制结果**：`baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/BaselineProfileGenerator_generate-baseline-prof-<时间戳>.txt` 里应有**上千条**应用侧原始类名（走手动路径时这份文件在设备上，见正文第 4 步的 `adb pull`）：
 
    ```bash
    grep -cE '^[A-Z]*Lcom/freshnow' baselineprofile/build/intermediates/baselineprofiles/nonMinifiedRelease/*.txt
@@ -73,19 +105,19 @@ awk -v k=$keep -v o=$oldu 'BEGIN{printf "留存率=%.2f%%\n", k*100/o}'
 
 配置：`google_apis` 镜像 + 托管 AVD 手改到 4 核 / 4 GB + `-gpu swiftshader_indirect`。再往上加核/内存没有收益（实测见附录 B-6）。
 
-| 指标 | 2026-10-12 实测 | 2026-10-15 实测 | 2026-10-16 实测 | 说明 |
-|---|---|---|---|---|
-| logcat 里 `lowmemorykiller` **真杀进程** | 0 | 未单独核对 | 未单独核对 | **判据**：非 0 就是附录 A-2 |
-| 脚本假失败（等不到文案 / 描述符） | 无 | 无 | 无 | **判据**：有就是附录 A-2 或 A-7 |
-| 与上一次入库版的规则留存率 | 99.7% | 99.66%（新增 70 / 删除 59） | 99.30%（新增 300 / 删除 264） | **判据**：远低于 99% 才是录浅了（正文「怎么跑」；同时看原始条目数） |
-| 用例耗时 / 轮数 | 1034.1 s / 12 轮（单轮 86 s） | 未记 | 未记 | 2026-10-07 同配置是 343.0 s / 10 轮（单轮 34.2 s） |
-| `:app:generateBaselineProfile` 全程 | 17m57s | 9m52s | 10m57s | 同上；变动能到 2.5 倍，**别当判据** |
-| 录制结果里的 `com/freshnow` 条目（带标志位口径） | 1806 | 1866 | 1903 | 2026-10-07 是 863 |
-| 首帧等待（脚本上限 90 s） | 十几秒就过 | 未单独核对 | 未单独核对 | 2 核 / 2 GB 时曾三次里两次直接超时 |
-| APK 内 `assets/dexopt/baseline.prof`（另有 `.profm`） | 12268（+1629）字节 | 13275（+1610）字节 | 13321（+1620）字节 | 2026-10-07 是 9120 |
-| 应用类覆盖（mapping 全量口径，见附录 C-1） | 174 / 306 | 未重算 | 未重算 | 旧口径的「85 / 118」已废弃 |
+| 指标 | 2026-10-12 | 2026-10-15 | 2026-10-16 | 2026-10-20 | 说明 |
+|---|---|---|---|---|---|
+| logcat 里 `lowmemorykiller` **真杀进程** | 0 | 未单独核对 | 未单独核对 | 0 | **判据**：非 0 就是附录 A-2 |
+| 脚本假失败（等不到文案 / 描述符） | 无 | 无 | 无 | 无（手动路径） | **判据**：有就是附录 A-2 或 A-8 |
+| 与上一次入库版的规则留存率 | 99.7% | 99.66%（新增 70 / 删除 59） | 99.30%（新增 300 / 删除 264） | 见正文命令 | **判据**：远低于 99% 才是录浅了（同时看原始条目数） |
+| 用例耗时 / 轮数 | 1034.1 s / 12 轮（单轮 86 s） | 未记 | 未记 | 手动路径不分轮次 | 2026-10-07 同配置是 343.0 s / 10 轮（单轮 34.2 s） |
+| `:app:generateBaselineProfile` 全程 | 17m57s | 9m52s | 10m57s | 不可用（见 A-8） | 变动能到 2.5 倍，**别当判据** |
+| 录制结果里的 `com/freshnow` 条目（带标志位口径） | 1806 | 1866 | 1903 | 2058 | 2026-10-07 是 863 |
+| 首帧等待（脚本上限 90 s） | 十几秒就过 | 未单独核对 | 未单独核对 | 手动路径 6~11 s | 2 核 / 2 GB 时曾三次里两次直接超时 |
+| APK 内 `assets/dexopt/baseline.prof`（另有 `.profm`） | 12268（+1629）字节 | 13275（+1610）字节 | 13321（+1620）字节 | 13589（+1653）字节 | 2026-10-07 是 9120 |
+| 应用类覆盖（mapping 全量口径，见附录 C-1） | 174 / 306 | 未重算 | 未重算 | 218 / 379 | 旧口径的「85 / 118」已废弃 |
 
-上表只有标**判据**的三行能单独看健康状态。墙钟会随宿主负载膨胀（2026-10-12 规格没退、单轮却从 34.2 s 变成 86 s），所以「全程变回二十分钟」只能当去查一查的引子：先按附录 A-2 查设备规格，规格没退就别去改录制脚本。
+上表只有标**判据**的三行能单独看健康状态。墙钟会随宿主负载膨胀（2026-10-12 规格没退、单轮却从 34.2 s 变成 86 s），所以「全程变回二十分钟」只能当去查一查的引子：先按附录 A-2 查设备规格，规格没退就按 A-8 看设备是否正被 GMS 占满，两样都不是再去改录制脚本。
 
 ---
 
@@ -102,7 +134,7 @@ awk -v k=$keep -v o=$oldu 'BEGIN{printf "留存率=%.2f%%\n", k*100/o}'
 ## A-2 设备规格退回默认（2 核 / 2 GB）
 
 - **症状**：logcat 里 `lowmemorykiller` 开始杀进程（正常是 0 次）；脚本以「等不到文案 / 等不到描述符」失败，失败点通常是首帧等待或最后一段 `backToHome()`；全程一般也一起变成二十分钟。
-- **但墙钟不是判据**：宿主负载也会把单轮成本抬上去（2026-10-12 实测规格未变，单轮 34.2 s → 86 s、全程 17m57s，而 lmkd 0 次、无假失败、覆盖留存 99.7%）。**先看 lmkd 与假失败这两条**，两条都没有就不是本附录的问题。
+- **但墙钟不是判据**：宿主负载也会把单轮成本抬上去（2026-10-12 实测规格未变，单轮 34.2 s → 86 s、全程 17m57s，而 lmkd 0 次、无假失败、覆盖留存 99.7%）。**先看 lmkd 与假失败这两条**，两条都没有就不是本附录的问题。假失败另有一个与规格无关的成因：GMD 设备上 GMS 后台任务正忙（见附录 A-8）。
 - **原因**：内存压不住时，uiautomator 取一次无障碍树会从 ~100 ms 退化成秒级，脚本里 `SHORT_TIMEOUT_MS = 1000` 的短等待就成了假阴性——`backToHome()` 会以为「还没回首页」而连按返回，最后 30 秒也超时。**这是假失败，不是脚本逻辑问题。**
 - **什么时候会退回**：AVD 被删或重建、换机器、清掉 `~/.android/avd/gradle-managed`。AGP 没有内存/核数的 DSL，那份 4 核 / 4 GB 是**仓库外的手改**，代码里没有它的影子（机制见附录 B-6）。
 - **恢复**：见附录 A-6。
@@ -162,6 +194,20 @@ merged_art_profile/release/mergeReleaseArtProfile/baseline-prof.txt
   然后重跑。**别一看失败就去改配置**——那一次的「6 核失败」就是这么误判出来的，清掉僵尸后 6 核一次就过。
 
 **成功之后也会残留**：2026-10-12 录制成功后仍看到一个 `emulator` 包装进程活着（当时 CPU≈0，无害）。上面的清理命令很便宜，每次录制之后——成功也一样——跑一遍再开始下一次，别让它和下一次录制抢资源。
+
+## A-8 GMD 设备「热」到脚本做不了事（假失败，且现场也取不到）
+
+- **症状**：脚本在首屏等不到「添加」或「下一步」，或在中途 `backToHome()` 等不到「添加」；失败时打的现场**是空的**——`uiautomator dump` 自己也取不到。logcat 里能看到 `ByMatcher: Node returned null child`（应用窗口在，子节点为空）、`InputDispatcher: … spent 11479ms processing MotionEvent`、`ANR: com.android.systemui … KeyEvent BACK`。另一路会撞上 CameraX：`No available camera can be found`（`hw.camera.back` 写 `emulated` 与 `virtualscene` 都一样）。
+- **不是 A-2**：这时规格往往是好的（4 核 / 4 GB）、`lowmemorykiller` 也没真杀进程。**判据**：手动起同一镜像的 AVD、跑同一脚本能过。2026-10-20 实测：GMD 连挂 7 次（失败点每次不同：首屏探针、`backToHome`、开源页最后一行），手动路径一次过、录到 2058 条。
+- **原因**：GMD 每次从快照恢复后，GMS 的后台任务（`com.google.android.gms.persistent`、`googlequicksearchbox` 的 job、`TimedProcessReaper`）正好在跑。冷启动 9~11.5 s，无障碍树查询退化到取不到内容。这不是脚本逻辑。
+- **恢复**：走正文「GMD 跑不通时：手动录一次」。想继续用 GMD 就先等 GMS 那批 job 跑完，但等待时长不可控。
+- **另外**：脚本已在每个等待失败时把窗口树写日志（`FreshNowBaselineProfile`）；如果你看到的现场是空串，那本身就是上面这条的判据。
+
+## A-9 脚本判据文案跟着页面一起改
+
+- **症状**：前面所有路径都过，最后一步等不到文案（2026-10-20：`等不到文案「Android CameraX」`，一查是开源声明页）。
+- **原因**：开源声明页从「按 groupId 归组」改成「逐条列出」（`2a5b8b5`），页面上再没有 `Android CameraX` 这个归组名，而脚本常量还写着它。
+- **规矩**：脚本里每个判据文案都是对**页面结构**的断言，页面一改就得回头看一眼。现在 `OPEN_SOURCE_ITEM` 取清单首条 `Activity`——它来自构建期生成的数据，不随归组规则变；但它会随依赖改名而变，改写录制的清单页时要重新确认。
 
 ---
 
@@ -255,11 +301,11 @@ dependencies {
 - **核数**：4 核 → 6 核，单轮从 34.2 s 降到 33.4 s（UI 段 19.3 s → 17.8 s，而那个无选择器的「空档」15.7 s 几乎不动），全程 6m24s → 5m58s。而且**再想上 8 核直接被模拟器拒了**——它把 `hw.cpu.ncore` 从 8 自行压回 6，并让 setup 任务超时（症状与后遗症见附录 A-7）。
 - **内存**：4 GB 下 `lowmemorykiller` / `kswapd` / `Compaction` / `onTrimMemory` **全是 0 次**，说明已经离开回收压力区，再加内存没有可修的东西；何况这台宿主只有 16 GB，8 GB 客体会反过来挤宿主。
 - 所以 **4 核 / 4 GB 就是这台机器上的甜点**，别再往上加。「多核能更快」只在那次 2 核 → 4 核成立，而那次本质上是脱离 thrashing（lmkd 从 9 次到 0 次），不是线性并行收益。
-- **单轮成本还会随宿主负载浮动**：2026-10-12 实测同一套配置、规格未变，单轮 34.2 s → 86 s（12 轮 / 1034.1 s，全程 17m57s）。所以上表只在同一天内可比；跨天比耗时之前，先看 `lowmemorykiller` 与脚本假失败（附录 A-2）。
+- **单轮成本还会随宿主负载浮动**：2026-10-12 实测同一套配置、规格未变，单轮 34.2 s → 86 s（12 轮 / 1034.1 s，全程 17m57s）。所以上表只在同一天内可比；跨天比耗时之前，先看 `lowmemorykiller` 与脚本假失败（附录 A-2 与 A-8）。
 
 ## B-7 脚本与那条 startup profile 告警
 
-录制脚本在 `baselineprofile/src/main/java/com/freshnow/app/baselineprofile/BaselineProfileGenerator.kt`，覆盖六条路径：首次启动的欢迎页（引导，只在第一轮出现）→ 冷启动首页 → 扫描页（含 CameraX，靠 `pm grant` 过权限门）→ 设置页 → 同步页 → 关于页 → 开源声明页。控件一律按文案与描述符定位，不用坐标。首次界面的等待放宽到 90 秒（非混淆构建冷启动明显慢于 release），但设备被 `lowmemorykiller` 拖住时 90 秒也可能不够，见附录 A-2。
+录制脚本在 `baselineprofile/src/main/java/com/freshnow/app/baselineprofile/BaselineProfileGenerator.kt`，覆盖六条路径：首次启动的欢迎页（引导，只在第一轮出现）→ 冷启动首页 → 扫描页（含 CameraX，靠 `pm grant` 过权限门）→ 设置页 → 同步页 → 关于页 → 开源声明页。控件一律按文案与描述符定位，不用坐标。首次界面的等待放宽到 90 秒（非混淆构建冷启动明显慢于 release），但设备被 `lowmemorykiller` 或 GMS 后台任务拖住时 90 秒也可能不够，见附录 A-2 与 A-8。
 
 脚本没有设 `includeInStartupProfile`，所以插件每次成功都会打一条 `No startup profile rules were generated for the variant 'release'`——这是默认行为（`BaselineProfileConfig.includeInStartupProfile` 默认 false），不是故障。要 startup profile 得在规则里显式设 true。
 
