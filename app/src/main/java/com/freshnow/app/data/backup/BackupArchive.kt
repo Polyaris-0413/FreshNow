@@ -20,7 +20,11 @@ internal const val BACKUP_FORMAT_VERSION = 1
 /** 备份文件认不出来（不是本应用的备份、被截断、格式版本比本机新） */
 class BackupFormatException(message: String) : Exception(message)
 
-internal data class BackupExport(val records: Int, val images: Int)
+internal data class BackupExport(
+    /** 用户看得见的记录数。墓碑不算：它们不在界面上，报给用户只会得到「我一条也没有」与「导出 39 条」的对话 */
+    val records: Int,
+    val images: Int
+)
 
 internal data class BackupImport(val records: List<ScanRecord>, val images: Int)
 
@@ -47,7 +51,7 @@ private data class BackupManifest(
  *
  * 照片只打包未删除记录引用的那些：墓碑记录的照片在界面上早已不可见，打包进来只让文件变大。
  * 记录本身连墓碑一起写——墓碑是「这条被删过」的唯一凭据，丢了它，导入到还有旧数据的设备上
- * 会把已删除的记录重新变成活的。
+ * 会把已删除的记录重新变成活的。反过来说，导入这份备份会把那些删除一并带过去（与同步一致）。
  *
  * [imageBytes] 返回 null（文件已不在）时跳过这张图，不中断整次导出：缺几张图比导出失败好，
  * 而记录里的名字仍在，界面显示占位图，与同步缺图时的表现一致。
@@ -84,7 +88,7 @@ internal suspend fun exportBackup(
             }
         }
     }
-    return BackupExport(records = records.size, images = images)
+    return BackupExport(records = records.count { it.deletedAt == 0L }, images = images)
 }
 
 /**

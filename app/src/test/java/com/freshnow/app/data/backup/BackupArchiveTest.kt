@@ -91,6 +91,20 @@ class BackupArchiveTest {
         assertEquals(0, imported.images)
     }
 
+    @Test
+    fun `导出的条数不含已删除的记录`() = runBlocking {
+        // 界面上看到的只有第一条：删除只是打墓碑（见 ScanRecordDao.markDeleted），行还在表里
+        val records = listOf(
+            record(syncId = "record-1"),
+            record(syncId = "record-2", deletedAt = 1_000L),
+            record(syncId = "record-3", deletedAt = 2_000L)
+        )
+
+        val exported = exportBackup(ByteArrayOutputStream(), records) { null }
+
+        assertEquals("墓碑不是用户看得见的记录，不能报给它看", 1, exported.records)
+    }
+
     private fun zipOf(vararg entries: Pair<String, ByteArray>): ByteArray {
         val out = ByteArrayOutputStream()
         ZipOutputStream(out).use { zip ->

@@ -115,6 +115,9 @@
     <!-- 建议文件名里的日期不做本地化：文件按名字排序时，各语言混排很乱 -->
     <string name="backup_file_name" translatable="false">freshnow-%1$s.zip</string>
     <string name="backup_export_done">已导出 %1$d 条记录、%2$d 张照片</string>
+    <!-- 可见记录为 0 时专用：文件照样生成了（里面还有删除标记，换机时它能把删除带过去），
+         但不能报成「已导出 0 条记录」——用户会以为其中还有东西看不清 -->
+    <string name="backup_export_empty">备份已生成，其中没有记录</string>
     <string name="backup_export_failed">导出失败，请换个位置再试</string>
     <string name="backup_import_done">已导入 %1$d 条记录、%2$d 张照片</string>
     <string name="backup_import_nothing_new">备份里的记录都已是最新的</string>
