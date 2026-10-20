@@ -2,6 +2,7 @@ package com.freshnow.app.ui.settings
 
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.freshnow.app.data.AiSettings
@@ -85,6 +86,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 output.use { backupRepository.exportTo(it) }
             }
             _uiState.update { it.copy(backupRunning = false) }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                // 失败一律吞成一句「导出失败」，但那句话对查问题没有任何用：打不开位置、
+                // 写盘中断、文档提供方报错看起来一模一样。留一行堆栈给日志
+                Log.w(BACKUP_LOG_TAG, "导出备份失败", error)
+            }
             _backupMessage.value = if (result.isSuccess) {
                 BackupMessage.Exported
             } else {
@@ -107,6 +114,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 input.use { backupRepository.restoreFrom(it) }
             }
             _uiState.update { it.copy(backupRunning = false) }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                Log.w(BACKUP_LOG_TAG, "导入备份失败", error)
+            }
             _backupMessage.value = if (result.isSuccess) {
                 BackupMessage.Imported
             } else {
@@ -118,6 +129,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** 报完就销掉：留在状态里的话，切走再回来会再弹一次，而那次什么都没发生 */
     fun consumeBackupMessage() {
         _backupMessage.value = null
+    }
+
+    private companion object {
+        const val BACKUP_LOG_TAG = "FreshNowBackup"
     }
 
     /**
