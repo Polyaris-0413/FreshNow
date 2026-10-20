@@ -217,8 +217,11 @@ class BaselineProfileGenerator {
         const val LEGAL = "法律信息"
         const val OPEN_SOURCE = "开源声明"
 
-        // 开源声明页清单的最后一行：等到它就说明整页已经进来（那一页没有别的结构骨架可等）
-        const val OPEN_SOURCE_ITEM = "Android CameraX"
+        // 开源声明页首屏的第一行：等到它就说明清单已经渲染（那一页没有别的结构骨架可等）。
+        // 取的是构建期清单里的真实条目名（androidx.activity:activity 的 <name>，字母序之首），
+        // 不是归组名——曾经写的是「Android CameraX」，那是手写归并时代的展示名，改成逐条列出后
+        // 它就永远等不到了（2026-10-20 因此挂过一次）。
+        const val OPEN_SOURCE_ITEM = "Activity"
         const val LEAVE_SCAN = "离开扫描页？"
         const val DISCARD = "不保存"
 
