@@ -26,8 +26,6 @@ Material Symbols 的 SVG 官方坐标系是负 Y，且 `viewBox` 从 -960 开始
 
 在设计界面时，需遵循 Material 3 技能的规范，路径为 `C:\Users\Administrator\.pi\agent\skills\material-3`。
 
-M3 底部面板一律通过 `app/src/main/java/com/freshnow/app/ui/component/FreshNowBottomSheet.kt` 创建，不要直接调用 `ModalBottomSheet`：拖动手柄那圈与胶囊形状不符的方形涟漪在那里统一关掉（原因见该文件 KDoc）。`BottomSheetDragHandleRippleTest` 会拦下直接调用。
-
 ## 3. 更新日志
 
 项目包含一个更新日志文件，路径为 `C:\Users\Administrator\AndroidStudioProjects\FreshNow`，文件名为 `更新日志.txt`。
@@ -36,15 +34,12 @@ M3 底部面板一律通过 `app/src/main/java/com/freshnow/app/ui/component/Fre
 
 每次完成代码修改后，都需将相较于上个已发布版本的净更改写入日志中。
 
-> 在将当前条目写入更新日志之前，你都有义务判断这是否属于应被记录的净更改，而非内部迭代；该步骤不可被跳过。
-
 具体风格见历史更新日志。
 
 ## 4. 调试
 
 - 禁止私自在真机进行与键盘输入有关的调试，这会导致输入法的 BUG；应要求用户进行手动调试。
 - baseline profile 无法在真机上录制，原因未知，需要使用虚拟机。
-- 因调试所产生的文件，应分类并放入 `C:\Users\Administrator\ai_workspace` 路径下。
 
 ## 5.  编译
 - 测试时默认编译的包为debug包；而debug包的包名带有 .debug 后缀。
