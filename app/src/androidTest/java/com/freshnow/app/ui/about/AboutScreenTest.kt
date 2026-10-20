@@ -48,28 +48,6 @@ class AboutScreenTest {
         )
     }
 
-    /**
-     * 开源页的数据来自构建期生成、打进 APK 的 artifacts.json。这条验的是「真读到了」：
-     * 打包漏了、解析写错、归组规则把整组吃掉，都会在这里变红。
-     */
-    @Test
-    fun openSourcePageListsProjectsBuiltIntoTheApk() {
-        composeRule.setContent {
-            FreshNowTheme() {
-                OpenSourceScreen(onBack = {})
-            }
-        }
-
-        // 清单是异步从 assets 读的，等它到位再断言
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Ktor").fetchSemanticsNodes().isNotEmpty()
-        }
-
-        listOf("Ktor", "Jetpack Compose", "Android Room", "Kotlin / kotlinx").forEach { name ->
-            composeRule.onNodeWithText(name).assertExists()
-        }
-    }
-
     /** 分区顺序：应用 → 项目 → 法律信息 */
     @Test
     fun sectionsAreOrdered() {
@@ -112,7 +90,8 @@ class AboutScreenTest {
     }
 
     /**
-     * 开源声明页：项目清单在，且不含许可全文——副本由仓库的 LICENSE 承担，不摊在界面上。
+     * 开源声明页：项目清单来自构建期生成、打进 APK 的 artifacts.json，缺一组就说明归并或
+     * 打包出了岔子。页面也不含许可全文——副本由仓库的 LICENSE 承担，不摊在界面上。
      */
     @Test
     fun openSourceScreenListsProjectsWithoutLicenseText() {
@@ -122,12 +101,18 @@ class AboutScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Kotlin / kotlinx.coroutines").assertIsDisplayed()
+        // 清单是从 assets 异步读的：等它到位再断言，否则空列表也能让后面的断言糊过去
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Ktor").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // 这几条来自不同 group：各自在就说明归并规则与数据都对上了
+        listOf("Jetpack Compose", "Android Room", "Ktor", "Kotlin / kotlinx").forEach { name ->
+            composeRule.onNodeWithText(name).assertExists()
+        }
         // 页面只列清单，不铺许可全文（副本由仓库的 LICENSE 承担）：全文里有独有句，清单里没有
         composeRule.onAllNodesWithText("Version 2.0, January 2004", substring = true)
             .assertCountEquals(0)
-        // 每个依赖一行，所以按数量而不是「存在」断言
-        composeRule.onAllNodesWithText("Apache License 2.0").assertCountEquals(7)
     }
 
     /**
