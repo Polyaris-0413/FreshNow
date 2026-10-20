@@ -35,13 +35,13 @@ data class SettingsUiState(
 )
 
 /**
- * 一次备份操作的结果。与 SyncMessage 同一个做法：带参数而不是拼好的句子，文案由界面按当前语言取
+ * 一次备份操作的结果。不提条数与照片数：用户要知道的只是「成了没有」，
+ * 而条数还得先解释墓碑算不算、已删的算不算，徒增负担。
  */
 sealed interface BackupMessage {
-    data class Exported(val records: Int, val images: Int) : BackupMessage
+    data object Exported : BackupMessage
     data object ExportFailed : BackupMessage
-    data class Imported(val records: Int, val images: Int) : BackupMessage
-    data object NothingNew : BackupMessage
+    data object Imported : BackupMessage
     data object ImportFailed : BackupMessage
 }
 
@@ -83,17 +83,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     ?: resolver.openOutputStream(uri, "w")
                     ?: error("打不开写入位置")
                 output.use { backupRepository.exportTo(it) }
-            }.getOrNull()
+            }
             _uiState.update { it.copy(backupRunning = false) }
-            _backupMessage.value = result
-                ?.let { BackupMessage.Exported(it.records, it.images) }
-                ?: BackupMessage.ExportFailed
+            _backupMessage.value = if (result.isSuccess) {
+                BackupMessage.Exported
+            } else {
+                BackupMessage.ExportFailed
+            }
         }
     }
 
     /**
-     * 把备份文件并进本机数据。读不懂的文件与合并后一条没变是两件事：前者要用户换文件，
-     * 后者说明本机已经是最新的——都报「失败」会让第二种情况看起来像出了事。
+     * 把备份文件并进本机数据。读不懂的文件与合并成功是两件事，前者要用户换文件，
+     * 后者不论并进几条都算成了。
      */
     fun importBackup(uri: Uri) {
         if (_uiState.value.backupRunning) return
@@ -103,12 +105,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val input = getApplication<Application>().contentResolver.openInputStream(uri)
                     ?: error("打不开备份文件")
                 input.use { backupRepository.restoreFrom(it) }
-            }.getOrNull()
+            }
             _uiState.update { it.copy(backupRunning = false) }
-            _backupMessage.value = when {
-                result == null -> BackupMessage.ImportFailed
-                result.applied == 0 -> BackupMessage.NothingNew
-                else -> BackupMessage.Imported(result.applied, result.images)
+            _backupMessage.value = if (result.isSuccess) {
+                BackupMessage.Imported
+            } else {
+                BackupMessage.ImportFailed
             }
         }
     }

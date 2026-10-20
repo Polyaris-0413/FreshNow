@@ -20,14 +20,6 @@ internal const val BACKUP_FORMAT_VERSION = 1
 /** 备份文件认不出来（不是本应用的备份、被截断、格式版本比本机新） */
 class BackupFormatException(message: String) : Exception(message)
 
-internal data class BackupExport(
-    /** 用户看得见的记录数。墓碑不算：它们不在界面上，报给用户只会得到「我一条也没有」与「导出 39 条」的对话 */
-    val records: Int,
-    val images: Int
-)
-
-internal data class BackupImport(val records: List<ScanRecord>, val images: Int)
-
 /**
  * 备份文件的读写。
  *
@@ -47,7 +39,7 @@ private data class BackupManifest(
 )
 
 /**
- * 写一份备份到 [out]，返回写进去多少条记录、多少张照片。
+ * 写一份备份到 [out]。
  *
  * 照片只打包未删除记录引用的那些：墓碑记录的照片在界面上早已不可见，打包进来只让文件变大。
  * 记录本身连墓碑一起写——墓碑是「这条被删过」的唯一凭据，丢了它，导入到还有旧数据的设备上
@@ -60,8 +52,7 @@ internal suspend fun exportBackup(
     out: OutputStream,
     records: List<ScanRecord>,
     imageBytes: suspend (String) -> ByteArray?
-): BackupExport {
-    var images = 0
+) {
     val zip = ZipOutputStream(out)
     zip.use {
         it.writeBytes(
@@ -84,15 +75,13 @@ internal suspend fun exportBackup(
                 if (!sent.add(name)) continue
                 val frame = imageBytes(name) ?: continue
                 it.writeStored("$IMAGE_DIR$name", frame)
-                images++
             }
         }
     }
-    return BackupExport(records = records.count { it.deletedAt == 0L }, images = images)
 }
 
 /**
- * 读回一份备份。
+ * 读回一份备份里的记录。
  *
  * [saveImage] 负责把一张照片落盘并返回它的名字；照片名字由内容算出，所以这里不需要（也不该）
  * 相信 zip 里的条目名——条目名只用来判断「这是不是一张照片」。落盘失败的那张跳过即可，
@@ -101,10 +90,9 @@ internal suspend fun exportBackup(
 internal suspend fun readBackup(
     input: InputStream,
     saveImage: suspend (ByteArray) -> String?
-): BackupImport {
+): List<ScanRecord> {
     var manifest: BackupManifest? = null
     var recordsJson: String? = null
-    var images = 0
 
     ZipInputStream(input).use { zip ->
         var entry: ZipEntry? = zip.nextEntry
@@ -117,10 +105,7 @@ internal suspend fun readBackup(
 
                 entry.name == RECORDS_ENTRY -> recordsJson = zip.readEntryText(entry)
 
-                entry.name.startsWith(IMAGE_DIR) -> {
-                    val frame = zip.readEntryBytes(entry)
-                    if (saveImage(frame) != null) images++
-                }
+                entry.name.startsWith(IMAGE_DIR) -> saveImage(zip.readEntryBytes(entry))
             }
             zip.closeEntry()
             entry = zip.nextEntry
@@ -138,7 +123,7 @@ internal suspend fun readBackup(
         syncJson.decodeFromString<List<SyncRecordDto>>(json).map { it.toRecord() }
     }.getOrElse { throw BackupFormatException("记录读不出来") }
 
-    return BackupImport(records = records, images = images)
+    return records
 }
 
 private fun ZipOutputStream.writeBytes(name: String, bytes: ByteArray) {

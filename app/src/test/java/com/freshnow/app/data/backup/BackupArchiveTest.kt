@@ -3,11 +3,13 @@ package com.freshnow.app.data.backup
 import com.freshnow.app.data.local.ScanRecord
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
@@ -39,7 +41,7 @@ class BackupArchiveTest {
             "${saved.size}".padStart(32, '0') + ".jpg"
         }
 
-        assertEquals(records.map { it.withoutId() }, imported.records)
+        assertEquals(records.map { it.withoutId() }, imported)
         // 同一张图被两条记录引用，只该打包一份
         assertEquals(setOf(firstPhoto.toList(), secondPhoto.toList()), saved.map { it.toList() }.toSet())
     }
@@ -72,11 +74,13 @@ class BackupArchiveTest {
     fun `磁盘上已经没有的照片不进备份`() = runBlocking {
         val records = listOf(record(syncId = "record-1", imageNames = listOf(FIRST_IMAGE, SECOND_IMAGE)))
 
-        val exported = exportBackup(ByteArrayOutputStream(), records) { name ->
-            if (name == FIRST_IMAGE) firstPhoto else null
-        }
+        val bytes = ByteArrayOutputStream().also { out ->
+            exportBackup(out, records) { name -> if (name == FIRST_IMAGE) firstPhoto else null }
+        }.toByteArray()
 
-        assertEquals(1, exported.images)
+        val entries = entriesOf(bytes)
+        assertTrue("现存的照片应当打包：$entries", entries.contains("images/$FIRST_IMAGE"))
+        assertFalse("已不在磁盘上的照片不该占位：$entries", entries.contains("images/$SECOND_IMAGE"))
     }
 
     @Test
@@ -87,23 +91,25 @@ class BackupArchiveTest {
 
         val imported = readBackup(ByteArrayInputStream(bytes)) { null }
 
-        assertEquals(1, imported.records.size)
-        assertEquals(0, imported.images)
+        assertEquals(1, imported.size)
     }
 
+    /** 墓碑得跟着备份走：丢了它，导入到还有旧数据的设备上会把已删记录重新变成活的 */
     @Test
-    fun `导出的条数不含已删除的记录`() = runBlocking {
-        // 界面上看到的只有第一条：删除只是打墓碑（见 ScanRecordDao.markDeleted），行还在表里
-        val records = listOf(
-            record(syncId = "record-1"),
-            record(syncId = "record-2", deletedAt = 1_000L),
-            record(syncId = "record-3", deletedAt = 2_000L)
-        )
+    fun `已删除的记录也写进备份`() = runBlocking {
+        val records = listOf(record(syncId = "record-1"), record(syncId = "record-2", deletedAt = 1_000L))
 
-        val exported = exportBackup(ByteArrayOutputStream(), records) { null }
+        val bytes = ByteArrayOutputStream().also { out ->
+            exportBackup(out, records) { null }
+        }.toByteArray()
 
-        assertEquals("墓碑不是用户看得见的记录，不能报给它看", 1, exported.records)
+        assertEquals(records.map { it.withoutId() }, readBackup(ByteArrayInputStream(bytes)) { null })
     }
+
+    private fun entriesOf(bytes: ByteArray): List<String> =
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            generateSequence { zip.nextEntry }.map { it.name }.toList()
+        }
 
     private fun zipOf(vararg entries: Pair<String, ByteArray>): ByteArray {
         val out = ByteArrayOutputStream()

@@ -53,10 +53,8 @@ class BackupRepositoryTest {
         deviceA.addRecord("鸡蛋", listOf(MILK_PHOTO, EGG_PHOTO))
         deviceA.addRecord("全麦面包")
 
-        val restored = deviceB.backup.restoreFrom(ByteArrayInputStream(deviceA.export()))
+        deviceB.backup.restoreFrom(ByteArrayInputStream(deviceA.export()))
 
-        assertEquals("照片按内容去重，三处引用只该有两张", 2, restored.images)
-        assertEquals(3, restored.applied)
         assertEquals(
             setOf("纯牛奶", "鸡蛋", "全麦面包"),
             deviceB.visible().map { it.productName }.toSet()
@@ -114,15 +112,34 @@ class BackupRepositoryTest {
 
     /** 同一份备份导第二次不该再改动任何东西（连点、或从两个位置各导一次） */
     @Test
-    fun restoringSameBackupTwice_appliesNothingTheSecondTime() = runBlocking {
+    fun restoringSameBackupTwice_changesNothingTheSecondTime() = runBlocking {
         deviceA.addRecord("纯牛奶", listOf(MILK_PHOTO))
         val backup = deviceA.export()
 
         deviceB.backup.restoreFrom(ByteArrayInputStream(backup))
-        val second = deviceB.backup.restoreFrom(ByteArrayInputStream(backup))
+        val afterFirst = deviceB.visible()
+        deviceB.backup.restoreFrom(ByteArrayInputStream(backup))
 
-        assertEquals(0, second.applied)
+        assertEquals(afterFirst, deviceB.visible())
+    }
+
+    /**
+     * 备份里的删除会随导入生效（与同步一致）：A 上删掉的记录，导到还有它的 B 上也会被删。
+     * 这是用户选定的语义，不是意外——改成正向合并会把「已删」的记录又推回列表。
+     */
+    @Test
+    fun restore_carriesDeletionsFromBackup() = runBlocking {
+        deviceA.addRecord("纯牛奶")
+        val inA = deviceA.visible().single()
+        // B 先有同一条（同一个 syncId），模拟两台设备都曾经有过它
+        deviceB.records.mergeAll(listOf(inA))
         assertEquals(1, deviceB.visible().size)
+
+        // A 删掉它，再把删除后的状态导出
+        deviceA.records.delete(listOf(inA.id))
+        deviceB.backup.restoreFrom(ByteArrayInputStream(deviceA.export()))
+
+        assertEquals(emptyList<String>(), deviceB.visible().map { it.productName })
     }
 
     private class TestDevice(label: String) {

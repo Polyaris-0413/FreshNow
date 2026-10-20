@@ -197,16 +197,9 @@ fun SettingsScreen(
  */
 @Composable
 internal fun BackupMessage.text(): String = when (this) {
-    // 0 条时说「没有记录」而不是「已导出 0 条」：次数是给看得见的记录报的，空库导出一份
-    // 只剩删除标记的文件，听起来像出了错
-    is BackupMessage.Exported -> if (records == 0) {
-        stringResource(R.string.backup_export_empty)
-    } else {
-        stringResource(R.string.backup_export_done, records, images)
-    }
+    BackupMessage.Exported -> stringResource(R.string.backup_export_done)
     BackupMessage.ExportFailed -> stringResource(R.string.backup_export_failed)
-    is BackupMessage.Imported -> stringResource(R.string.backup_import_done, records, images)
-    BackupMessage.NothingNew -> stringResource(R.string.backup_import_nothing_new)
+    BackupMessage.Imported -> stringResource(R.string.backup_import_done)
     BackupMessage.ImportFailed -> stringResource(R.string.backup_import_failed)
 }
 
