@@ -66,7 +66,9 @@ internal fun RecordEditForm(
     onOpenPhoto: (Int) -> Unit,
     onPhotoActions: (Int) -> Unit,
     onAddPhoto: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** 每格额外的修饰（看图的共享元素挂在它上面），由哪一页决定了用它做什么 */
+    photoTileModifier: @Composable (Int) -> Modifier = { Modifier }
 ) {
     Column(
         modifier = modifier,
@@ -84,7 +86,8 @@ internal fun RecordEditForm(
             items = photos,
             onOpen = onOpenPhoto,
             onActions = onPhotoActions,
-            onAdd = onAddPhoto
+            onAdd = onAddPhoto,
+            tileModifier = photoTileModifier
         )
         EditField(
             value = fields.productName,

@@ -5,6 +5,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,15 +43,18 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.LeaveDialog
 import com.freshnow.app.ui.component.PhotoActionsSheet
 import com.freshnow.app.ui.component.PhotoSourceSheet
-import com.freshnow.app.ui.component.PhotoViewerOverlay
+import com.freshnow.app.ui.component.PhotoViewerPage
 import com.freshnow.app.ui.component.StepDirection
 import com.freshnow.app.ui.component.StepTransition
+import com.freshnow.app.ui.component.photoKey
+import com.freshnow.app.ui.component.photoThumbnail
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
+import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.launch
 
 /**
@@ -65,7 +73,7 @@ internal sealed interface EditStep {
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun RecordEditScreen(
     /** 要改的那条记录；null 表示手动录入一条新记录，库里还没有它 */
@@ -134,6 +142,10 @@ fun RecordEditScreen(
 
     // 三个整屏步骤之间的转场（见 [StepTransition]）：回到表单是退回方向，从表单出去是前进方向，
     // 而裁剪与拍照之间留一段淡入淡出——它们不会直接互换，但也不该硬切
+    //
+    // 整页包在 [SharedTransitionLayout] 里，与详情页同一个结构：格子与看图页必须同时在这一个过渡
+    // 范围内，图才能从格子那块矩形飞到全屏
+    SharedTransitionLayout(modifier = modifier) {
     StepTransition(
         step = step,
         direction = { from, to ->
@@ -144,7 +156,7 @@ fun RecordEditScreen(
             }
         },
         label = "editStep",
-        modifier = modifier
+        modifier = Modifier.fillMaxSize()
     ) { current ->
         when (current) {
             is EditStep.Crop -> {
@@ -189,20 +201,39 @@ fun RecordEditScreen(
                         }
                     },
                     onPhotoActions = { actedPhotoIndex = it },
-                    onAddPhoto = { showImageSources = true }
+                    onAddPhoto = { showImageSources = true },
+                    // 只有被点开的那一格接共享元素：其余格子没参与这次飞，挂上去只会争同一个键
+                    photoTileModifier = { index ->
+                        if (index == viewedPhotoIndex) {
+                            photoThumbnail(key = photoKey(index), visible = !viewingPhoto)
+                        } else {
+                            Modifier
+                        }
+                    }
                 )
             }
         }
     }
 
-    // 看图页覆盖在整页之上（同详情页），它自己带标题与返回箭头。
-    // 系统返回先关它：否则一次返回会把没保存的草稿一起带走，还一句都不问
-    BackHandler(enabled = viewingPhoto) { viewingPhoto = false }
-    PhotoViewerOverlay(
-        image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap,
+    // 看图页与格子在同一个过渡里。关闭时 viewedPhoto 仍指着那张图，淡出才有内容可淡
+    AnimatedVisibility(
         visible = viewingPhoto,
-        onDismiss = { viewingPhoto = false }
-    )
+        enter = fadeIn(FreshNowTransitions.stateChange()),
+        exit = fadeOut(FreshNowTransitions.stateChange())
+    ) {
+        val image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap
+        if (image != null) {
+            PhotoViewerPage(
+                image = image,
+                key = photoKey(viewedPhotoIndex),
+                onDismiss = { viewingPhoto = false }
+            )
+        }
+    }
+    }
+
+    // 系统返回先关看图页：否则一次返回会把没保存的草稿一起带走，还一句都不问
+    BackHandler(enabled = viewingPhoto) { viewingPhoto = false }
 
     val actedPhoto = actedPhotoIndex
     if (actedPhoto != null) {
@@ -264,7 +295,8 @@ private fun EditForm(
     onFieldChange: (RecordField, String) -> Unit,
     onOpenPhoto: (Int) -> Unit,
     onPhotoActions: (Int) -> Unit,
-    onAddPhoto: () -> Unit
+    onAddPhoto: () -> Unit,
+    photoTileModifier: @Composable (Int) -> Modifier
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -329,6 +361,8 @@ private fun EditForm(
                 onOpenPhoto = onOpenPhoto,
                 onPhotoActions = onPhotoActions,
                 onAddPhoto = onAddPhoto,
+                // 只有被点开的那一格接共享元素：其余格子没参与这次飞，挂上去只会争同一个键
+                photoTileModifier = photoTileModifier,
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(formScroll)

@@ -1,9 +1,6 @@
 package com.freshnow.app.ui.component
 
 import android.graphics.Bitmap
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -15,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -36,10 +32,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -221,46 +215,6 @@ fun PhotoViewer(
 }
 
 /** 手势参数（最大倍率、双击倍率、退出距离）都在设计源里，见 FreshNowTransitions 的「手势参数」那段。 */
-
-/**
- * 看图页：从照片格子里点开的那一张，全屏看（手势与详情页的看图页是同一个 [PhotoViewer]）。
- *
- * [visible] 与 [image] 分开传，是为了让退出的淡出有内容可淡：调用方关闭时只把 [visible] 置 false，
- * [image] 留到下次打开再换——两者合成一个可空值的写法里，关闭那一刻内容当场变空，淡出的是一块空屏。
- *
- * 做成整页（[FreshNowSubPage]）而不是一层浮图：它自己带标题与返回箭头，于是“怎么退出去”
- * 不必再猜，也与详情页的看图页长得一样。
- */
-@Composable
-internal fun PhotoViewerOverlay(
-    image: Bitmap?,
-    visible: Boolean,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = visible && image != null,
-        enter = fadeIn(FreshNowTransitions.stateChange()),
-        exit = fadeOut(FreshNowTransitions.stateChange()),
-        modifier = modifier
-    ) {
-        if (image != null) {
-            FreshNowSubPage(
-                title = stringResource(R.string.record_image),
-                onBack = onDismiss
-            ) { innerPadding ->
-                PhotoViewer(
-                    image = image,
-                    onDismiss = onDismiss,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                )
-            }
-        }
-    }
-}
-
 
 /** 照片按 [ContentScale.Fit] 铺进视窗后的尺寸。视窗还没量出来时为 [Size.Zero] */
 private fun photoSize(image: Bitmap, viewport: IntSize): Size {

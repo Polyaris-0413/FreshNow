@@ -46,15 +46,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
-import com.freshnow.app.ui.component.PhotoViewer
+import com.freshnow.app.ui.component.PhotoViewerPage
+import com.freshnow.app.ui.component.photoKey
+import com.freshnow.app.ui.component.photoThumbnail
 import com.freshnow.app.ui.component.ScanPhoto
 import com.freshnow.app.ui.theme.OnOverImageScrim
 import com.freshnow.app.ui.theme.OverImageScrim
 import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
-/** 共享元素的键：详情页与看图页里是同一张照片，动画要认出它 */
-private const val PHOTO_KEY = "recordPhoto"
+/** 共享元素的键由每张照片自己的下标给（见 ui/component/PhotoTransition.kt） */
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -91,10 +92,9 @@ fun RecordDetailScreen(
             onNavigateToEdit = onNavigateToEdit,
             onOpenImage = { viewingImageIndex = mainIndex },
             onSelectImage = viewModel::showImage,
-            photoModifier = Modifier.sharedElementWithCallerManagedVisibility(
-                sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                visible = viewingImageIndex == null,
-                boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
+            photoModifier = photoThumbnail(
+                key = photoKey(mainIndex),
+                visible = viewingImageIndex == null
             )
         )
 
@@ -104,24 +104,16 @@ fun RecordDetailScreen(
             exit = fadeOut(FreshNowTransitions.stateChange())
         ) {
             val startIndex = viewingImageIndex
-            if (startIndex != null) {
-                FreshNowSubPage(
-                    title = stringResource(R.string.record_image),
-                    onBack = { viewingImageIndex = null }
-                ) { innerPadding ->
-                    PhotoViewer(
-                        // 全屏只看点开的那一张：主图区已经能左右滑了，全屏里再能滑只会让人分不清
-                        // 「现在看的是哪一张」（用户反馈）
-                        image = images[startIndex],
-                        onDismiss = { viewingImageIndex = null },
-                        modifier = Modifier.padding(innerPadding),
-                        imageModifier = Modifier.sharedElementWithCallerManagedVisibility(
-                            sharedContentState = rememberSharedContentState(key = PHOTO_KEY),
-                            visible = true,
-                            boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
-                        )
-                    )
-                }
+            // 全屏只看点开的那一张：主图区已经能左右滑了，全屏里再能滑只会让人分不清
+            // 「现在看的是哪一张」（用户反馈）
+            val image = startIndex?.let { images.getOrNull(it) }
+            if (startIndex != null && image != null) {
+                PhotoViewerPage(
+                    image = image,
+                    // 与缩略图那一侧同一个键：飞进去、飞回来认的都是这一张
+                    key = photoKey(startIndex),
+                    onDismiss = { viewingImageIndex = null }
+                )
             }
         }
     }

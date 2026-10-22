@@ -3,7 +3,12 @@ package com.freshnow.app.ui.scan
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,9 +60,11 @@ import com.freshnow.app.ui.component.PhotoActionsSheet
 import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.StepDirection
 import com.freshnow.app.ui.component.StepTransition
-import com.freshnow.app.ui.component.PhotoViewerOverlay
+import com.freshnow.app.ui.component.PhotoViewerPage
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
+import com.freshnow.app.ui.component.photoKey
+import com.freshnow.app.ui.component.photoThumbnail
 import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.detail.ImageCropScreen
@@ -66,7 +73,7 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import com.freshnow.app.ui.showToast
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun ScanScreen(
     onBack: () -> Unit,
@@ -85,7 +92,7 @@ fun ScanScreen(
     // 长按了哪一张：先起一片面板问一句（见 PhotoActionsSheet）
     var actedPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val photoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    // 点开看大图的那一张。关闭时只把开关放下，下标留着；否则淡出的是一块空屏（见 PhotoViewerOverlay）
+    // 点开看大图的那一张。关闭时只把开关放下，下标留着；否则淡出的是一块空屏
     var viewingPhoto by remember { mutableStateOf(false) }
     var viewedPhotoIndex by remember { mutableStateOf(0) }
     val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -125,6 +132,9 @@ fun ScanScreen(
         else -> ScanStep.Scanning
     }
 
+    // 整页包在 [SharedTransitionLayout] 里，与详情页同一个结构：格子与看图页都要在这一段过渡的
+    // 范围内，图才能从格子那块矩形飞到全屏
+    SharedTransitionLayout(modifier = modifier) {
     StepTransition(
         step = step,
         direction = { from, to ->
@@ -137,7 +147,7 @@ fun ScanScreen(
             }
         },
         label = "scanStep",
-        modifier = modifier
+        modifier = Modifier.fillMaxSize()
     ) { current ->
             when (current) {
                 // 相册选来的图是任意比例，必须先裁成方的
@@ -193,6 +203,14 @@ fun ScanScreen(
                             },
                             onPhotoActions = { actedPhotoIndex = it },
                             onAddPhoto = { showImageSources = true },
+                            // 只有被点开的那一格接共享元素（与编辑页同一套）
+                            photoTileModifier = { index ->
+                                if (index == viewedPhotoIndex) {
+                                    photoThumbnail(key = photoKey(index), visible = !viewingPhoto)
+                                } else {
+                                    Modifier
+                                }
+                            },
                             onContinueScanning = viewModel::backToScanning,
                             onSave = { viewModel.save { onBack() } },
                             modifier = Modifier
@@ -271,12 +289,22 @@ fun ScanScreen(
     }
 
 
-    // 看图页覆盖在整页之上（同详情页），它自己带标题与返回箭头
-    PhotoViewerOverlay(
-        image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap,
+    // 看图页与格子在同一个过渡里；关闭时 viewedPhotoIndex 仍指着那张图，淡出才有内容可淡
+    AnimatedVisibility(
         visible = viewingPhoto,
-        onDismiss = { viewingPhoto = false }
-    )
+        enter = fadeIn(FreshNowTransitions.stateChange()),
+        exit = fadeOut(FreshNowTransitions.stateChange())
+    ) {
+        val image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap
+        if (image != null) {
+            PhotoViewerPage(
+                image = image,
+                key = photoKey(viewedPhotoIndex),
+                onDismiss = { viewingPhoto = false }
+            )
+        }
+    }
+    }
 
     val actedPhoto = actedPhotoIndex
     if (actedPhoto != null) {
@@ -421,6 +449,7 @@ internal fun ScanEditStage(
     onAddPhoto: () -> Unit,
     onContinueScanning: () -> Unit,
     onSave: () -> Unit,
+    photoTileModifier: @Composable (Int) -> Modifier,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -435,6 +464,7 @@ internal fun ScanEditStage(
             onOpenPhoto = onOpenPhoto,
             onPhotoActions = onPhotoActions,
             onAddPhoto = onAddPhoto,
+            photoTileModifier = photoTileModifier,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()

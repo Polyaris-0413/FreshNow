@@ -75,7 +75,12 @@ internal fun PhotoGrid(
     onOpen: (Int) -> Unit,
     onActions: (Int) -> Unit,
     onAdd: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * 每一格额外的修饰（看图的共享元素就挂在它上面）。默认什么都不加：组件不该知道调用方
+     * 在用什么过渡。
+     */
+    tileModifier: @Composable (Int) -> Modifier = { Modifier }
 ) {
     val showAdd = items.size < MAX_RECORD_IMAGES
     val cellCount = items.size + if (showAdd) 1 else 0
@@ -101,8 +106,8 @@ internal fun PhotoGrid(
                     item = item,
                     onOpen = { onOpen(index) },
                     onActions = { onActions(index) },
-                    // 增删时的淡入淡出与其余格子的让位都由它演
-                    modifier = Modifier.animateItem()
+                    // 增删时的淡入淡出与其余格子的让位都由它演；共享元素接在它之后
+                    modifier = Modifier.animateItem().then(tileModifier(index))
                 )
             }
             if (showAdd) {
