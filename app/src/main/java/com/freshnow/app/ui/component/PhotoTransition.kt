@@ -42,6 +42,11 @@ internal fun SharedTransitionScope.photoThumbnail(
  * 抽出来是因为它与缩略图那一侧必须用同一个键、同一套过渡参数：两处各写一遍的话，
  * 某天只想改一边的动画，改完就是「飞进去很顺、飞回来是硬切」。
  *
+ * [visible] 一定要跟着开关走，不能恒为 true：关闭那一帧全屏与缩略图会同时在组合里
+ * （退出动画还没播完），两边都自称可见时，框架不知道这笔图到底在哪一份手上，
+ * 表现就是图在两块矩形之间乱闪、然后才淡掉。全屏这一侧让出（false）、缩略图接过（true），
+ * 图才会从全屏那块矩形飞回格子。
+ *
  * 进出的显隐（`AnimatedVisibility`）留在调用方：详情页的看图页与编辑页的看图页挂在不同的
  * 容器里，用同一个入场动画即可，但「什么时候显示」只有各页自己知道。
  */
@@ -50,6 +55,7 @@ internal fun SharedTransitionScope.photoThumbnail(
 internal fun SharedTransitionScope.PhotoViewerPage(
     image: Bitmap,
     key: String,
+    visible: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -66,7 +72,7 @@ internal fun SharedTransitionScope.PhotoViewerPage(
                 .padding(innerPadding),
             imageModifier = Modifier.sharedElementWithCallerManagedVisibility(
                 sharedContentState = rememberSharedContentState(key = key),
-                visible = true,
+                visible = visible,
                 boundsTransform = { _, _ -> FreshNowTransitions.fastSpatial() }
             )
         )

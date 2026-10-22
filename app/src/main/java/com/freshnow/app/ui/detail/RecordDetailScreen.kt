@@ -112,6 +112,8 @@ fun RecordDetailScreen(
                     image = image,
                     // 与缩略图那一侧同一个键：飞进去、飞回来认的都是这一张
                     key = photoKey(startIndex),
+                    // 关闭那一帧要与缩略图交接，不能两边都自称可见
+                    visible = viewingImageIndex != null,
                     onDismiss = { viewingImageIndex = null }
                 )
             }

@@ -300,6 +300,8 @@ fun ScanScreen(
             PhotoViewerPage(
                 image = image,
                 key = photoKey(viewedPhotoIndex),
+                // 关闭时让出共享元素，图才能飞回格子
+                visible = viewingPhoto,
                 onDismiss = { viewingPhoto = false }
             )
         }
