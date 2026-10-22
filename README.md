@@ -45,6 +45,10 @@
 如果你有相关意愿<br />
 欢迎提交 [Issue](https://github.com/Polyaris-0413/FreshNow/issues) 或 [Pull Request](https://github.com/Polyaris-0413/FreshNow/pulls)
 
+## 群组
+
+你可以点击[这里](https://qm.qq.com/q/mtL1olGWwo)加入我们的 QQ 群组。
+
 ## 下载
 
 请前往 [Release 页面](https://github.com/Polyaris-0413/FreshNow/releases/latest) 下载最新版本
