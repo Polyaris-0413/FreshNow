@@ -14,10 +14,11 @@ import com.freshnow.app.ui.theme.FreshNowTransitions
 /**
  * 照片缩略图与全屏看图之间共享元素的键。
  *
- * 一条记录可以有九张照片，所以键要带上「第几张」：同一个键挂在两个节点上时，框架认不出谁飞给谁
- * （见 [photoThumbnail]）。
+ * 传的必须是**这张照片自己的标识**（[com.freshnow.app.ui.component.EditPhoto.id] 或详情页的下标），
+ * 不能是「第几格」：设首图会交换格子位置，键若按下标给，重排那一帧同一个键就从一张图转到了
+ * 另一张上，框架把它当成一次共享元素飞行——用户看到的是图闪一下。
  */
-internal fun photoKey(index: Int): String = "recordPhoto-$index"
+internal fun photoKey(owner: Any): String = "recordPhoto-$owner"
 
 /**
  * 缩略图一侧的共享元素。详情页的主图、编辑页与扫描页的格子里都用它。

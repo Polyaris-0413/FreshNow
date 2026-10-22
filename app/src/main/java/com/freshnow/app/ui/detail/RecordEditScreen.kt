@@ -97,9 +97,10 @@ fun RecordEditScreen(
     // 长按了哪一张：先起一片面板问一句（见 PhotoActionsSheet）
     var actedPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val photoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    // 点开看大图的那一张。关闭时只把开关放下，下标留着；否则淡出的是一块空屏（见 PhotoViewerOverlay）
+    // 点开看大图的那一张。关闭时只把开关放下，记着的是哪一张照片（不是第几格）：设首图会重排，
+    // 按下标记的话，同一个共享元素的键会从一张图跳到另一张上（进页时闪一下）
     var viewingPhoto by remember { mutableStateOf(false) }
-    var viewedPhotoIndex by remember { mutableStateOf(0) }
+    var viewedPhotoId by remember { mutableStateOf<Long?>(null) }
     var showCamera by remember { mutableStateOf(false) }
     val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -194,20 +195,27 @@ fun RecordEditScreen(
                     onSave = ::saveAndLeave,
                     onFieldChange = viewModel::onFieldChange,
                     onOpenPhoto = { index ->
+                        val photo = uiState.photos.getOrNull(index)
                         // 没有位图的那一格（读失败）无图可看，保持原位不动
-                        if (uiState.photos.getOrNull(index)?.bitmap != null) {
-                            viewedPhotoIndex = index
+                        if (photo?.bitmap != null) {
+                            viewedPhotoId = photo.id
                             viewingPhoto = true
                         }
                     },
                     onPhotoActions = { actedPhotoIndex = it },
                     onAddPhoto = { showImageSources = true },
-                    // 只有被点开的那一格接共享元素：其余格子没参与这次飞，挂上去只会争同一个键
+                    // 每格都挂着共享元素，键跟着照片自己的 id 走——于是设首图交换位置时，键仍然属于
+                    // 同一张图，不会出现「同一个键换了个节点」而让框架飞一下。
+                    // 让出（visible = false）的只有正在看的那一张
                     photoTileModifier = { index ->
-                        if (index == viewedPhotoIndex) {
-                            photoThumbnail(key = photoKey(index), visible = !viewingPhoto)
-                        } else {
+                        val photo = uiState.photos.getOrNull(index)
+                        if (photo == null) {
                             Modifier
+                        } else {
+                            photoThumbnail(
+                                key = photoKey(photo.id),
+                                visible = !(viewingPhoto && photo.id == viewedPhotoId)
+                            )
                         }
                     }
                 )
@@ -215,17 +223,18 @@ fun RecordEditScreen(
         }
     }
 
-    // 看图页与格子在同一个过渡里。关闭时 viewedPhoto 仍指着那张图，淡出才有内容可淡
+    // 看图页与格子在同一个过渡里。关闭时 viewedPhotoId 仍指着那张图，淡出才有内容可淡
     AnimatedVisibility(
         visible = viewingPhoto,
         enter = fadeIn(FreshNowTransitions.stateChange()),
         exit = fadeOut(FreshNowTransitions.stateChange())
     ) {
-        val image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap
-        if (image != null) {
+        val viewed = uiState.photos.firstOrNull { it.id == viewedPhotoId }
+        val image = viewed?.bitmap
+        if (viewed != null && image != null) {
             PhotoViewerPage(
                 image = image,
-                key = photoKey(viewedPhotoIndex),
+                key = photoKey(viewed.id),
                 // 关闭时让出共享元素，图才能飞回格子
                 visible = viewingPhoto,
                 onDismiss = { viewingPhoto = false }
