@@ -11,6 +11,10 @@ local.properties
 /.idea/*
 !/.idea/AndroidProjectSystem.xml
 !/.idea/gradle.xml
+# AS 勾「Store as project file」的 run 配置存进目录而不是 runConfigurations.xml。父目录已被
+# /.idea/* 忽略，此时只否定目录里的 *.xml 不生效，必须目录与文件各写一行。
+!/.idea/runConfigurations/
+!/.idea/runConfigurations/*.xml
 !/.idea/runConfigurations.xml
 !/.idea/vcs.xml
 
@@ -24,19 +28,19 @@ captures/
 .externalNativeBuild
 .cxx
 *.hprof
+# Gradle daemon 崩溃时 JVM 把这两个日志直接丢在进程工作目录（即仓库根）
+hs_err_pid*.log
+replay_pid*.log
 
-# AS 向导（Generate Signed APK / Bundle）与 Build APK(s) 的输出目录：里面有已签名的 apk
-# 与 R8 的 mapping.txt。mapping.txt 能把发布包反混淆，绝不该入库；apk/aab 也不该跟着源码走
-# （要发布用 GitHub Releases，git add -f 可强制）。
-app/release/
-baselineprofile/release/
-app/debug/
+# AS 向导（Generate Signed APK / Bundle）与 Build APK(s) 的产物按文件名兜，不枚举 <module>/<变体>/：
+# 里面有已签名的 apk 与 R8 的 mapping.txt（mapping.txt 能把发布包反混淆，绝不该入库），
+# 而枚举目录必然漏掉新变体（debugAlt、nonMinifiedRelease 就是这么来的）。
+# 要发布用 GitHub Releases，git add -f 可强制。*.idsig 是 apk 的 v4 签名伴随文件。
 *.apk
 *.aab
+*.idsig
 mapping.txt
 # 同一批产物里还带一份 AS 写的元数据：<module>/<变体>/output-metadata.json。
-# apk 由上面的 *.apk 兜住，元数据则要按文件名兜——否则将来新建变体（如 debugAlt、
-# nonMinifiedRelease）的向导产物会以「未跟踪」漏出来。
 output-metadata.json
 
 # 发布签名材料：私钥与口令一旦入库即不可撤销
@@ -46,8 +50,9 @@ output-metadata.json
 *.pk8
 keystore.properties
 
-# tools/generate-color-scheme.cjs 的依赖：清单入库以便在新机器上复现，依赖本体不入库
-/node_modules
+# tools/generate-color-scheme.cjs 的依赖：清单入库以便在新机器上复现，依赖本体不入库。
+# 不锚定，免得将来某个子目录自带 package.json 时依赖漏进来
+node_modules/
 
 # 头脑风暴视觉伴侣（superpowers）的会话文件：只在本机看图用，与构建无关
 /.superpowers/
