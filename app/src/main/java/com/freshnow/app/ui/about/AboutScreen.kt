@@ -112,7 +112,7 @@ fun AboutScreen(
             version = release.version,
             onDownload = {
                 update = null
-                openInBrowser(context, release.htmlUrl)
+                openInBrowser(context, release.downloadUrl)
             },
             onDismiss = { update = null }
         )

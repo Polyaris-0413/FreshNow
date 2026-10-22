@@ -3,7 +3,9 @@ package com.freshnow.app.data
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
@@ -44,9 +46,19 @@ private const val READ_TIMEOUT_MS = 10_000
 data class LatestRelease(
     /** 版本串，与 release 的 tag 一致（如 v1.0.1） */
     val version: String,
-    /** 发布页地址，交给浏览器打开 */
-    val htmlUrl: String
-)
+    /** 发布页地址 */
+    val htmlUrl: String,
+    /** 安装包直链：这个 release 没传 apk 时为 null */
+    val apkUrl: String? = null
+) {
+    /**
+     * 「下载」到底跳哪：有直链就走直链（少一层「自己在发布页里找附件」），没有就退回发布页。
+     *
+     * 这个选择只能在这里做：release 有没有传 apk 是运行时才知道的，写死任何一个地址都会
+     * 在另一种情形下错（拼不存在的直链 → 404，只给发布页 → 多绕一步）。
+     */
+    val downloadUrl: String get() = apkUrl ?: htmlUrl
+}
 
 /**
  * 检查更新的结果。三种处境要分开：[NoRelease]（仓库还没发过任何版本）不能被当成失败报给用户——
@@ -113,8 +125,8 @@ class UpdateChecker(private val repositoryUrl: String) {
 }
 
 /**
- * 从 release 接口的返回里取出版本与发布页。取不出必需字段（tag 为空、JSON 不合法）返回 null，
- * 由调用方按失败处理。
+ * 从 release 接口的返回里取出版本、发布页与安装包直链。取不出必需字段（tag 为空、JSON 不合法）
+ * 返回 null，由调用方按失败处理。
  *
  * [fallbackUrl] 是接口没给 html_url 时的退路（仓库的发布页，见 [releasesPageUrl]）——
  * 少了它，「下载」按钮会因为少一个字段变成按下去没反应的按钮。
@@ -129,8 +141,24 @@ internal fun parseLatestRelease(body: String, fallbackUrl: String): LatestReleas
         ?: return null
     val htmlUrl = json["html_url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
         ?: fallbackUrl
-    return LatestRelease(version = version, htmlUrl = htmlUrl)
+    return LatestRelease(version = version, htmlUrl = htmlUrl, apkUrl = apkAssetUrl(json))
 }
+
+/**
+ * 从 assets 里取安装包的下载地址；没传 apk 时返回 null（由 [LatestRelease.downloadUrl] 退回发布页）。
+ *
+ * 按后缀认而不是按名字认 "app-release.apk"：产物改名（如加个架构后缀）不该让「下载」退回发布页，
+ * 而名字能对上的其他文件也不一定是安装包。资产字段缺失或不是数组时同样给 null——接口多一个字段
+ * 不该让整条检查更新变成「没查成」。
+ */
+private fun apkAssetUrl(json: JsonObject): String? = runCatching {
+    json["assets"]?.jsonArray?.firstNotNullOfOrNull { asset ->
+        val assetJson = asset.jsonObject
+        val name = assetJson["name"]?.jsonPrimitive?.contentOrNull ?: return@firstNotNullOfOrNull null
+        if (!name.endsWith(".apk", ignoreCase = true)) return@firstNotNullOfOrNull null
+        assetJson["browser_download_url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    }
+}.getOrNull()
 
 /**
  * 比较两个版本串（只认 x.y.z 三段数字，允许带 v 前缀）。返回 >0 表示 [a] 新于 [b]，=0 相同。

@@ -57,8 +57,8 @@ fun AutoUpdateCheck() {
             onDownload = {
                 pending = null
                 // 下载交给浏览器：应用内自己下载安装要申请「安装未知应用」权限，还得处理下载失败
-                // 与校验，而发布页本身就能下，为一个单一产物多要一项权限不成比例
-                openInBrowser(context, release.htmlUrl)
+                // 与校验。跳哪里由数据层决定：有安装包直链就去直链，没有就退回发布页
+                openInBrowser(context, release.downloadUrl)
             },
             onDismiss = {
                 pending = null
