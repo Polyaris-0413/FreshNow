@@ -8,11 +8,13 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.component.EditPhoto
@@ -100,21 +102,35 @@ class RecordEditFormTest {
         setContent(uiState = EMPTY.copy(photos = emptyList()))
 
         composeRule.onNodeWithContentDescription("添加照片").assertIsDisplayed()
-        composeRule.onAllNodesWithContentDescription("移除照片").assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(0)
     }
 
-    /** 点某一格的 ✕，报的是那一格的下标 */
+    /** 点某一格是「看这张」，报的是那一格的下标 */
     @Test
-    fun removingAPhotoReportsItsIndex() {
-        var removed = -1
+    fun tappingAPhotoReportsItsIndex() {
+        var opened = -1
         setContent(
             uiState = EMPTY.copy(photos = listOf(photo(1), photo(2), photo(3))),
-            onRemovePhoto = { removed = it }
+            onOpenPhoto = { opened = it }
         )
 
         composeRule.onAllNodesWithContentDescription("无图片")[1].performClick()
 
-        assertEquals("第二格的 ✕ 要报回下标 1", 1, removed)
+        assertEquals("第二格要报回下标 1", 1, opened)
+    }
+
+    /** 长按某一格是「问这张怎么办」（用作首图 / 移除照片），报的同样是那一格的下标 */
+    @Test
+    fun longPressingAPhotoReportsItsIndex() {
+        var acted = -1
+        setContent(
+            uiState = EMPTY.copy(photos = listOf(photo(1), photo(2), photo(3))),
+            onPhotoActions = { acted = it }
+        )
+
+        composeRule.onAllNodesWithContentDescription("无图片")[2].performTouchInput { longClick() }
+
+        assertEquals("第三格要报回下标 2", 2, acted)
     }
 
     /**
@@ -205,7 +221,8 @@ class RecordEditFormTest {
                             )
                         }
                     },
-                    onRemovePhoto = {},
+                    onOpenPhoto = {},
+                    onPhotoActions = {},
                     onAddPhoto = {}
                 )
             }
@@ -246,7 +263,8 @@ class RecordEditFormTest {
         uiState: RecordEditUiState = EMPTY,
         onProductNameChange: (String) -> Unit = {},
         onLocationChange: (String) -> Unit = {},
-        onRemovePhoto: (Int) -> Unit = {},
+        onOpenPhoto: (Int) -> Unit = {},
+        onPhotoActions: (Int) -> Unit = {},
         onAddPhoto: () -> Unit = {}
     ) {
         composeRule.setContent {
@@ -272,7 +290,8 @@ class RecordEditFormTest {
                             else -> Unit
                         }
                     },
-                    onRemovePhoto = onRemovePhoto,
+                    onOpenPhoto = onOpenPhoto,
+                    onPhotoActions = onPhotoActions,
                     onAddPhoto = onAddPhoto
                 )
             }

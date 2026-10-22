@@ -19,24 +19,26 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 移除照片面板要先收起、再动手。
+ * 照片动作面板：给了哪些动作、动手之前先收起。
  *
- * 直接把这页从组合里拿掉（不等收起动画）会连带丢掉两件东西：那一下收起动画根本没机会播；
- * 同一个 SheetState 停在展开态，下次打开时 `show()` 立刻完成——弹入动画就此消失。
+ * 收起这一步不能省。直接把这页从组合里拿掉（不等收起动画）会连带丢掉两件东西：那一下收起动画
+ * 根本没机会播；同一个 SheetState 停在展开态，下次打开时 `show()` 立刻完成——弹入动画就此消失。
  * 用户看到的是「删掉一张、马上点另一张，第二片面板是突然冒出来的」。
  *
  * 时钟握在手里：要验的正是「动手发生在收起动画之后」，而不是「点了就一定回调」。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @RunWith(AndroidJUnit4::class)
-class RemovePhotoSheetDismissTest {
+class PhotoActionsSheetDismissTest {
 
     @get:Rule
     val composeRule = createComposeRule()
 
     @Test
-    fun confirmingWaitsForTheSheetToHideBeforeReporting() {        composeRule.mainClock.autoAdvance = false
-        var confirmed = 0
+    fun settingFirstWaitsForTheSheetToHideBeforeReporting() {
+        composeRule.mainClock.autoAdvance = false
+        var setFirst = 0
+        var removed = 0
         lateinit var sheetState: SheetState
 
         composeRule.setContent {
@@ -44,29 +46,51 @@ class RemovePhotoSheetDismissTest {
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 var visible by remember { mutableStateOf(true) }
                 if (visible) {
-                    RemovePhotoSheet(
+                    PhotoActionsSheet(
                         sheetState = sheetState,
+                        canSetFirst = true,
                         onDismissRequest = { visible = false },
-                        onConfirm = { confirmed++ }
+                        onSetFirst = { setFirst++ },
+                        onRemove = { removed++ }
                     )
                 }
             }
         }
-        // 面板弹出来
         composeRule.mainClock.advanceTimeBy(1_000)
 
-        composeRule.onNodeWithText("移除照片").performClick()
+        composeRule.onNodeWithText(SET_FIRST).performClick()
 
-        assertEquals("收起动画还没播完，动作不该已经发生", 0, confirmed)
+        assertEquals("收起动画还没播完，动作不该已经发生", 0, setFirst)
 
         composeRule.mainClock.advanceTimeBy(2_000)
 
-        assertEquals("收起之后动作要发生，且只发生一次", 1, confirmed)
+        assertEquals("收起之后动作要发生，且只发生一次", 1, setFirst)
+        assertEquals("选了首图就不该顺手把照片删掉", 0, removed)
         assertEquals(
             "面板收起要落到 Hidden，否则下次打开没有弹入动画",
             SheetValue.Hidden,
             sheetState.currentValue
         )
+    }
+
+    /** 已经是首图的那一张不给「用作首图」：留着它就是一个按下去什么都不会变的动作 */
+    @Test
+    fun alreadyFirstOffersOnlyRemoval() {
+        composeRule.setContent {
+            FreshNowTheme {
+                PhotoActionsSheet(
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    canSetFirst = false,
+                    onDismissRequest = {},
+                    onSetFirst = {},
+                    onRemove = {}
+                )
+            }
+        }
+        composeRule.mainClock.advanceTimeBy(1_000)
+
+        composeRule.onNodeWithText(SET_FIRST).assertDoesNotExist()
+        composeRule.onNodeWithText(REMOVE).assertExists()
     }
 
     /**
@@ -85,16 +109,18 @@ class RemovePhotoSheetDismissTest {
             FreshNowTheme {
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 if (showSheet) {
-                    RemovePhotoSheet(
+                    PhotoActionsSheet(
                         sheetState = sheetState,
+                        canSetFirst = true,
                         onDismissRequest = { showSheet = false },
-                        onConfirm = {}
+                        onSetFirst = {},
+                        onRemove = {}
                     )
                 }
             }
         }
         composeRule.mainClock.advanceTimeBy(1_000)
-        composeRule.onNodeWithText("移除照片").performClick()
+        composeRule.onNodeWithText(REMOVE).performClick()
         composeRule.mainClock.advanceTimeBy(2_000)
 
         // 再点另一张：同一个 state 重新弹一片
@@ -110,5 +136,10 @@ class RemovePhotoSheetDismissTest {
         composeRule.mainClock.advanceTimeBy(1_000)
 
         assertEquals(SheetValue.Expanded, sheetState.currentValue)
+    }
+
+    private companion object {
+        const val SET_FIRST = "用作首图"
+        const val REMOVE = "移除照片"
     }
 }

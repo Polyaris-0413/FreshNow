@@ -72,7 +72,12 @@
     <string name="record_image_add">添加照片</string>
     <string name="record_image_source_gallery">相册</string>
     <string name="record_image_remove">移除照片</string>
-    <!-- 详情页点照片可看大图，编辑页点照片是换照片：两处都有动作，读屏软件要能说清点下去会怎样 -->
+    <!-- 「首图」就是第一位那张：列表缩略图与详情页主图都用它。不说「主图」（听着只管详情页）、
+         也不说「封面」（听着只管列表那一格） -->
+    <string name="record_image_set_first">用作首图</string>
+    <!-- 长按格子的读屏标签：点一下是看图，长按才是改照片 -->
+    <string name="record_image_actions">照片操作</string>
+    <!-- 点照片可看大图：详情页与编辑/补全页现在都是这个动作，读屏软件要能说清点下去会怎样 -->
     <string name="record_image_open">查看大图</string>
     <string name="record_supplement_title">补充信息</string>
     <string name="record_image_page">%1$d/%2$d</string>

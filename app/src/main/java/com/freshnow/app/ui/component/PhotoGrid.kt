@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -51,10 +52,14 @@ private const val ADD_KEY = "add-photo-tile"
 internal data class PhotoGridItem(val key: String, val image: Bitmap?)
 
 /**
- * 记录里的照片区：一格一张，末尾一格是「+」，**点某一张就是「要移除这一张」**（由调用方弹面板问一句）。
+ * 记录里的照片区：一格一张，末尾一格是「+」。
  *
- * 不在格子上再压一枚 ✕：格子只有一百来 dp，角上叠一个按钮既难看又容易点错，而它要做的只是
- * 「去掉这一张」。整格一个动作之后，误触的代价也只是「再多点一下确认」——草稿里的删除在保存前不落盘。
+ * 一格里有两个手势：**点一下 = 看这张的大图**（与详情页同一套看图页）；**长按 = 问这张怎么办**
+ * （用作首图 / 移除，由调用方弹面板）。分成两个手势是因为两个动作后果不同：看只是看，
+ * 而移除会改草稿——前者不该需要确认，后者不该一下就做。
+ *
+ * 不在格子上再压一枚 ✕：格子只有一百来 dp，角上叠一个按钮既难看又容易点错。整格一个动作之后，
+ * 误触的代价也只是「再多点一下确认」——草稿里的删改在保存前不落盘。
  *
  * 格子之间的间距取 [FreshNowSpacing.xs]（8dp）：M3 布局规范给的网格槽间距在 compact（手机）上
  * 就是 8dp，medium 16dp，large 以上 24dp。它不是「拼接块之间那条缝」（[FreshNowSpacing.xxxs]），
@@ -67,7 +72,8 @@ internal data class PhotoGridItem(val key: String, val image: Bitmap?)
 @Composable
 internal fun PhotoGrid(
     items: List<PhotoGridItem>,
-    onRemove: (Int) -> Unit,
+    onOpen: (Int) -> Unit,
+    onActions: (Int) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -93,7 +99,8 @@ internal fun PhotoGrid(
             itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
                 PhotoTile(
                     item = item,
-                    onRemove = { onRemove(index) },
+                    onOpen = { onOpen(index) },
+                    onActions = { onActions(index) },
                     // 增删时的淡入淡出与其余格子的让位都由它演
                     modifier = Modifier.animateItem()
                 )
@@ -110,13 +117,19 @@ internal fun PhotoGrid(
 /**
  * 一格照片。
  *
- * 语义分两层：格子的描述说的是「这里是什么」（照片 / 占位图），动作的描述说的是「点它会怎样」
- * （要移除这一张）。两层都要有——只说动作的话，无障碍读屏读到的是「移除照片、移除照片…」一串，
- * 听不出格子里到底有没有图；只说内容的话，用户又不知道为什么它能点。
+ * 语义分两层：格子的描述说的是「这里是什么」（照片 / 占位图），动作的描述说的是「点了会怎样」
+ * （看大图）、「长按会怎样」（照片操作）。两层都要有——只说动作的话，无障碍读屏读到的是
+ * 「查看大图、查看大图…」一串，听不出格子里到底有没有图；只说内容的话，用户又不知道为什么它能点。
  */
 @Composable
-private fun PhotoTile(item: PhotoGridItem, onRemove: () -> Unit, modifier: Modifier = Modifier) {
-    val removeLabel = stringResource(R.string.record_image_remove)
+private fun PhotoTile(
+    item: PhotoGridItem,
+    onOpen: () -> Unit,
+    onActions: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val openLabel = stringResource(R.string.record_image_open)
+    val actionsLabel = stringResource(R.string.record_image_actions)
     val tileLabel = stringResource(
         if (item.image != null) R.string.record_image else R.string.record_image_missing
     )
@@ -126,7 +139,12 @@ private fun PhotoTile(item: PhotoGridItem, onRemove: () -> Unit, modifier: Modif
             .aspectRatio(1f)
             .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onRemove, onClickLabel = removeLabel)
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = onActions,
+                onClickLabel = openLabel,
+                onLongClickLabel = actionsLabel
+            )
             .semantics { contentDescription = tileLabel }
     ) {
         if (item.image != null) {

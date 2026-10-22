@@ -51,10 +51,11 @@ import com.freshnow.app.data.hasAnyValue
 import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.LeaveDialog
 import com.freshnow.app.ui.component.FreshNowSubPage
+import com.freshnow.app.ui.component.PhotoActionsSheet
 import com.freshnow.app.ui.component.PhotoSourceSheet
 import com.freshnow.app.ui.component.StepDirection
 import com.freshnow.app.ui.component.StepTransition
-import com.freshnow.app.ui.component.RemovePhotoSheet
+import com.freshnow.app.ui.component.PhotoViewerOverlay
 import com.freshnow.app.ui.component.ScrollEdgeFade
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.data.RecordField
@@ -81,9 +82,12 @@ fun ScanScreen(
     // 加照片这条路与编辑页同一套（见 PhotoSourceSheet）：面板挑来源，相册走选择器再裁剪，
     // 拍照走那个整屏的拍照页
     var showImageSources by remember { mutableStateOf(false) }
-    // 点了哪一张要移除：先起一片面板问一句（见 RemovePhotoSheet）
-    var removingPhotoIndex by remember { mutableStateOf<Int?>(null) }
-    val removeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 长按了哪一张：先起一片面板问一句（见 PhotoActionsSheet）
+    var actedPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val photoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 点开看大图的那一张。关闭时只把开关放下，下标留着；否则淡出的是一块空屏（见 PhotoViewerOverlay）
+    var viewingPhoto by remember { mutableStateOf(false) }
+    var viewedPhotoIndex by remember { mutableStateOf(0) }
     val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showCamera by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -102,7 +106,10 @@ fun ScanScreen(
 
     // 有结果时先问一句再走，避免扫到的结果被静默丢掉；没有结果就直接退。
     // 顶栏返回箭头走同一套判断，否则箭头会绕过这里静默丢结果。
-    BackHandler(enabled = hasResult) { showSaveDialog = true }
+    // 看图页开着时让位：两个 BackHandler 靠先后顺序抢返回键不可靠，两边显式互斥
+    BackHandler(enabled = hasResult && !viewingPhoto) { showSaveDialog = true }
+    // 看图页开着时返回只该关它
+    BackHandler(enabled = viewingPhoto) { viewingPhoto = false }
 
     // 进页即请求：用户按「扫描」就是明确的用相机意图，不必再点一次
     LaunchedEffect(Unit) {
@@ -177,7 +184,14 @@ fun ScanScreen(
                         ScanEditStage(
                             uiState = uiState,
                             onFieldChange = viewModel::onFieldChange,
-                            onRemovePhoto = { removingPhotoIndex = it },
+                            onOpenPhoto = { index ->
+                                // 没有位图的那一格（读失败）无图可看，保持原位不动
+                                if (uiState.photos.getOrNull(index)?.bitmap != null) {
+                                    viewedPhotoIndex = index
+                                    viewingPhoto = true
+                                }
+                            },
+                            onPhotoActions = { actedPhotoIndex = it },
                             onAddPhoto = { showImageSources = true },
                             onContinueScanning = viewModel::backToScanning,
                             onSave = { viewModel.save { onBack() } },
@@ -257,13 +271,23 @@ fun ScanScreen(
     }
 
 
-    val removingPhoto = removingPhotoIndex
-    if (removingPhoto != null) {
-        RemovePhotoSheet(
-            sheetState = removeSheetState,
-            onDismissRequest = { removingPhotoIndex = null },
-            // 收起动画由面板自己等完再回调（见 RemovePhotoSheet），这里只负责删哪一张
-            onConfirm = { viewModel.onPhotoRemoved(removingPhoto) }
+    // 看图页覆盖在整页之上（同详情页），它自己带标题与返回箭头
+    PhotoViewerOverlay(
+        image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap,
+        visible = viewingPhoto,
+        onDismiss = { viewingPhoto = false }
+    )
+
+    val actedPhoto = actedPhotoIndex
+    if (actedPhoto != null) {
+        PhotoActionsSheet(
+            sheetState = photoSheetState,
+            // 已经是第一张就不给「用作首图」：那一项按下去什么都不会变
+            canSetFirst = actedPhoto != 0,
+            onDismissRequest = { actedPhotoIndex = null },
+            // 收起动画由面板自己等完再回调（见 PhotoActionsSheet），这里只负责改哪一张
+            onSetFirst = { viewModel.onPhotoMovedToFront(actedPhoto) },
+            onRemove = { viewModel.onPhotoRemoved(actedPhoto) }
         )
     }
 
@@ -392,7 +416,8 @@ internal fun ServiceUnavailableDialog(
 internal fun ScanEditStage(
     uiState: ScanUiState,
     onFieldChange: (RecordField, String) -> Unit,
-    onRemovePhoto: (Int) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onPhotoActions: (Int) -> Unit,
     onAddPhoto: () -> Unit,
     onContinueScanning: () -> Unit,
     onSave: () -> Unit,
@@ -407,7 +432,8 @@ internal fun ScanEditStage(
             photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
             derivedExpiry = uiState.expiry,
             onFieldChange = onFieldChange,
-            onRemovePhoto = onRemovePhoto,
+            onOpenPhoto = onOpenPhoto,
+            onPhotoActions = onPhotoActions,
             onAddPhoto = onAddPhoto,
             modifier = Modifier
                 .weight(1f)

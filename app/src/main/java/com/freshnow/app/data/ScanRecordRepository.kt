@@ -34,7 +34,18 @@ sealed interface ImageChange {
      *
      * 去掉其中某一张 = 不把它放进 [kept]；一张都不要 = 两者都给空。
      */
-    data class Update(val kept: List<String>, val added: List<ByteArray> = emptyList()) : ImageChange
+    data class Update(
+        val kept: List<String>,
+        val added: List<ByteArray> = emptyList(),
+        /**
+         * [added] 里前几张排在 [kept] 之前。
+         *
+         * 新图默认接在旧图后面（写入顺序就是那个意思），而「用作首图」选中的可能是刚加的那一张：
+         * 没有这一项的话，草稿里看着它在第一位，存完又回到末尾。最多到 [added] 的张数为止，
+         * 既有照片之间的先后仍由 [kept] 自己决定。
+         */
+        val leadingAdded: Int = 0
+    ) : ImageChange
 }
 
 /**
@@ -80,7 +91,12 @@ class ScanRecordRepository(
                 true
             }
 
-            is ImageChange.Update -> writeImagesThenRow(image.kept, image.added, stamped.imageNames) { names ->
+            is ImageChange.Update -> writeImagesThenRow(
+                image.kept,
+                image.added,
+                image.leadingAdded,
+                stamped.imageNames
+            ) { names ->
                 dao.update(stamped.copy(imageNames = names))
             }
         }
@@ -106,7 +122,12 @@ class ScanRecordRepository(
                 true
             }
 
-            is ImageChange.Update -> writeImagesThenRow(image.kept, image.added, emptyList()) { names ->
+            is ImageChange.Update -> writeImagesThenRow(
+                image.kept,
+                image.added,
+                image.leadingAdded,
+                emptyList()
+            ) { names ->
                 dao.insert(fresh.copy(imageNames = names))
             }
         }
@@ -300,6 +321,7 @@ class ScanRecordRepository(
     private suspend fun writeImagesThenRow(
         kept: List<String>,
         added: List<ByteArray>,
+        leadingAdded: Int,
         unchanged: List<String>,
         writeRow: suspend (names: List<String>) -> Unit
     ): Boolean = imageLock.withLock {
@@ -309,7 +331,15 @@ class ScanRecordRepository(
             val name = imageStore.write(bytes)
             if (name == null) allWritten = false else written += name
         }
-        writeRow(if (written.isEmpty() && added.isNotEmpty()) unchanged else kept + written)
+        writeRow(
+            if (written.isEmpty() && added.isNotEmpty()) {
+                unchanged
+            } else {
+                // 写入失败的那几张不在 written 里，能提到前面的也只是真写成了的那几张
+                val lead = leadingAdded.coerceIn(0, written.size)
+                written.take(lead) + kept + written.drop(lead)
+            }
+        )
         allWritten
     }
 

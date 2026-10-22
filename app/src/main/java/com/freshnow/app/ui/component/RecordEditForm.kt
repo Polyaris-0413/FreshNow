@@ -63,7 +63,8 @@ internal fun RecordEditForm(
     photos: List<PhotoGridItem>,
     derivedExpiry: ExpiryOutcome,
     onFieldChange: (RecordField, String) -> Unit,
-    onRemovePhoto: (Int) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onPhotoActions: (Int) -> Unit,
     onAddPhoto: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -71,7 +72,8 @@ internal fun RecordEditForm(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
     ) {
-        // 照片那一栏：九宫格，末尾一格是「+」，每格右上角是「✕」。
+        // 照片那一栏：九宫格，末尾一格是「+」。点一格看大图，长按一格问「用作首图 / 移除照片」
+        // （见 PhotoGrid）。
         //
         // 从「一枚缩略图 + 更换照片」换成九宫格：一条记录现在能配多张（上限九张），而这一栏要回答
         // 的是「这条记录有哪几张、还能加几张」；一排缩略图放到第五张就得横着滑，看不见自己存了多少。
@@ -80,7 +82,8 @@ internal fun RecordEditForm(
         // 再套一层描边框等于把「这里可以动」这个意思说两遍。
         PhotoGrid(
             items = photos,
-            onRemove = onRemovePhoto,
+            onOpen = onOpenPhoto,
+            onActions = onPhotoActions,
             onAdd = onAddPhoto
         )
         EditField(

@@ -19,6 +19,7 @@ import com.freshnow.app.data.isUnrecognizableShelfLife
 import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.toSquareJpegBytes
 import com.freshnow.app.ui.component.EditPhoto
+import com.freshnow.app.ui.movedToFront
 import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.RecordFormFields
 import kotlinx.coroutines.CancellationException
@@ -164,7 +165,10 @@ private fun RecordEditUiState.storedFields() = StoredFields(
 private val RecordEditUiState.photoChange: ImageChange.Update
     get() = ImageChange.Update(
         kept = photos.mapNotNull { photo -> photo.name.takeIf { it.isNotEmpty() } },
-        added = photos.mapNotNull { it.bytes }
+        added = photos.mapNotNull { it.bytes },
+        // 草稿开头连续的新图，正是「用作首图」把刚加的那一张提到最前的结果：新图平时只接在末尾，
+        // 要让它排在旧图之前，只能由这里说出来（见 ImageChange.Update.leadingAdded）
+        leadingAdded = photos.takeWhile { it.bytes != null }.size
     )
 
 /**
@@ -370,6 +374,21 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
                 state
             } else {
                 state.copy(photos = state.photos.filterIndexed { i, _ -> i != index })
+            }
+        }
+    }
+
+    /**
+     * 把某一张用作首图：挪到草稿第一位，其余保持原序（见 [movedToFront]）。
+     *
+     * 与移除一样只改草稿：保存前不落盘，取消编辑等于没改过。
+     */
+    fun onPhotoMovedToFront(index: Int) {
+        _uiState.update { state ->
+            if (index !in state.photos.indices) {
+                state
+            } else {
+                state.copy(photos = state.photos.movedToFront(index))
             }
         }
     }

@@ -36,10 +36,11 @@ import com.freshnow.app.R
 import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.LeaveDialog
+import com.freshnow.app.ui.component.PhotoActionsSheet
 import com.freshnow.app.ui.component.PhotoSourceSheet
+import com.freshnow.app.ui.component.PhotoViewerOverlay
 import com.freshnow.app.ui.component.StepDirection
 import com.freshnow.app.ui.component.StepTransition
-import com.freshnow.app.ui.component.RemovePhotoSheet
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.component.hideSheetThen
@@ -85,9 +86,12 @@ fun RecordEditScreen(
     var showImageSources by remember { mutableStateOf(false) }
     // 有改动时返回先问一句（见 LeaveDialog），没改动就直接退
     var showLeaveDialog by remember { mutableStateOf(false) }
-    // 点了哪一张要移除：先起一片面板问一句（见 RemovePhotoSheet）
-    var removingPhotoIndex by remember { mutableStateOf<Int?>(null) }
-    val removeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 长按了哪一张：先起一片面板问一句（见 PhotoActionsSheet）
+    var actedPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val photoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 点开看大图的那一张。关闭时只把开关放下，下标留着；否则淡出的是一块空屏（见 PhotoViewerOverlay）
+    var viewingPhoto by remember { mutableStateOf(false) }
+    var viewedPhotoIndex by remember { mutableStateOf(0) }
     var showCamera by remember { mutableStateOf(false) }
     val imageSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -169,26 +173,47 @@ fun RecordEditScreen(
             }
 
             EditStep.Edit -> {
-                BackHandler(enabled = hasUnsavedChanges) { showLeaveDialog = true }
+                // 看图页开着时让位：两个 BackHandler 靠先后顺序抢返回键是不可靠的
+                // （StepTransition 重组时回调会重新注册，位置会变），所以两边显式互斥
+                BackHandler(enabled = hasUnsavedChanges && !viewingPhoto) { showLeaveDialog = true }
                 EditForm(
                     uiState = uiState,
                     onBack = ::requestLeave,
                     onSave = ::saveAndLeave,
                     onFieldChange = viewModel::onFieldChange,
-                    onRemovePhoto = { removingPhotoIndex = it },
+                    onOpenPhoto = { index ->
+                        // 没有位图的那一格（读失败）无图可看，保持原位不动
+                        if (uiState.photos.getOrNull(index)?.bitmap != null) {
+                            viewedPhotoIndex = index
+                            viewingPhoto = true
+                        }
+                    },
+                    onPhotoActions = { actedPhotoIndex = it },
                     onAddPhoto = { showImageSources = true }
                 )
             }
         }
     }
 
-    val removingPhoto = removingPhotoIndex
-    if (removingPhoto != null) {
-        RemovePhotoSheet(
-            sheetState = removeSheetState,
-            onDismissRequest = { removingPhotoIndex = null },
-            // 收起动画由面板自己等完再回调（见 RemovePhotoSheet），这里只负责删哪一张
-            onConfirm = { viewModel.onPhotoRemoved(removingPhoto) }
+    // 看图页覆盖在整页之上（同详情页），它自己带标题与返回箭头。
+    // 系统返回先关它：否则一次返回会把没保存的草稿一起带走，还一句都不问
+    BackHandler(enabled = viewingPhoto) { viewingPhoto = false }
+    PhotoViewerOverlay(
+        image = uiState.photos.getOrNull(viewedPhotoIndex)?.bitmap,
+        visible = viewingPhoto,
+        onDismiss = { viewingPhoto = false }
+    )
+
+    val actedPhoto = actedPhotoIndex
+    if (actedPhoto != null) {
+        PhotoActionsSheet(
+            sheetState = photoSheetState,
+            // 已经是第一张就不给「用作首图」：那一项按下去什么都不会变
+            canSetFirst = actedPhoto != 0,
+            onDismissRequest = { actedPhotoIndex = null },
+            // 收起动画由面板自己等完再回调（见 PhotoActionsSheet），这里只负责改哪一张
+            onSetFirst = { viewModel.onPhotoMovedToFront(actedPhoto) },
+            onRemove = { viewModel.onPhotoRemoved(actedPhoto) }
         )
     }
 
@@ -237,7 +262,8 @@ private fun EditForm(
     onBack: () -> Unit,
     onSave: () -> Unit,
     onFieldChange: (RecordField, String) -> Unit,
-    onRemovePhoto: (Int) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onPhotoActions: (Int) -> Unit,
     onAddPhoto: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
@@ -300,7 +326,8 @@ private fun EditForm(
                 photos = uiState.photos.map { PhotoGridItem(key = it.id.toString(), image = it.bitmap) },
                 derivedExpiry = uiState.derivedExpiry,
                 onFieldChange = onFieldChange,
-                onRemovePhoto = onRemovePhoto,
+                onOpenPhoto = onOpenPhoto,
+                onPhotoActions = onPhotoActions,
                 onAddPhoto = onAddPhoto,
                 modifier = Modifier
                     .fillMaxSize()

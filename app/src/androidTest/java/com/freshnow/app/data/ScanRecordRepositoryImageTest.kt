@@ -232,6 +232,60 @@ class ScanRecordRepositoryImageTest {
         )
     }
 
+    /**
+     * 「用作首图」选中的是刚加的那一张：新图默认接在旧图后面，只有 [ImageChange.Update.leadingAdded]
+     * 能把它排到前面。
+     *
+     * 少了这个字段，用户在草稿里明明看见它在第一位，存完再打开又回到了末尾——像是动作没生效。
+     */
+    @Test
+    fun update_newPhotoCanLeadTheRow() = runBlocking {
+        val saved = insertWithPhoto()
+        val oldName = saved.imageName
+
+        repository.update(
+            saved,
+            ImageChange.Update(
+                kept = listOf(oldName),
+                added = listOf(NEW_PHOTO),
+                leadingAdded = 1
+            )
+        )
+
+        val updated = requireNotNull(repository.find(saved.id))
+        assertEquals(
+            "新加的那张要排在最前，旧图跟在后面",
+            listOf(store.write(NEW_PHOTO), oldName),
+            updated.imageNames
+        )
+    }
+
+    /**
+     * 前 N 张新图排到前面，**其余新图仍在末尾**：旧图（kept）的相对位置不受影响，
+     * 也不能因为把一张提到前面就把另一张也一并挪走。
+     */
+    @Test
+    fun update_onlyTheLeadingAddedPhotosGoFirst() = runBlocking {
+        val saved = insertWithPhoto()
+        val oldName = saved.imageName
+
+        repository.update(
+            saved,
+            ImageChange.Update(
+                kept = listOf(oldName),
+                added = listOf(NEW_PHOTO, ORPHAN_PHOTO),
+                leadingAdded = 1
+            )
+        )
+
+        val updated = requireNotNull(repository.find(saved.id))
+        assertEquals(
+            "只有第一张新图提到前面，第二张仍在末尾",
+            listOf(store.write(NEW_PHOTO), oldName, store.write(ORPHAN_PHOTO)),
+            updated.imageNames
+        )
+    }
+
     /** 三条里减去中间那条，另外两张的名字与顺序一个都不能动 */
     @Test
     fun update_droppingOneKeepsTheOthers() = runBlocking {

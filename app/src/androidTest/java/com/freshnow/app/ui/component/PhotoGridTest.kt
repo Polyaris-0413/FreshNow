@@ -3,9 +3,11 @@ package com.freshnow.app.ui.component
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
@@ -18,7 +20,8 @@ import org.junit.runner.RunWith
  *
  * 「满九张时 + 消失」要看得见：到顶了还画着加号，用户按下去没反应，只能怀疑是自己点错了。
  *
- * 删除报的是被点那一格的序号——报错一位就会删掉别的照片，而这是这一屏里唯一破坏性的动作。
+ * 一格里有两个动作，报的都必须是被碰的那一格：点开看的是别一张、长按删的是别一张，
+ * 都是「我指的东西不是我拿到的」——比按不动更难理解。
  */
 @RunWith(AndroidJUnit4::class)
 class PhotoGridTest {
@@ -52,27 +55,45 @@ class PhotoGridTest {
         composeRule.onAllNodesWithContentDescription(TILE).assertCountEquals(0)
     }
 
-    /** 点某一格报的是那一格的序号（0 起），不是别的格 */
+    /** 点某一格是「看这一张」，报的是那一格的序号（0 起） */
     @Test
-    fun removeReportsTheTappedIndex() {
-        var removed = -1
+    fun tapOpensTheTappedIndex() {
+        var opened = -1
         setContent(
             items = (1..3).map { PhotoGridItem(key = "k$it", image = null) },
-            onRemove = { removed = it }
+            onOpen = { opened = it }
         )
 
         composeRule.onAllNodesWithContentDescription(TILE)[1].performClick()
 
-        assertEquals("第二格要报回下标 1", 1, removed)
+        assertEquals("第二格要报回下标 1", 1, opened)
+    }
+
+    /** 长按某一格是「问这一张要怎么办」，报的同样是那一格的序号 */
+    @Test
+    fun longPressOffersActionsForTheTappedIndex() {
+        var actions = -1
+        var opened = -1
+        setContent(
+            items = (1..3).map { PhotoGridItem(key = "k$it", image = null) },
+            onOpen = { opened = it },
+            onActions = { actions = it }
+        )
+
+        composeRule.onAllNodesWithContentDescription(TILE)[2].performTouchInput { longClick() }
+
+        assertEquals("第三格要报回下标 2", 2, actions)
+        assertEquals("长按不该同时当成点击", -1, opened)
     }
 
     private fun setContent(
         items: List<PhotoGridItem>,
-        onRemove: (Int) -> Unit = {}
+        onOpen: (Int) -> Unit = {},
+        onActions: (Int) -> Unit = {}
     ) {
         composeRule.setContent {
             FreshNowTheme {
-                PhotoGrid(items = items, onRemove = onRemove, onAdd = {})
+                PhotoGrid(items = items, onOpen = onOpen, onActions = onActions, onAdd = {})
             }
         }
     }

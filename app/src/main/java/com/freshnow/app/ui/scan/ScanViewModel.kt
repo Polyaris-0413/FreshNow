@@ -21,6 +21,7 @@ import com.freshnow.app.data.toSquareJpegBytes
 import com.freshnow.app.ui.component.EditPhoto
 import com.freshnow.app.ui.detail.CropWindow
 import com.freshnow.app.ui.detail.croppedTo
+import com.freshnow.app.ui.movedToFront
 import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -261,6 +262,18 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 state.copy(photos = state.photos.filterIndexed { i, _ -> i != index })
             }
+        }
+    }
+
+    /**
+     * 把某一张用作首图：挪到草稿第一位，其余保持原序（见 [movedToFront]）。
+     *
+     * 扫描页这条草稿最终由 [ScanRecordRepository.save] 按顺序落盘，所以这里改完顺序，
+     * 存下来的第一条照片名就是它——列表缩略图与详情页主图都取那一张。
+     */
+    fun onPhotoMovedToFront(index: Int) {
+        _uiState.update { state ->
+            if (index !in state.photos.indices) state else state.copy(photos = state.photos.movedToFront(index))
         }
     }
 
