@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 /**
  * 关于：这个应用是什么、出处在哪。可调项不在这里，在设置页。
  *
- * 三个分区：应用（版本、检查更新）、项目（作者、仓库、问题反馈）、法律信息（开源声明）。
+ * 三个分区：应用（版本、检查更新）、项目（作者、仓库、问题反馈、群聊）、法律信息（开源声明）。
  * 版本号是「值」，放标题右端；说明性的文字才放下面——见各行的注释。
  */
 @Composable
@@ -134,6 +134,7 @@ internal fun AboutList(
     // 链接在合成期解析好：clickable 的 lambda 不是 composable，里面取不了资源
     val repositoryUrl = stringResource(R.string.project_repository_url)
     val issueUrl = stringResource(R.string.project_issue_url)
+    val groupUrl = stringResource(R.string.project_group_url)
     val authorUrl = stringResource(R.string.project_author_url)
 
     Column(modifier = modifier) {
@@ -227,6 +228,18 @@ internal fun AboutList(
                 Text(text = stringResource(R.string.project_issue_title))
             },
             modifier = Modifier.clickable { onOpenUrl(issueUrl) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        // 群聊也进浏览器：加群页由 QQ 托管，应用里不另开聊天界面
+        ListItem(
+            leadingContent = {
+                Icon(painter = painterResource(R.drawable.ic_group), contentDescription = null)
+            },
+            headlineContent = {
+                Text(text = stringResource(R.string.project_group_title))
+            },
+            modifier = Modifier.clickable { onOpenUrl(groupUrl) },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
