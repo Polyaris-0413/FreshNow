@@ -224,7 +224,7 @@
     <string name="sync_now">立即同步</string>
     <string name="sync_forget">解除配对</string>
     <string name="sync_result_done">已与 %1$s 同步，更新 %2$d 条</string>
-    <string name="sync_result_unreachable">没有连上任何设备，请确认两台设备在同一网络且都打开了应用</string>
+    <string name="sync_result_unreachable">没有连上任何设备</string>
     <string name="sync_result_no_peers">还没有配对的设备</string>
     <string name="sync_permission_title">需要局域网权限</string>
     <string name="sync_permission_support">需要授权才能发现同一网络下的设备</string>
