@@ -7,8 +7,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * 扫描页两态之间的搬运：翻面带过去的字段、折回来之后草稿还在不在、以及能不能存。
- *
  * 只摆纯逻辑，位图一律不给：把那一帧解成位图的事留在 ViewModel 里，那部分要设备。
  */
 class ScanStageTest {

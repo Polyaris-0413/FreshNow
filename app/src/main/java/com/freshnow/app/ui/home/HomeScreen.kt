@@ -180,7 +180,7 @@ fun HomeScreen(
 ) {
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
-    // 打开的是哪一个面板（null 表示没开）。两个入口合用一个面板与一份状态：
+    // 两个入口合用一个面板与一份状态：
     // 面板是模态的，不可能同时开两个（与设置页的 editing 同一个办法）
     var openSheet by remember { mutableStateOf<HomeSheet?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -195,7 +195,6 @@ fun HomeScreen(
     fun dismissSheetThen(action: () -> Unit) =
         scope.hideSheetThen(sheetState, onHidden = { openSheet = null }, action = action)
 
-    // 顶栏的两副面孔用一个可空计数表示：null 是普通列表，非 null 是选择模式及其计数。
     // 计数必须放进状态里，不能在选择模式那一支里现读 selectedIds.size：AnimatedContent 按状态缓存内容，
     // 退出选择模式时被淡出的那条顶栏拿到的仍是它自己的计数；现读的话它会先滚一遍「已选 0 项」再淡出。
     val selectionCount: Int? = selectedIds.size.takeIf { inSelectionMode }
@@ -505,7 +504,6 @@ private fun RecordsList(
 private const val EMPTY_LIST_KEY = "empty"
 
 /**
- * 一条记录都没有时的空态：一枚曲奇加一句话，居中。
  * 曲奇是装饰，语义由文案承担，因此不写 contentDescription，读屏软件不会把同一件事读两遍。
  * 边长取 [FreshNowSize.icon]（设计源里这一档就是「空态/占位图标边长」，48dp，与列表缩略图同档）；
  * 与文案的间距取 [FreshNowSpacing.sm]——M3 技能里「Between components」给的是 8/12/16/24，这里取 16。
@@ -532,7 +530,6 @@ private fun EmptyRecordsHint(modifier: Modifier = Modifier) {
 }
 
 /**
- * 出现时淡入一次。
  * 没走 `animateItem` 的 `fadeInSpec`：「谁该淡入」的判据不同——后者认的是「条目刚被合成出来」，
  * 滚动时进入视口的旧条目、以及每次回到本页重新合成的空态，都会被算进去。
  * 这里由调用方按数据给（[RecordsList] 传「刚存进来的那几条」与「刚被删空」），只有眼前发生的变化才演。
@@ -552,7 +549,7 @@ private fun Modifier.appearFadeIn(
 }
 
 /**
- * 今天的日期，跨过零点会自己更新。剩余天数是按当天算的，「今天」固化成常量的话，
+ * 剩余天数是按当天算的，「今天」固化成常量的话，
  * 应用停在列表上过夜后数字就是错的。
  */
 @Composable

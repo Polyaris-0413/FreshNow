@@ -56,7 +56,6 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("跳过").assertIsDisplayed()
     }
 
-    /** 第 2 步起才有 */
     @Test
     fun progressBarAppearsFromSecondStep() {
         setContent()
@@ -335,8 +334,6 @@ class WelcomeScreenTest {
      * 两页上（「下一步」每页都有），直接按文案找会撞上「匹配到多个节点」。
      */
     private fun clickSettled(text: String) {
-        // 等到这一屏上只剩一份该文案：翻页动画没演完时相邻页也在组合里，同一段文案会同时挂在
-        // 两页上，按文案找会撞上「匹配到多个节点」
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText(text).fetchSemanticsNodes().size == 1
         }

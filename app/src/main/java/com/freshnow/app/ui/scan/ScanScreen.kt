@@ -115,7 +115,6 @@ fun ScanScreen(
     // 顶栏返回箭头走同一套判断，否则箭头会绕过这里静默丢结果。
     // 看图页开着时让位：两个 BackHandler 靠先后顺序抢返回键不可靠，两边显式互斥
     BackHandler(enabled = hasResult && !viewingPhoto) { showSaveDialog = true }
-    // 看图页开着时返回只该关它
     BackHandler(enabled = viewingPhoto) { viewingPhoto = false }
 
     // 进页即请求：用户按「扫描」就是明确的用相机意图，不必再点一次
@@ -380,8 +379,6 @@ fun ScanScreen(
 }
 
 /**
- * AI 服务用不了时的说明。
- *
  * 正文不显示服务端返回了什么：日志是给别的 AI 读的，一键复制比在对话框里摊开一段原始报错省事，
  * 正文也就不必再为长文本留滑块区。日志本身仍要经手一遍——「复制」写进剪贴板的就是它。
  *
@@ -562,7 +559,6 @@ internal fun ScanActionBar(
 
 /**
  * 只负责排布，不决定滚动方式——目前它与取景框同处一个滚动列，滚动交给调用方。
- * 块间距用 spacedBy 统一给出。
  */
 @Composable
 private fun ScanResultColumn(
@@ -658,8 +654,6 @@ private fun CameraBox(
 }
 
 /**
- * 没有相机权限时的空态。
- *
  * 做成「图 + 文 + 动作」三件套，而不是只摆一句提示加一个按钮：取景框里本来该有画面，只是一时
  * 显示不出来，这正是 Material 定义的空态（内容显示不了的区域，用非交互图像 + 一句 tagline 交代，
  * 需要用户动手时再补一个动作）。取值全走设计源：图标边长用 [FreshNowSize.icon]（那一档就是

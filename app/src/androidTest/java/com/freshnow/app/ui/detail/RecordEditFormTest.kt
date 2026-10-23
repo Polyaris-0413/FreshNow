@@ -62,9 +62,6 @@ class RecordEditFormTest {
         assertTrue("位置应当在生产日期之上：location=$locationTop production=$productionTop", locationTop < productionTop)
     }
 
-    /**
-     * 新记录就是从这里开始加图的
-     */
     @Test
     fun showsPhotoField() {
         setContent()
@@ -89,7 +86,6 @@ class RecordEditFormTest {
         composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(3)
     }
 
-    /** 新记录就是这样开始加图的 */
     @Test
     fun emptyPhotoAreaStillOffersAdd() {
         setContent(uiState = EMPTY.copy(photos = emptyList()))

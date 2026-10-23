@@ -268,7 +268,6 @@ internal class SyncCoordinator private constructor(context: Context) {
         return peer
     }
 
-    /** 用户已经写好端口时原样用 */
     private fun withDefaultPort(address: String): String {
         val trimmed = address.trim().removePrefix("http://").removeSuffix("/")
         return if (trimmed.contains(':')) trimmed else "$trimmed:$DEFAULT_PORT"

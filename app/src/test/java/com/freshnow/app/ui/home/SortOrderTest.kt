@@ -7,8 +7,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * 列表排序：按创建时间与按过期日期两种。
- *
  * 判据取「排完之后的 id 顺序」——排序的全部内容就是这个顺序。
  *
  * 输入一律按查库的原样给（savedAt 倒序），这样「过期日期排不出先后的那几条是不是还维持原样」

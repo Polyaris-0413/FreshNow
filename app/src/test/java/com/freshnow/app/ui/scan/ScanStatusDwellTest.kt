@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * 状态胶囊的最短停留。真机上对着取景框看过：不加这一条，一次请求来回就能让这句话一秒里跳三次。
+ * 真机上对着取景框看过：不加这一条，一次请求来回就能让这句话一秒里跳三次。
  */
 class ScanStatusDwellTest {
 

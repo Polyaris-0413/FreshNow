@@ -134,7 +134,7 @@ class HomeScreenTest {
         composeRule.onNodeWithText("还没有扫描记录").assertIsDisplayed()
     }
 
-    /** 长按是进入选择模式的唯一入口，只按一下不能选中 */
+    /** 长按是进入选择模式的唯一入口 */
     @Test
     fun longPress_onRow_togglesSelection() {
         val toggled = mutableListOf<Long>()
@@ -198,7 +198,7 @@ class HomeScreenTest {
         assertTrue(exited)
     }
 
-    /** 删除不可恢复，确认之前一条都不能动 */
+    /** 删除不可恢复 */
     @Test
     fun deleteIcon_asksBeforeDeleting() {
         var deleted = false
@@ -213,8 +213,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 相邻两条同时选中时，两条描边之间必须留缝。
-     *
      * 描边贴着条目边界画的话，上一条的下边会和下一条的上边叠在一起，看起来是一条粗线。
      * 这里不去量具体像素，而是数「有描边像素的 y 连成了几段」：每条选中项各占一段
      * （左右两条竖边把该段的上下两条横边连起来），两条相邻的选中项中间应当断开。
@@ -232,7 +230,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 计数变化是滚动的，不是直接跳。
      * 自己拿一份选中状态而不是走 [setContent]：要手动改状态并把动画时钟停在半路。
      */
     @Test
@@ -272,7 +269,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 删掉一条时，下面的条目要滑上去而不是跳到新位置。
      * 判据：动画半程时「酸奶」已离开原位、又还没到位，两条同时成立才说明它在路上。
      */
     @Test
@@ -296,7 +292,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 被删的那条要淡出，不能「啪」地消失。
      * 判据取缩略图中心像素：半程时既不是删除前的原色，也不是删完后的背景色。
      */
     @Test
@@ -394,7 +389,6 @@ class HomeScreenTest {
             justEmptied.value = true
         }
 
-        // 条目淡出的半程：空态这时候还不该看得见
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val region = composeRule.onNodeWithText("还没有扫描记录").getBoundsInRoot()
         assertEquals("条目淡出没结束前不该已经看得见：${composeRule.maxContrast(region)}", 0, composeRule.maxContrast(region))
@@ -476,7 +470,7 @@ class HomeScreenTest {
             newRecordIds = setOf(3L)
         )
 
-        // 第一帧上它还没落地：新记录要先等上一批摆好
+        // 新记录要先等上一批摆好，所以第一帧上还没有它
         composeRule.onNodeWithText("新扫的酸奶").assertDoesNotExist()
 
         // 取样从半程开始：这一帧上旧条目正从上方滑过，取到的对比度是它的，不是新条目的
@@ -494,7 +488,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 新记录出现时，已在列表里的条目要从旧位置滑到新位置。
      * 位移的判据与淡入不同：淡入看对比度，位移看下面那条落在两点之间。
      * 新记录慢一帧进列表，正是让 LazyLayout 手里有一份「上一轮的位置」可比较；没有它，条目只会被直接画在最终位置上。
      */
@@ -579,7 +572,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 新记录出现时要淡入，同时把下面的条目推下去。
      * 判据与删除那条对称：取样点取原来第一条的缩略图中心，半程时既不是占位灰，也不是照片色。
      */
     @Test
@@ -672,8 +664,6 @@ class HomeScreenTest {
     }
 
     /**
-     * 顶栏的排序动作：点开是两张卡（两种排序），点其中一张把所选的方式报出去。
-     *
      * 当前那一项要标成选中：再打开面板时得认得出现在用的是哪种。顺带盯住这个动作在 overflow 之前。
      */
     @Test

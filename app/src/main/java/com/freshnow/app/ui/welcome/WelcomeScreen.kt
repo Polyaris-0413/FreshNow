@@ -288,7 +288,6 @@ internal fun WelcomeSteps(
                     }
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // 「上一步」从第 2 步起才在
                     AnimatedVisibility(
                         visible = pagerState.currentPage > 0,
                         enter = fadeIn(FreshNowTransitions.stateChange()),

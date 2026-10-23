@@ -237,7 +237,7 @@ internal fun SettingsList(
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
-        // 两行列表项，字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
+        // 字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
         // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
         ListItem(
             leadingContent = {
@@ -388,9 +388,6 @@ internal fun SettingsList(
     }
 }
 
-/**
- * 「基础配置」的编辑面板，承载在 [FreshNowBottomSheet] 内
- */
 @Composable
 private fun AiBasicConfigEditor(
     draft: AiBasicConfigDraft,
@@ -439,9 +436,6 @@ private fun AiBasicConfigEditor(
     }
 }
 
-/**
- * 「思考参数」的编辑面板，承载在 [FreshNowBottomSheet] 内
- */
 @Composable
 private fun ExtraRequestEditor(
     uiState: SettingsUiState,
