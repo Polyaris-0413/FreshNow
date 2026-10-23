@@ -25,7 +25,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * 一个要署名的开源项目。项目名与协议名都是专有名词，不进 strings.xml。
+ * 项目名与协议名都是专有名词，不进 strings.xml。
  */
 internal data class OpenSourceProject(
     val name: String,
@@ -59,7 +59,6 @@ private data class Scm(val url: String = "")
 private val licenseJson = Json { ignoreUnknownKeys = true }
 
 /**
- * 把 licensee 生成的 artifacts.json 逐条摊成页面上一行。
  * 一个依赖一行，不做任何归并：归并规则会随依赖变化而失真——少归一条就露出 groupId，归错就把不同的库
  * 说成同一个；逐条摊开之后，页面上有的东西与依赖图一一对应。
  * 代价是长，所以页面用 LazyColumn。解析不了就返回空列表：这份文件是构建期打到 APK 里的，读不出来说明包有问题，不值得让整页崩掉。
@@ -88,8 +87,6 @@ private const val LICENSE_ASSET = "app/cash/licensee/artifacts.json"
 private const val LICENSE_LOG_TAG = "FreshNowLicenses"
 
 /**
- * 开源声明：列出用到的每一个第三方依赖，点一行去它的仓库。
- *
  * 数据不是手写的：构建期由 licensee 插件按真实依赖图生成 artifacts.json 并打进 assets，
  * 这一页只负责摊开与展示。早先这里是一份手写常量表，引入依赖时没人记得同步（Ktor 与
  * kotlinx.serialization 就漏了 10 天），改完第一版又留了一组手写的归并规则；现在连规则也去掉了，

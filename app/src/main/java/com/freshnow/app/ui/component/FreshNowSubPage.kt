@@ -14,7 +14,6 @@ import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 
 /**
- * 二级页面骨架：分层顶栏 + 返回键，页面内容由 content 填充。
  * [actions] 是顶栏动作位（如编辑页的「保存」），默认没有动作
  */
 @Composable

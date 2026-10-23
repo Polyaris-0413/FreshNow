@@ -37,7 +37,7 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlinx.coroutines.launch
 
 /**
- * 关于：这个应用是什么、出处在哪。可调项不在这里，在设置页。
+ * 可调项不在这里，在设置页。
  *
  * 三个分区：应用（版本、检查更新）、项目（作者、仓库、问题反馈、群聊）、法律信息（开源声明）。
  * 版本号是「值」，放标题右端；说明性的文字才放下面——见各行的注释。
@@ -62,9 +62,6 @@ fun AboutScreen(
     var update by remember { mutableStateOf<LatestRelease?>(null) }
 
     /**
-     * 手动检查更新。三条出路各说一句：有新版本 → 弹对话框；没新版（含仓库还没发过版本）→
-     * 「已是最新版本」；没查成 → 一句提示。
-     *
      * 先报一声「正在检查更新…」：这一查要联网，快则一两秒、慢则十秒，不给提示的话按下去
      * 会以为按钮没反应。
      *
@@ -120,7 +117,7 @@ fun AboutScreen(
 }
 
 /**
- * 关于页的正文：三个分区与各行。不含导航与浏览器——那两件事由 [AboutScreen] 接上，
+ * 不含导航与浏览器——那两件事由 [AboutScreen] 接上，
  * 于是这里可以按定值直接断言（见 AboutScreenTest），不必验 intent。
  */
 @Composable
@@ -164,8 +161,8 @@ internal fun AboutList(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
-        // 检查更新：查 GitHub 上最新的 release。查成且有新版才弹对话框，其余两种情况各给一句
-        // 提示（见 AboutScreen.checkUpdate），本行的形态与其余各行一致
+        // 查成且有新版才弹对话框，其余两种情况各给一句提示（见 AboutScreen.checkUpdate），
+        // 本行的形态与其余各行一致
         ListItem(
             leadingContent = {
                 Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)

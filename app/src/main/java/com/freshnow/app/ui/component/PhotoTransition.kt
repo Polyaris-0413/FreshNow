@@ -12,7 +12,6 @@ import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
 /**
- * 照片缩略图与全屏看图之间共享元素的键。
  * 传的必须是**这张照片自己的标识**（[com.freshnow.app.ui.component.EditPhoto.id] 或详情页的下标），
  * 不能是「第几格」：设首图会交换格子位置，键按下标给的话重排那一帧同一个键就从一张图转到另一张上，
  * 框架把它当成一次共享元素飞行——用户看到的是图闪一下。
@@ -20,7 +19,7 @@ import com.freshnow.app.ui.theme.FreshNowTransitions
 internal fun photoKey(owner: Any): String = "recordPhoto-$owner"
 
 /**
- * 缩略图一侧的共享元素。详情页的主图、编辑页与扫描页的格子里都用它。
+ * 详情页的主图、编辑页与扫描页的格子里都用它。
  *
  * [visible] 由调用方管：看图打开期间缩略图这一侧隐形，图交给全屏那一份；关闭时再由它把图收回来
  * （两边的矩形不同，过渡就是那块矩形在飞）。调用方自己不去做 `visible` 的换算，三处才不会各算各的。
@@ -37,7 +36,6 @@ internal fun SharedTransitionScope.photoThumbnail(
 )
 
 /**
- * 全屏看图那一页：标题、返回箭头、手势与共享元素都接好，调用方只管什么时候把它放进组合。
  * 抽出来是因为它与缩略图那一侧必须用同一个键、同一套过渡参数，否则改一边就成了「飞进去很顺、飞回来是硬切」。
  * [visible] 一定要跟着开关走，不能恒为 true：关闭那一帧全屏与缩略图会同时在组合里，两边都自称可见时
  * 框架不知道图在哪一份手上，表现是图在两块矩形之间乱闪。全屏让出（false）、缩略图接过（true），

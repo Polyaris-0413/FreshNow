@@ -34,7 +34,7 @@ import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowSize
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
-/** 一条记录最多几张照片：九宫格放满为止。再多就变成相册了，记录页也放不下 */
+/** 九宫格放满为止。再多就变成相册了，记录页也放不下 */
 internal const val MAX_RECORD_IMAGES = 9
 
 private const val COLUMNS = 3
@@ -51,7 +51,6 @@ private const val ADD_KEY = "add-photo-tile"
 internal data class PhotoGridItem(val key: String, val image: Bitmap?)
 
 /**
- * 记录里的照片区：一格一张，末尾一格是「+」。
  * 一格两个手势：**点一下 = 看这张的大图**（与详情页同一套看图页）；**长按 = 问这张怎么办**（用作首图 / 移除）。
  * 分成两个手势是因为后果不同：看只是看，而移除会改草稿——前者不该需要确认，后者不该一下就做。
  * 不在格子上再压一枚 ✕：格子只有一百来 dp，角上叠一个按钮既难看又容易点错。整格一个动作之后，

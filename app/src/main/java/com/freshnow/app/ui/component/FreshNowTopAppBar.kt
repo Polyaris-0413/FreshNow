@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 /**
- * 全应用统一顶栏。
  * 标题是插槽而不是字符串：选中计数那类内容要在标题位置自己做动画（见 HomeScreen）；M3 的 TopAppBar 本身也是插槽。
  * TopAppBar 会给标题位置套上标题样式，调用方直接放 Text 即可。
  * containerColor 刻意与页面背景同色（background），不另设色调分层：页面切换带淡入淡出，

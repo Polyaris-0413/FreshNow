@@ -16,7 +16,7 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
 /**
- * 「标签 + 值」单行展示，空值统一显示为「未知」。
+ * 空值统一显示为「未知」。
  * 值的字阶取 Body Large、标签 Body Medium + onSurfaceVariant，与 M3 列表项的主/次要文本分工一致；
  * 行高为 M3 单行列表项的 56dp（上下各 16dp 内边距加正文行高）。
  * 值换掉时新旧两段交叉淡化，宽度一并跟动（「未知」与一个日期差得远）。
@@ -52,7 +52,7 @@ fun FreshNowFieldRow(
 }
 
 /**
- * 扫描值的统一显示规则：空值表示这一项没读到，显示为「未知」
+ * 空值表示这一项没读到，显示为「未知」
  */
 @Composable
 fun scanValueText(value: String): String = value.ifBlank { stringResource(R.string.scan_value_unknown) }

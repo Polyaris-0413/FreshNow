@@ -16,7 +16,6 @@ import com.freshnow.app.data.ExpiryOutcome
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 一次扫描的结果：品名单独成块放在最上面，下面三项日期与保质期拼接成一组。
  * 品名不与日期组相连（两块之间的间距大于日期组内部的间距），但块内排法与日期三项一致，都是标签在左、值在右；
  * 只有值的字阶用 titleMedium 略作强调，因为品名是这组结果的主语。
  * [location] 非 null 时（详情页）品名与位置拼成一组：品名回答「这是什么」，位置回答「它在哪」，
@@ -76,7 +75,7 @@ fun FreshNowResultFields(
 }
 
 /**
- * 品名块（以及跟着它的位置块）。[location] 为 null 时只有品名一块，四角都取规范给卡片类容器的 medium；
+ * [location] 为 null 时只有品名一块，四角都取规范给卡片类容器的 medium；
  * 非 null 时两块拼成一组，朝外的一侧取大圆角、相接的一侧取小圆角。
  */
 @Composable
@@ -114,7 +113,7 @@ private fun ProductNameBlock(
 }
 
 /**
- * 拼接中的单块：填充色与 M3 填充容器一致，左右内边距由容器给出，行本身只负责上下内边距
+ * 填充色与 M3 填充容器一致，左右内边距由容器给出，行本身只负责上下内边距
  */
 @Composable
 private fun FieldSegment(

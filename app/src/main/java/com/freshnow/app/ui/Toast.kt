@@ -4,7 +4,7 @@ import android.content.Context
 import android.widget.Toast
 
 /**
- * 短提示。用 Toast 而不是 Snackbar：全应用没有一处 SnackbarHost，
+ * 用 Toast 而不是 Snackbar：全应用没有一处 SnackbarHost，
  * 而这些提示都不承载可撤销的操作，为一句「已复制」在各页搭一套宿主不成比例。
  */
 fun showToast(context: Context, text: String) {

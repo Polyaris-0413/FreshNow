@@ -18,8 +18,6 @@ import com.freshnow.app.data.AiSettings
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 「AI 基础配置」三项的草稿与必填校验。
- *
  * 设置页的编辑面板与欢迎页的配置步骤共用这一份：字段、必填规则、落盘结果三处必须一致，
  * 各写一遍的话，日后改一处漏一处。
  */
@@ -50,7 +48,7 @@ data class AiBasicConfigDraft(
     val isValid: Boolean get() = !baseUrlError && !modelNameError && !apiKeyError
 
     /**
-     * 合成可落盘的配置：三项取 trim 后的值。思考链与思考参数不属于这份表单，从 [saved] 原样带过来
+     * 思考链与思考参数不属于这份表单，从 [saved] 原样带过来
      */
     fun toSettings(saved: AiSettings) = saved.copy(
         baseUrl = baseUrl.trim(),
@@ -60,7 +58,7 @@ data class AiBasicConfigDraft(
 }
 
 /**
- * 基础配置的三个输入项，不含标题与按钮：设置页把它放进编辑面板，欢迎页把它摆在配置步骤里。
+ * 设置页把它放进编辑面板，欢迎页把它摆在配置步骤里；标题与按钮由调用方给。
  */
 @Composable
 fun AiBasicConfigForm(

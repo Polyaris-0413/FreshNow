@@ -8,7 +8,6 @@ import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 
 /**
- * 长按一张照片之后：问这一张要怎么办。
  * 点一下只是看图（见 [PhotoGrid]），改照片得走长按——移除与设为首图都会改草稿，不该由手指滑过触发。
  * [canSetFirst] 为 false 时不给「用作首图」：长按的正好是第一张，留着那一项就是一个按下去什么都不会变的动作。
  * 用底部面板而不是对话框：M3 里打断式的对话框留给「不可撤销、或影响很大」的操作，而这里只是在草稿里

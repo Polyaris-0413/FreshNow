@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 列表项的两行文字：一行标题加一行说明。
  * 不把说明交给 ListItem 的 `supportingContent`，而是并进标题这一段：M3 的 ListItem 在说明折行时
  * **把整项当成三行**（判据是说明超过 30sp），三行布局里的图标与尾部内容都是**顶对齐**的。
  * 并成一段之后 ListItem 只看到一行内容，走两行以内的布局，图标与尾部内容才会垂直居中；
