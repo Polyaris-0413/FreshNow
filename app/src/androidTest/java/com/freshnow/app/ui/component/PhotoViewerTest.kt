@@ -23,7 +23,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 看图的版式与手势。
  * 手势没有可见结果可断言（缩放走 graphicsLayer，节点尺寸不变），所以用「照片占了多少像素」判：捏合后应当变多。
  */
 @RunWith(AndroidJUnit4::class)
@@ -34,7 +33,7 @@ class PhotoViewerTest {
 
     private var dismissed = 0
 
-    /** 单击关闭：全屏图不能点的话，用户会反复戳屏幕（微信、微博的看图页都是点一下退出） */
+    /** 全屏图不能点的话，用户会反复戳屏幕（微信、微博的看图页都是点一下退出） */
     @Test
     fun tappingClosesTheViewer() {
         setContent()
@@ -62,7 +61,6 @@ class PhotoViewerTest {
         setContent()
         val before = photoPixels()
 
-        // 两指从中间往两边拉开：放大
         composeRule.onRoot().performTouchInput {
             pinch(
                 start0 = center + Offset(-40f, 0f),
@@ -77,7 +75,7 @@ class PhotoViewerTest {
         assertTrue("捏合后照片应占更多像素：前 $before，后 $after", after > before)
     }
 
-    /** 下滑退出：没放大时纵向拖动超过阈值就关闭（微信、相册都是这个读法） */
+    /** 没放大时纵向拖动超过阈值就关闭（微信、相册都是这个读法） */
     @Test
     fun swipingDownDismissesTheViewer() {
         setContent()

@@ -25,8 +25,6 @@ import java.io.File
 import java.util.UUID
 
 /**
- * 两台设备之间的整条路：配对、交换、合并、取图。
- *
  * 两台「设备」跑在同一个进程里，但各自有独立的库、照片目录、身份文件与服务端口，中间走真实的
  * HTTP 往返（127.0.0.1）——除了不经过网线，协议那一段与真机上完全一样。共用任何一处存储都会让
  * 测出来的东西不再是同步逻辑：要验的正是「两边各自看到的状态不一样时会怎样」。
@@ -72,7 +70,7 @@ class SyncEngineTest {
         assertEquals(setOf("全麦面包"), deviceB.visible().map { it.productName }.toSet())
     }
 
-    /** 连着同步两次不该多出东西来。合并是幂等的，否则用户每点一次「同步」列表就长一截 */
+    /** 合并是幂等的，否则用户每点一次「同步」列表就长一截 */
     @Test
     fun syncingTwice_changesNothingMore() = runBlocking {
         deviceA.addRecord("纯牛奶")
@@ -312,7 +310,6 @@ class SyncEngineTest {
         assertEquals("发起方自己那台不算：它走的是另一条触发（自己那一轮跑完）", 0, deviceB.incomingSyncs)
     }
 
-    /** 没配对就去同步，对端必须回绝 */
     @Test
     fun syncingWithoutPairing_isRefused() = runBlocking {
         deviceA.addRecord("纯牛奶")
@@ -368,7 +365,7 @@ class SyncEngineTest {
 }
 
 /**
- * 测试里的一台设备：库、照片目录、身份文件、服务端全都自成一套。
+ * 库、照片目录、身份文件、服务端各自成套——共用任何一处就测不到“两边状态不一样”这件事。
  */
 private class TestDevice(label: String) {
 

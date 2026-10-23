@@ -17,8 +17,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 编辑页三个整屏状态之间的转场。
- *
  * 要验的是「这不是硬切」：转场中途新旧两页必须同时在（旧的还在退场、新的已经进来），而硬切的那一帧
  * 只会剩一个。真机上几百毫秒的窗口抢不到截图，所以这里把动画时钟握在手里逐帧推。
  *
@@ -38,12 +36,10 @@ class EditStepTransitionTest {
         composeRule.onNodeWithText(EDIT).assertExists()
 
         step = EditStep.Crop(Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888))
-        // 推进到转场中途
         composeRule.mainClock.advanceTimeBy(TRANSITION_MID_MS)
         composeRule.onNodeWithText(EDIT).assertExists()
         composeRule.onNodeWithText(CROP).assertExists()
 
-        // 走完转场，旧页收干净
         composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 3)
         composeRule.onNodeWithText(CROP).assertExists()
         composeRule.onNodeWithText(EDIT).assertDoesNotExist()

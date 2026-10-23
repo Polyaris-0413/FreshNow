@@ -15,8 +15,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 「AI 服务用不了」说明对话框：正文只教怎么用日志，确认位按处境换成复制或去设置。
- *
  * 只摆对话框本体：它的出现时机由 ScanViewModel 决定，而设备上要复现「服务连不上」得真的把
  * 配置写坏或断网，那属于用户手点的那一遍。
  */

@@ -56,7 +56,7 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("跳过").assertIsDisplayed()
     }
 
-    /** 第 1 步还什么都没走，进度条不该出现；第 2 步起才有 */
+    /** 第 2 步起才有 */
     @Test
     fun progressBarAppearsFromSecondStep() {
         setContent()
@@ -105,7 +105,7 @@ class WelcomeScreenTest {
         assertNotVisible("扫描时要用到相机")
     }
 
-    /** 往回滑也不换页：往回走只有「上一步」与系统返回键两条路 */
+    /** 往回走只有「上一步」与系统返回键两条路 */
     @Test
     fun swipingBackwardDoesNotChangeStep() {
         setContent()

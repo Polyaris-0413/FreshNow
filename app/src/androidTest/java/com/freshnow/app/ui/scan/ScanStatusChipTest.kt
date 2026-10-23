@@ -12,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 取景框左下角那个状态胶囊说什么。三种取值互斥，其中「没什么可说」必须真的什么都不显示——
+ * 三种取值互斥，其中「没什么可说」必须真的什么都不显示——
  * 空着一个实心胶囊摆在那儿，比不显示更像出了故障。
  */
 @RunWith(AndroidJUnit4::class)

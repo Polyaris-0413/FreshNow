@@ -14,8 +14,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 重复读入同一条记录不能动草稿。
- *
  * 屏幕旋转会重建本页，`LaunchedEffect` 跟着重跑一次 load，而 load 是一次整体替换：
  * 草稿会被库里的旧值盖回去，裁剪中还没保存的图也会被重置成 null、退回编辑步骤。
  */

@@ -11,8 +11,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 写法校验：三个字段一视同仁，空白不算错，认不出就不给保存。
- *
  * 只调 onXxxChange，不调 load / save：前者不碰库，后者会读写设备上应用自己的扫描记录。
  * （ViewModel 构造时会建 Room 实例，但 Room 是懒打开的——不发起查询就不会碰到数据库文件。）
  */
@@ -35,7 +33,7 @@ class RecordEditValidationTest {
         assertTrue("四项都空着也应当可以保存", state.canSave)
     }
 
-    /** 三个字段同一套规则：日期看能不能解析，保质期看单位与数量认不认得出 */
+    /** 三个字段同一套规则 */
     @Test
     fun unrecognizableWritingIsFlaggedEverywhere() {
         val vm = viewModel()

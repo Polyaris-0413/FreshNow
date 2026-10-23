@@ -23,7 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 转场未演完就再导航，那一下要等这一程演完，不能把动画挤掉。
+ * 转场未演完就再导航，不能把动画挤掉。
  * 判据同 EditStepTransitionTest：转场中途新旧两页同时在。硬切的那一帧只会剩一个——这就是「动画没了」
  * 在测试里的样子；真机上那一下黑闪是一两帧的事，抢不到截图。
  * 时钟握在手里（autoAdvance = false）逐帧推：350ms 的窗口只有这么推才停得住。
@@ -58,7 +58,6 @@ class SettledNavigatorTest {
         composeRule.mainClock.advanceTimeBy(TRANSITION_HALF_MS)
         composeRule.onNodeWithText(B).assertExists()
 
-        // 这一程还没演完就要去 C：不插队
         composeRule.runOnUiThread { navigator.navigate(C) }
         composeRule.mainClock.advanceTimeBy(TRANSITION_HALF_MS)
         composeRule.onNodeWithText(C).assertDoesNotExist()
@@ -68,7 +67,6 @@ class SettledNavigatorTest {
         awaitDestination(C)
         composeRule.onNodeWithText(B).assertExists()
 
-        // 再走完，旧的收干净
         composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 2)
         composeRule.onNodeWithText(C).assertExists()
         composeRule.onNodeWithText(B).assertDoesNotExist()
@@ -116,7 +114,6 @@ class SettledNavigatorTest {
         composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 4)
         composeRule.onNodeWithText(C).assertExists()
 
-        // 回退到 B：B 那条记录再一次 RESUMED
         composeRule.runOnUiThread { navController.popBackStack() }
         composeRule.mainClock.advanceTimeBy(TRANSITION_MS * 4)
 
@@ -124,8 +121,6 @@ class SettledNavigatorTest {
     }
 
     /**
-     * 一帧一帧推到 [text] 那一页出现为止。
-     *
      * 不按「推多久」写死：转场结束、延迟那一程出发、新页开始进场，这几步各有一两帧的调度延迟，
      * 写死时长就会把断言卡在边界上。
      */

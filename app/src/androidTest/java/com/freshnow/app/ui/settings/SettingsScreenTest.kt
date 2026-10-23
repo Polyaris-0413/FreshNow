@@ -15,8 +15,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 设置页只放可调项：AI、行为与调试。应用信息、项目入口、法律信息都在关于页（见 AboutScreenTest）。
- *
  * 只摆 [SettingsList] 本体（不含落盘与编辑面板）：走真实的 SettingsScreen 会连设备上真实的
  * DataStore，跑一次就把用户的 AI 配置覆盖掉——这一点 AiSettingsRepositoryTest 里已写明，
  * 这里同样避开。端到端那一遍留给用户手点。

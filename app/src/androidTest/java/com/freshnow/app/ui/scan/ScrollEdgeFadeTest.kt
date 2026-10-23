@@ -25,8 +25,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 滚动区的溢出提示：只在「还能往下滚」时出现。
- *
  * 这里摆的是真的滚动容器与真的 [androidx.compose.foundation.ScrollState]：要验的正是
  * `canScrollForward` 与显隐的对应关系，滚到底还挂着提示就是假话。
  */

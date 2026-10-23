@@ -16,7 +16,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 手动录入：空草稿，保存时是首次写入而非覆盖已有记录。
  * 走真实的库，但只碰本用例自己插进去的那条（按名字回收）。
  */
 @RunWith(AndroidJUnit4::class)
@@ -47,7 +46,7 @@ class ManualEntrySaveTest {
         assertTrue("填了一项就该放行", viewModel.uiState.value.canSave)
     }
 
-    /** 保存写进库的是新的一行，值走与模型入库同一套规整 */
+    /** 值走与模型入库同一套规整 */
     @Test
     fun savingDraft_insertsNewRecord() {
         val viewModel = RecordEditViewModel(application)

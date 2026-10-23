@@ -1,7 +1,7 @@
 package com.freshnow.app.data
 
 /**
- * 主页列表的排序方式。用户能选的就这两种，界面、落盘、排序三处都按它走。
+ * 用户能选的就这两种，界面、落盘、排序三处都按它走。
  */
 enum class SortOrder {
     /** 新存的在前（按保存时间倒序） */
@@ -26,7 +26,7 @@ data class BehaviorSettings(
     val manualEntry: Boolean = false,
 
     /**
-     * 列表的排序方式。默认按创建时间——那是列表本来的顺序（查库就是 savedAt 倒序），
+     * 默认按创建时间——那是列表本来的顺序（查库就是 savedAt 倒序），
      * 换成别的等于改了「刚存的那条在哪」，该由用户自己选。
      */
     val sortOrder: SortOrder = SortOrder.CREATED_AT

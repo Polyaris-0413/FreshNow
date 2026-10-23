@@ -35,7 +35,7 @@ class BehaviorSettingsRepositoryTest {
         File(dataStoreFile.absolutePath + ".tmp").delete()
     }
 
-    /** 没写过任何东西时是「关 + 创建时间」：手动录入是旁路，排序保持列表本来的顺序 */
+    /** 手动录入是旁路，排序保持列表本来的顺序 */
     @Test
     fun default_isOffAndCreatedOrder() = runBlocking {
         assertEquals(
@@ -53,7 +53,7 @@ class BehaviorSettingsRepositoryTest {
         assertEquals(settings, repository.behaviorSettings.first())
     }
 
-    /** 认不出的排序值回落到默认：改过枚举名、手改过配置文件都不该让整份设置读不出来 */
+    /** 改过枚举名、手改过配置文件都不该让整份设置读不出来 */
     @Test
     fun unknownSortOrder_fallsBackToCreatedOrder() = runBlocking {
         dataStore.edit { it[stringPreferencesKey("sort_order")] = "SOMETHING_ELSE" }

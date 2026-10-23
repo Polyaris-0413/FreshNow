@@ -27,9 +27,7 @@ import java.io.File
 import java.util.UUID
 
 /**
- * [ScanRecordRepository.localEdits]：哪几种写入要报「用户动了记录」。
- *
- * 同步那边靠它在一改动就主动推一轮（见 SyncCoordinator），所以这里钉的是两侧的边界：
+ * 同步靠 [ScanRecordRepository.localEdits] 在一改动就主动推一轮（见 SyncCoordinator），所以这里钉的是两侧的边界：
  * 用户来源的写入必须报，同步自己的回写与收尾清理不能报——后者报了，对端合并完再推回来，
  * 两台设备就会互相推个没完，而错处极难在真机上看出来（表现只是「同步好像一直在跑」）。
  *
@@ -136,7 +134,6 @@ class ScanRecordRepositoryEditSignalTest {
     }
 
     /**
-     * 订阅 [ScanRecordRepository.localEdits] 并把收到的事件丢进 channel。
      * 必须用 UNDISPATCHED：流是 replay=0 的广播，订阅要赶在下一行之前生效，晚一步就漏掉整次写入。
      */
     private fun watchEdits(): Channel<Unit> {
@@ -147,7 +144,7 @@ class ScanRecordRepositoryEditSignalTest {
         return received
     }
 
-    /** 短窗口内收到几个事件。窗口取 200ms：写入是本地库操作，事件就在同一个调用里发出 */
+    /** 窗口取 200ms：写入是本地库操作，事件就在同一个调用里发出 */
     private suspend fun drain(edits: Channel<Unit>): Int {
         var count = 0
         while (withTimeoutOrNull(200) { edits.receive() } != null) count++

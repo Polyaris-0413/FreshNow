@@ -22,8 +22,6 @@ import java.io.File
 import java.util.UUID
 
 /**
- * 换照片这条路的落盘顺序：新文件 → 改行。
- *
  * 顺序错了（比如先删旧图再写新图）不会立刻报错，只在某一步失败时把照片永久弄丢，所以这里逐条
  * 钉住「改完之后库里指着谁、磁盘上还剩谁」。
  *
@@ -96,7 +94,7 @@ class ScanRecordRepositoryImageTest {
         assertNotNull("另一条记录还在用这张图，文件必须留着", store.find(alsoShared.imageName))
     }
 
-    /** 本来就没照片的记录也能换：旧文件名是空串，删它不算失败 */
+    /** 旧文件名是空串，删它不算失败 */
     @Test
     fun replace_onRecordWithoutImage_works() = runBlocking {
         val saved = insertWithPhoto(withPhoto = false)
@@ -112,7 +110,7 @@ class ScanRecordRepositoryImageTest {
         assertNotNull(store.find(updated.imageName))
     }
 
-    /** 移除：行里的照片名清空，界面据此显示占位图。文件还留着，直到清理确认没人要 */
+    /** 文件还留着，直到清理确认没人要 */
     @Test
     fun remove_clearsTheName() = runBlocking {
         val saved = insertWithPhoto()
@@ -123,7 +121,7 @@ class ScanRecordRepositoryImageTest {
         assertEquals("", updated.imageName)
     }
 
-    /** 不换照片时文件原样留着：这一路只改文字字段 */
+    /** 这一路只改文字字段 */
     @Test
     fun keep_leavesThePhotoAlone() = runBlocking {
         val saved = insertWithPhoto()
@@ -152,7 +150,7 @@ class ScanRecordRepositoryImageTest {
         assertNull("没人引用的照片要收走", store.find(orphan))
     }
 
-    /** 墓碑记录的照片在保留期内不算孤儿：行还指着它，清理时按引用数一条条比对 */
+    /** 行还指着它，所以清理时按引用数一条条比对 */
     @Test
     fun reconcileImages_keepsPhotosOfTombstonedRecords() = runBlocking {
         val record = insertWithPhoto()
@@ -322,7 +320,7 @@ class ScanRecordRepositoryImageTest {
         updated.imageNames.forEach { assertNotNull("这一张还有人要：$it", store.find(it)) }
     }
 
-    /** 插一条记录。照片按应用自己的写法落盘，于是这里测的是「编辑时换照片」那一段 */
+    /** 照片按应用自己的写法落盘，于是这里测的是「编辑时换照片」那一段 */
     private suspend fun insertWithPhoto(withPhoto: Boolean = true): ScanRecord {
         val id = database.scanRecordDao().insert(
             ScanRecord(

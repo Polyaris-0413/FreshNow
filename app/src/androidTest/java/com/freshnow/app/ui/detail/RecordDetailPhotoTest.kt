@@ -33,7 +33,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 /**
- * 详情页的照片能点开看图。走真的库与真的图片文件（同 RecordEditReloadTest 的口径）：这一条验的正是「界面把两件事接上」，
+ * 走真的库与真的图片文件（同 RecordEditReloadTest 的口径）：这一条验的正是「界面把两件事接上」，
  * 用假数据就绕过了要验的那一段。
  */
 @RunWith(AndroidJUnit4::class)
@@ -157,8 +157,6 @@ class RecordDetailPhotoTest {
     }
 
     /**
-     * 多于一张时：右下角有页码，横滑一下能翻到下一张。
-     *
      * 页码是缩略图那排的替身：既不占正文的版面，又回答了「共有几张」——少了它，
      * 用户不知道那边还能滑。
      */
@@ -193,7 +191,6 @@ class RecordDetailPhotoTest {
     }
 
     /**
-     * 一张照片都没有时是占位图，而且点不开看图页（看图页里没有任何图可看）。
      * 这是 Review Focus 里那条「0 张照片」：老记录、用户把图全删了、同步来的一条没图，
      * 三种情形在这一页长得一样。
      */
@@ -212,8 +209,6 @@ class RecordDetailPhotoTest {
     }
 
     /**
-     * 造一条带照片的记录：图片走真的 ScanImageStore（名字就是内容散列），记录进真的库。
-     *
      * 多张时每张颜色不同：内容寻址下同色的图会算出同一个名字，那条记录其实只有一张。
      */
     private fun seedRecordWithPhoto(count: Int = 1) {

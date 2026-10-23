@@ -16,8 +16,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 「这次的内容还没存」那一问：正文说的是代价（会丢），两个出入口分别是「保存」与「不保存」。
- *
  * 出现时机由各页自己判（编辑页那条判据在 JVM 测试里逐条盖过，见 RecordEditUnsavedChangesTest），
  * 这里验的是组件本身的三个出入口各自通到哪儿。文案由调用方给，所以扫描页那份也从这里过一遍。
  */

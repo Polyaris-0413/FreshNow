@@ -19,7 +19,7 @@ import kotlinx.serialization.json.put
 data class AiAnalysis(val result: ScanResult, val reasoning: String)
 
 /**
- * 调用 OpenAI 兼容的 /chat/completions 接口，把一帧 JPEG 交给带识图能力的模型并解析出日期字段
+ * 走 OpenAI 兼容的 /chat/completions 接口
  */
 class AiVisionClient {
 
@@ -76,8 +76,6 @@ class AiVisionClient {
     }
 
     /**
-     * 把用户自定义的附加参数并进请求体。
-     *
      * 思考开关各家字段名与取值都不一样（OpenAI 系是 reasoning_effort，DeepSeek / 智谱 / 火山是 thinking 对象，
      * 通义是 enable_thinking），服务商自己也不提供"支持哪些参数"的元数据，所以这里不替用户猜，
      * 只把他写的原样带上；写坏了（不是合法 JSON）等同于没填。
@@ -123,7 +121,7 @@ class AiVisionClient {
         )
     }
 
-    /** 取字段文本：与 org.json 的 optString 同一套规矩——缺失与 null 为空串，对象/数组取其 JSON 文本 */
+    /** 与 org.json 的 optString 同一套规矩——缺失与 null 为空串，对象/数组取其 JSON 文本 */
     private fun JsonObject.text(key: String): String = when (val value = this[key]) {
         null, is JsonNull -> ""
         is JsonPrimitive -> value.content
@@ -131,7 +129,7 @@ class AiVisionClient {
     }
 
     /**
-     * 模型常把 JSON 包在 ``` 代码块或多余文字里，这里取首尾花括号之间的内容
+     * 模型常把 JSON 包在 ``` 代码块或多余文字里
      */
     private fun extractJsonObject(text: String): JsonObject? {
         val start = text.indexOf('{')

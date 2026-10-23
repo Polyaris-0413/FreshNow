@@ -27,7 +27,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 按下快门那一下，取景框要收一下再弹回来。
  * 判据取边缘一小块像素：收缩时露出页面底色，说明收过又回来了。
  * 不能用 bounds：缩放是绘制期变换，语义节点的 bounds 全程不变。
  */

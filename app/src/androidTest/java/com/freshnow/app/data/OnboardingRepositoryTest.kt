@@ -36,7 +36,7 @@ class OnboardingRepositoryTest {
         File(dataStoreFile.absolutePath + ".tmp").delete()
     }
 
-    /** 装完还没走过引导：默认必须是「没看过」，否则欢迎页永远不会出现 */
+    /** 默认必须是「没看过」，否则欢迎页永远不会出现 */
     @Test
     fun freshInstall_hasNotSeenWelcome() = runBlocking {
         assertFalse(repository.welcomeSeen.first())

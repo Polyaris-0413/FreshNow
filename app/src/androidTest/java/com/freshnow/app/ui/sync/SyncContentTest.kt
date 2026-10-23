@@ -74,7 +74,6 @@ class SyncContentTest {
             "半程应当还在过渡，不是一步到位：before=$before middle=$middle after=$after",
             middle in 1 until after
         )
-        // 收尾：旧的那句要走干净
         composeRule.onNodeWithText(outgoing).assertDoesNotExist()
     }
 

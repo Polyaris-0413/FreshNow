@@ -11,7 +11,7 @@ import org.junit.runner.RunWith
 
 /**
  * 图标「编译通过但不显示」的坑见 AGENTS.md（Material Symbols 的 SVG 视口从 -960 起）。
- * 这类错误只有真的画一次才看得见，所以这里只断言结果：图标画进位图后，视口内至少有一个点亮的像素。
+ * 这类错误只有真的画一次才看得见，所以断言的是画出来的结果，而不是 vector 定义。
  */
 @RunWith(AndroidJUnit4::class)
 class IconVectorTest {

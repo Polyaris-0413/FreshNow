@@ -19,8 +19,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 草稿里「用作首图」的那一张，保存之后仍在第一位。
- *
  * 这是整条链路的接缝：草稿是一个列表（挪一下就行），而落盘时新加的照片默认接在旧照片后面
  * （见 ImageChange.Update.leadingAdded）。少了这一项，界面上看着改了，重进记录又变回去——
  * 用户会以为这个动作根本没生效。

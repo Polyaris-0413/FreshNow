@@ -30,7 +30,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 编辑表单：五项都在、改动能传出去、写错了怎么报、过期日期的来源交代清楚。
  * 位置也在这张表单里（补充信息页那份改的是同一条记录）：详情页只有「编辑」一个入口，位置若只归补充信息页，从那儿就再也改不了。
  * 只摆表单本体：要盯的是「留空即跟随推算」「失焦之后才报」「打开就写错的旧值当场报」。
  */
@@ -50,7 +49,7 @@ class RecordEditFormTest {
         }
     }
 
-    /** 位置排在名称下面，与详情页一致：名称说这是什么、位置说它在哪，两句是一件事 */
+    /** 名称说这是什么、位置说它在哪，两句是一件事，与详情页同一个次序 */
     @Test
     fun locationSitsRightBelowTheName() {
         setContent()
@@ -64,7 +63,7 @@ class RecordEditFormTest {
     }
 
     /**
-     * 照片区空着时也要在：新记录就是从这里开始加图的
+     * 新记录就是从这里开始加图的
      */
     @Test
     fun showsPhotoField() {
@@ -90,7 +89,7 @@ class RecordEditFormTest {
         composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(3)
     }
 
-    /** 一张都没有时照片区仍有那格「+」：新记录就是这样开始加图的 */
+    /** 新记录就是这样开始加图的 */
     @Test
     fun emptyPhotoAreaStillOffersAdd() {
         setContent(uiState = EMPTY.copy(photos = emptyList()))
@@ -150,7 +149,7 @@ class RecordEditFormTest {
         assertEquals(listOf("牛奶"), changed)
     }
 
-    /** 位置同样能改：详情页只有「编辑」一个入口，靠这里改 */
+    /** 详情页只有「编辑」一个入口，位置靠这里改 */
     @Test
     fun typingLocationReportsNewValue() {
         val changed = mutableListOf<String>()
@@ -161,7 +160,7 @@ class RecordEditFormTest {
         assertEquals(listOf("冰箱冷藏室"), changed)
     }
 
-    /** 过期日期留空时，推算结果显示在同一屏里——这正是编辑页存在的理由 */
+    /** 推算结果显示在同一屏里——这正是编辑页存在的理由 */
     @Test
     fun blankExpiryShowsDerivedDate() {
         setContent(uiState = EMPTY.copy(derivedExpiry = ExpiryOutcome.Resolved("2027-04-01")))
@@ -169,7 +168,7 @@ class RecordEditFormTest {
         composeRule.onNodeWithText("2027-04-01", substring = true).assertIsDisplayed()
     }
 
-    /** 填了值就是标签印刷值，以它为准，推算提示收起来免得两种说法并存 */
+    /** 推算提示收起来，免得两种说法并存 */
     @Test
     fun filledExpiryHidesDerivedHint() {
         setContent(
@@ -225,7 +224,6 @@ class RecordEditFormTest {
 
         // 已经认不出了，但人还没离开这个字段 → 不报
         composeRule.onNodeWithText(UNRECOGNIZED, substring = true).assertDoesNotExist()
-
         // 换到下一个字段即失焦 → 这时才报
         composeRule.onNodeWithText("保质期").performClick()
         composeRule.onNodeWithText(UNRECOGNIZED, substring = true).assertIsDisplayed()
@@ -289,7 +287,7 @@ class RecordEditFormTest {
         }
     }
 
-    /** 草稿里的一张照片。这里只看格子在不在，所以名字与字节都不给 */
+    /** 这里只看格子在不在，所以名字与字节都不给 */
     private fun photo(id: Long) = EditPhoto(id = id)
 
     private companion object {

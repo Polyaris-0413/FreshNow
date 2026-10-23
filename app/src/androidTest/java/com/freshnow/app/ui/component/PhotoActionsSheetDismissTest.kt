@@ -19,7 +19,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 照片动作面板：给哪些动作、动手之前先收起。
  * 收起不能省：直接把这页从组合里拿掉，收起动画没机会播，同一个 SheetState 停在展开态，
  * 下次打开时 `show()` 立刻完成，弹入动画就此消失（用户看到的是「删掉一张、马上点另一张，第二片面板突然冒出来」）。
  */
@@ -117,7 +116,6 @@ class PhotoActionsSheetDismissTest {
         composeRule.onNodeWithText(REMOVE).performClick()
         composeRule.mainClock.advanceTimeBy(2_000)
 
-        // 再点另一张：同一个 state 重新弹一片
         showSheet = true
         composeRule.waitForIdle()
 

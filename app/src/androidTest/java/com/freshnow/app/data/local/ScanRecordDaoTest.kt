@@ -15,7 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 记录的写入路径：删除那段事务、以及编辑时的整行覆盖。用内存库，不碰设备上应用自己的记录。
+ * 用内存库，不碰设备上应用自己的记录。
  */
 @RunWith(AndroidJUnit4::class)
 class ScanRecordDaoTest {
@@ -90,7 +90,7 @@ class ScanRecordDaoTest {
     }
 
     /**
-     * 时刻晚的赢。这是两端都改了同一条时谁说了算的判据。
+     * 这是两端都改了同一条时谁说了算的判据。
      */
     @Test
     fun merge_letsTheLaterMomentWin() = runBlocking {
@@ -177,7 +177,7 @@ class ScanRecordDaoTest {
     }
 
     /**
-     * 删除也是一种版本：墓碑带着更晚的时刻过来，就要盖住本地那条还活着的。
+     * 删除也是一种版本。
      */
     @Test
     fun merge_letsALaterTombstoneWin() = runBlocking {

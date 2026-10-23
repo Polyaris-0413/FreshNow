@@ -17,8 +17,6 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * 「本次更新不再提醒」记的是哪一个版本。
- *
  * 用临时文件建 DataStore：拿设备上真实的设置做测试会把用户已忽略的版本覆盖掉
  * （与 AiSettingsRepositoryTest 同一个理由）。
  */

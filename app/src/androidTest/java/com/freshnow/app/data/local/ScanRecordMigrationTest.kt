@@ -10,7 +10,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * v3 → v4、v4 → v5 的迁移。
  * 迁移只在用户升级那一刻跑一次，写错了一年也不会有第二个用户来撞见——而它撞上的是「记录全没了」。
  * 所以用 Room 的迁移测试助手：先建一个真的旧版库、塞进记录，再跑迁移，最后按新版表结构校验一遍。
  * 与 ScanRecordDaoTest 同样用测试专用的库名，不碰设备上应用自己的库。
@@ -24,7 +23,7 @@ class ScanRecordMigrationTest {
         FreshNowDatabase::class.java
     )
 
-    /** 老记录必须原样活下来，并且拿到一个身份——没有 syncId 的记录在同步里等于不存在 */
+    /** 没有 syncId 的记录在同步里等于不存在 */
     @Test
     fun migrate3To4_keepsRecordsAndGivesThemAnIdentity() {
         helper.createDatabase(TEST_DATABASE, 3).use { database ->

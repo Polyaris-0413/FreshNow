@@ -18,8 +18,6 @@ import java.io.File
 import java.util.UUID
 
 /**
- * 扫描保存交回新记录的 id，以及这一次写入里都落了什么。
- *
  * 【为什么盯它】开关打开时扫描页凭这个 id 进到这条记录的表单去补填位置。给不出 id 就补填不了；
  * 而更要紧的是「照片在这一步就落盘了」——补填位置是加分项，照片没跟着落下来是减分项。
  *
@@ -67,7 +65,7 @@ class ScanSaveTest {
         assertEquals("纯牛奶", saved.productName)
     }
 
-    /** 照片与文字是同一次写入。补填位置那一步在它之后，所以照片不靠那一步 */
+    /** 补填位置那一步在它之后，所以照片不靠那一步 */
     @Test
     fun save_writesThePhotoInTheSameWrite() = runBlocking {
         val id = repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = listOf(PHOTO))
@@ -76,7 +74,7 @@ class ScanSaveTest {
         assertNotNull("照片要真的在磁盘上", store.find(saved.imageName))
     }
 
-    /** 位置由表单补填，保存这一刻还没有它；这里钉住它不会从别处被填成什么 */
+    /** 位置由表单补填，保存这一刻还没有它；也钉住它不会从别处被填成什么 */
     @Test
     fun save_leavesLocationEmpty() = runBlocking {
         val id = repository.save(ScanResult(productName = "纯牛奶"), location = "", frames = listOf(PHOTO))

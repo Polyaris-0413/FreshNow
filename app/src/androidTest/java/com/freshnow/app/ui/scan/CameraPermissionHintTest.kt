@@ -12,8 +12,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 没有相机权限时的空态：两种形态文案与按钮各不同，动作都由调用方给。
- *
  * 只摆空态本体：它出现在取景框里，而「什么时候算永久拒绝」由 ScanScreen 按系统接口判定
  * （要复现得把系统弹窗连拒两次），这里只验形态。
  */

@@ -23,7 +23,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 照片块在「有图」与「没图」时占同一块地方：两种情形都是正方形。
  * 判据取「宽高相等」而不是某个具体 dp：宽度随屏幕铺满、高度跟着宽度走，钉住数值只会把版式写死；
  * 容差是给像素取整留的。
  * 量的必须是**整块**：语义挂在占位块上（见 ScanPhoto），若改挂到里面那枚 48dp 图标上，这里量到的就成了
@@ -44,7 +43,7 @@ class ScanPhotoTest {
         assertSquare(composeRule.onNodeWithContentDescription(MISSING).getBoundsInRoot())
     }
 
-    /** 有图时的照片块（图片本身在落盘前已裁方，见 ScanImageCodec.kt） */
+    /** 图片本身在落盘前已裁方，见 ScanImageCodec.kt */
     @Test
     fun photoIsSquare() {
         setContent { square(Color.RED) }
@@ -111,7 +110,6 @@ class ScanPhotoTest {
     }
 
     /**
-     * 照片那一块的像素；还没图返回 null。
      * 用 IntArray 不用 List：铺满宽的百万级像素装箱会把测试自己 OOM 掉。
      */
     private fun photoPixels(): IntArray? {

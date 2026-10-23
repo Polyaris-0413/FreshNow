@@ -103,7 +103,6 @@ class HomeScreenTest {
         composeRule.onNodeWithText("今天到期").assertIsDisplayed()
         composeRule.onNodeWithText("苏打饼干").assertIsDisplayed()
         composeRule.onNodeWithText("已过期 3 天").assertIsDisplayed()
-        // 阈值边界本身也算快过期
         composeRule.onNodeWithText("还剩 2 天").assertIsDisplayed()
         composeRule.onNodeWithText("还剩 3 天").assertIsDisplayed()
         // 品名为空的记录不能是一片空白
@@ -127,7 +126,7 @@ class HomeScreenTest {
         composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(2)
     }
 
-    /** 一条记录都没有时要给一句话。空态现在也是列表里的一个条目（见 RecordsList），别被列表吃掉 */
+    /** 空态现在也是列表里的一个条目（见 RecordsList），别被列表吃掉 */
     @Test
     fun emptyRecordList_showsEmptyHint() {
         setContent(emptyList())
@@ -156,7 +155,7 @@ class HomeScreenTest {
         assertEquals(listOf(1L), opened)
     }
 
-    /** 选择模式里点按改为切换选中：此时点一下是为了加选，不该跳去详情 */
+    /** 此时点一下是为了加选，不该跳去详情 */
     @Test
     fun tapInSelectionMode_togglesInsteadOfOpeningDetail() {
         val opened = mutableListOf<Long>()
@@ -229,7 +228,6 @@ class HomeScreenTest {
             (0 until bitmap.width).any { x -> isPrimary(bitmap.getPixel(x, y)) }
         }
 
-        // 两段，而不是挤在一起的一段
         assertEquals(2, countRuns(hasOutline))
     }
 
@@ -244,7 +242,6 @@ class HomeScreenTest {
 
         onCountNode(1).assertIsDisplayed()
 
-        // 停掉自动推进，改完状态把时钟停在动画走到一半的位置
         composeRule.mainClock.autoAdvance = false
         composeRule.runOnUiThread { selectedIds.value = setOf(1L, 2L) }
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
@@ -290,7 +287,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val middle = composeRule.onNodeWithText("酸奶").getBoundsInRoot().top
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
         val end = composeRule.onNodeWithText("酸奶").getBoundsInRoot().top
         composeRule.mainClock.autoAdvance = true
@@ -334,7 +330,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS / 2)
         val middle = samplePixel()
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
         val after = samplePixel()
         composeRule.mainClock.autoAdvance = true
@@ -369,7 +364,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val middle = composeRule.maxContrast(region)
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
         val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
@@ -409,7 +403,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS)
         val middle = composeRule.maxContrast(region)
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
         val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
@@ -460,7 +453,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val middle = composeRule.maxContrast(region)
 
-        // 越过整段时长，它该到终态
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_MS * 2)
         val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
@@ -491,7 +483,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(DEFER_FRAME_MS + STATE_CHANGE_HALF_MS)
         val middle = composeRule.maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
         val end = composeRule.maxContrast(composeRule.onNodeWithText("新扫的酸奶").getBoundsInRoot())
         composeRule.mainClock.autoAdvance = true
@@ -522,11 +513,9 @@ class HomeScreenTest {
         // 第一帧上只有上一批，旧条目还在上面的旧位置
         val start = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot().top
 
-        // 让新记录进场，再走半程
         composeRule.mainClock.advanceTimeBy(DEFER_FRAME_MS + STATE_CHANGE_HALF_MS)
         val middle = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot().top
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
         val end = composeRule.onNodeWithText("纯牛奶").getBoundsInRoot().top
         composeRule.mainClock.autoAdvance = true
@@ -553,7 +542,6 @@ class HomeScreenTest {
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS)
         val middle = composeRule.maxContrast(region)
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
         val end = composeRule.maxContrast(region)
         composeRule.mainClock.autoAdvance = true
@@ -629,7 +617,6 @@ class HomeScreenTest {
         val middle = samplePixel()
         val pushedMiddle = composeRule.onNodeWithText("苏打饼干").getBoundsInRoot().top
 
-        // 再走一段，越过整段时长让动画收尾
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS * 2)
         val after = samplePixel()
         val pushedEnd = composeRule.onNodeWithText("苏打饼干").getBoundsInRoot().top

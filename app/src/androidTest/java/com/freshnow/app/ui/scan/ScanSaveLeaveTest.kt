@@ -17,10 +17,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 补充信息态按下保存之后，页面就此离开——不能先演一遍翻回扫描态的转场。
- *
- * 那一下转场是整屏的（[ScanStep.Scanning] 排在 [ScanStep.Editing] 之前），相机重新展开、两屏
- * 各叠半程，随后才被 pop 回主页；用户看到的就是「保存后先回扫描页，再回主页」。
+ * 不能先演一遍翻回扫描态的转场：那一下是整屏的（[ScanStep.Scanning] 排在 [ScanStep.Editing] 之前），
+ * 相机重新展开、两屏各叠半程，随后才被 pop 回主页；用户看到的就是「保存后先回扫描页，再回主页」。
  *
  * 走真实的库，但只碰本用例自己写进去的那条（按名字回收）。
  */

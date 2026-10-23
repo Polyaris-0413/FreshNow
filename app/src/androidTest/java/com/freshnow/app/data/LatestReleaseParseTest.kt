@@ -7,7 +7,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * release 返回的解析。放在仪器化测试里是因为 org.json 是平台类，JVM 单测里只有桩（同 AiVisionClientTest）。
+ * 放在仪器化测试里是因为 org.json 是平台类，JVM 单测里只有桩（同 AiVisionClientTest）。
  *
  * 取不出版本号就等于没查成：宁可当失败说一句「检查更新失败」，也不能拿一个空版本号去比大小
  * ——那会静默地得出「已是最新」，而用户以为自己查过了。
@@ -31,7 +31,7 @@ class LatestReleaseParseTest {
         assertEquals("https://github.com/Polyaris-0413/FreshNow/releases/tag/v1.0.1", release.htmlUrl)
     }
 
-    /** 接口没给 html_url 时退回发布页：对话框的「下载」不能因为少个字段就变成一个没反应的按钮 */
+    /** 对话框的「下载」不能因为少个字段就变成一个没反应的按钮 */
     @Test
     fun withoutHtmlUrl_fallsBackToReleasesPage() {
         val release = requireNotNull(parseLatestRelease("""{"tag_name":"v1.0.1"}""", FALLBACK_URL))
@@ -40,7 +40,7 @@ class LatestReleaseParseTest {
     }
 
     /**
-     * 有安装包资产时「下载」走直链：发布页还要用户自己找 release、再找附件，直链一点就下。
+     * 直链省掉「自己在发布页里找 release、再找附件」那一步。
      *
      * 资产里的非 apk（校验和、源码包）不能被当成安装包：点下去下回来一个 txt，用户拿到手里没法装。
      */
@@ -68,8 +68,7 @@ class LatestReleaseParseTest {
     }
 
     /**
-     * 这个 release 没传 apk（或根本没传资产）时退回发布页：发布页至少能看能点，
-     * 而拼一个不存在的直链会把用户送到 404。
+     * 发布页至少能看能点，而拼一个不存在的直链会把用户送到 404。
      */
     @Test
     fun withoutApkAsset_downloadFallsBackToPage() {

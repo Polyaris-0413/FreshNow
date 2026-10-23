@@ -10,7 +10,6 @@ import androidx.compose.ui.unit.DpRect
 import kotlin.math.abs
 
 /**
- * 动画中途的取样工具，各页测试共用。
  * 只能数像素：淡出中的条目已不在语义树里，`onNodeWithText` 这类断言问不出来。
  * 判据一律比「通道差」，不把具体色值写进断言——配色是设计源的事。
  */
@@ -24,7 +23,7 @@ internal fun channelDifference(a: Int, b: Int): Int = maxOf(
 
 internal fun differs(a: Int, b: Int): Boolean = channelDifference(a, b) > CHANNEL_TOLERANCE
 
-/** 该区域里与页面底色差得最远的那个像素差多少：文字淡入时它会从 0 涨到最终值 */
+/** 文字淡入时它会从 0 涨到最终值 */
 internal fun ComposeTestRule.maxContrast(region: DpRect): Int {
     val bitmap = onRoot().captureToImage().asAndroidBitmap()
     val background = bitmap.getPixel(0, bitmap.height - 1)
@@ -43,7 +42,7 @@ internal fun ComposeTestRule.maxContrast(region: DpRect): Int {
     return max
 }
 
-/** 这条 y 带内有没有画了东西的像素：装饰图形没有语义节点，只能这样验收 */
+/** 装饰图形没有语义节点，只能这样验收 */
 internal fun ComposeTestRule.drawsSomethingBetween(top: Dp, bottom: Dp): Boolean {
     val bitmap = onRoot().captureToImage().asAndroidBitmap()
     val background = bitmap.getPixel(0, bitmap.height - 1)

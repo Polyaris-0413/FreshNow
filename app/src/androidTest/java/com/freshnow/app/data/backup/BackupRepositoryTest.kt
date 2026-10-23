@@ -23,8 +23,6 @@ import java.io.File
 import java.util.UUID
 
 /**
- * 备份的完整一路：本机库与照片目录 → 文件 → 另一台设备的库与照片目录。
- *
  * 两台「设备」各有独立的库、照片目录与身份，装在同一台测试机上——与 SyncEngineTest 同一套
  * 安排。要验的正是「换机、重装」这种跨设备的情形，共用任何一处存储都测不到它。
  */
@@ -133,7 +131,6 @@ class BackupRepositoryTest {
         deviceB.records.mergeAll(listOf(inA))
         assertEquals(1, deviceB.visible().size)
 
-        // A 删掉它，再把删除后的状态导出
         deviceA.records.delete(listOf(inA.id))
         deviceB.backup.restoreFrom(ByteArrayInputStream(deviceA.export()))
 
