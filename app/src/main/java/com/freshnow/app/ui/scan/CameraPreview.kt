@@ -293,6 +293,6 @@ private fun ImageProxy.toUprightJpeg(): ByteArray? {
 
     // 取景框是正方形、预览也是居中裁剪填满的，所以整帧同样裁成中间的正方形：
     // 看到什么就存什么、也就识别什么，三者画面一致。裁方、缩放、压缩与相册那条路共用
-    // ScanImageCodec，规格只有一份
+    // ScanImageCodec.kt 里的同一套，规格只有一份
     return upright.toSquareJpegBytes().also { upright.recycle() }
 }

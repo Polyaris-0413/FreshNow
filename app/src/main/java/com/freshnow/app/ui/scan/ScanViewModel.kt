@@ -68,7 +68,7 @@ data class ScanUiState(
     val cropSource: Bitmap? = null,
     /** 取景框里那枚状态胶囊该说什么，见 [ScanStatus] */
     val status: ScanStatus = ScanStatus.Hidden,
-    /** 服务用不了时该弹出的说明对话框；null 表示不弹 */
+    /** 服务用不了时该弹出的说明对话框 */
     val serviceProblem: ServiceProblem? = null,
     /** 这一次已经提交落库、正等着离开这一页（见 [ScanViewModel.save]）*/
     val saving: Boolean = false
@@ -98,7 +98,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /** 那句「正在识别…」的计时器；请求回来就把这件事作废 */
     private var statusJob: Job? = null
 
-    /** 编辑态草稿照片的 id 发到哪儿了。只在草稿内部流转 */
+    /** 编辑态草稿照片的 id 发到哪儿了 */
     private var nextPhotoId = 0L
 
     private val _uiState = MutableStateFlow(ScanUiState())
@@ -183,7 +183,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         publishStatus(ScanStatus.of(observation))
     }
 
-    /** 报给停留器，由它定下画面要不要改 */
     private fun publishStatus(wanted: ScanStatus) {
         statusDwell.offer(SystemClock.elapsedRealtime(), wanted)?.let { shown ->
             _uiState.update { it.copy(status = shown) }
@@ -311,7 +310,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 拍到的照片。相机给的字节已经是正方形 JPEG（与扫描抓帧同一套规格，见 ScanImageCodec），
+     * 拍到的照片。相机给的字节已经是正方形 JPEG（与扫描抓帧同一套规格，见 ScanImageCodec.kt），
      * 所以不必过裁剪页。
      */
     fun onPhotoCaptured(jpeg: ByteArray) {

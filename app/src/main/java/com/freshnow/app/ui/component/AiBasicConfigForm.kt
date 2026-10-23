@@ -101,9 +101,6 @@ fun AiBasicConfigForm(
     }
 }
 
-/**
- * 必填文本项，仅在未填时给出错误文案
- */
 @Composable
 private fun RequiredTextField(
     value: String,

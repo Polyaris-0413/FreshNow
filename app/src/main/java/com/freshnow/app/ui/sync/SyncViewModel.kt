@@ -34,7 +34,6 @@ internal class SyncViewModel(application: Application) : AndroidViewModel(applic
 
     private val _localAddresses = MutableStateFlow<List<String>>(emptyList())
 
-    /** 本机的局域网地址，显示在配对码旁边供对方手填 */
     val localAddresses: StateFlow<List<String>> = _localAddresses
 
     /** 上一次操作的结果，界面报一句话之后由 [consumeMessage] 清掉 */

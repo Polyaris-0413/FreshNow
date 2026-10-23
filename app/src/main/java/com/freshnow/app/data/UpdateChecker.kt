@@ -10,9 +10,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
 
-/**
- * 接口地址前缀。仓库标识拼在它后面
- */
 private const val API_PREFIX = "https://api.github.com/repos/"
 
 /**
@@ -25,9 +22,6 @@ private const val API_PREFIX = "https://api.github.com/repos/"
 internal fun repositorySlug(repositoryUrl: String): String =
     trimmedRepositoryUrl(repositoryUrl).substringAfter("github.com/")
 
-/**
- * 「最新 release」接口地址，由仓库页地址推出来
- */
 internal fun latestReleaseApiUrl(repositoryUrl: String): String =
     "$API_PREFIX${repositorySlug(repositoryUrl)}/releases/latest"
 

@@ -36,7 +36,6 @@ internal sealed interface SyncReport {
     /** 配过对，但一台都没连上：多半不在同一个网，或者对方没打开应用 */
     data object Unreachable : SyncReport
 
-    /** 还没和任何设备配对过 */
     data object NoPeers : SyncReport
 }
 
@@ -82,20 +81,16 @@ internal class SyncCoordinator private constructor(context: Context) {
      */
     private val activeSyncs = AtomicInteger(0)
 
-    /** 已配对的对端，设置页的设备列表用 */
     val pairedPeers: Flow<List<SyncPeer>> = peers.peers
 
-    /** 本机显示给对方看的名字 */
     val deviceName: String get() = identity.deviceName()
 
     private val _pairingCode: StateFlow<String?> = pairing.code
 
-    /** 当前显示给用户的配对码，null 表示配对窗口没开 */
     val pairingCode: StateFlow<String?> = _pairingCode
 
     private val _discovered = MutableStateFlow<List<DiscoveredPeer>>(emptyList())
 
-    /** 局域网里当下能看到的设备 */
     val discovered: StateFlow<List<DiscoveredPeer>> = _discovered.asStateFlow()
 
     private val _syncing = MutableStateFlow(false)

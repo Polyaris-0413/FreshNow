@@ -334,7 +334,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * 拍到的照片。相机给的字节已经是正方形 JPEG（与扫描页同一套规格，见 ScanImageCodec），
+     * 拍到的照片。相机给的字节已经是正方形 JPEG（与扫描页同一套规格，见 ScanImageCodec.kt），
      * 所以不必过裁剪页；这里只是解出一张用来显示的位图。
      */
     fun onPhotoCaptured(jpeg: ByteArray) {

@@ -37,7 +37,6 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 /** 一条记录最多几张照片：九宫格放满为止。再多就变成相册了，记录页也放不下 */
 internal const val MAX_RECORD_IMAGES = 9
 
-/** 九宫格，一行三格 */
 private const val COLUMNS = 3
 
 /** 末尾那格「+」在列表里的 key。照片用各自的名字，它不能撞上 */

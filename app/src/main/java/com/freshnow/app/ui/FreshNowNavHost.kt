@@ -65,7 +65,6 @@ private val CHILD_DESTINATIONS = setOf(
     FreshNowRoute.OPEN_SOURCE
 )
 
-/** 一程的两端只要有一端是子页，这一程就是层级跳转 */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.isChildJump(): Boolean =
     initialState.destination.route in CHILD_DESTINATIONS ||
         targetState.destination.route in CHILD_DESTINATIONS

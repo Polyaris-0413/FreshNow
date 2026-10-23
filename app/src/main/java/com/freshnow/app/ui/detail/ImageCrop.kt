@@ -18,7 +18,6 @@ import kotlin.math.roundToInt
  */
 internal const val MAX_CROP_ZOOM = 4f
 
-/** 视窗对应的源图裁剪框 */
 internal data class CropWindow(val left: Int, val top: Int, val side: Int)
 
 /**

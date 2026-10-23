@@ -82,7 +82,7 @@ internal class SyncServer(
         true
     }.getOrDefault(false)
 
-    /** 在指定端口上起服务；绑定失败返回 null */
+    /** 绑定失败返回 null */
     private suspend fun startOn(port: Int): Pair<EmbeddedServer<*, *>, Int>? {
         val candidate = embeddedServer(CIO, port = port, host = "0.0.0.0") { routes() }
         return try {

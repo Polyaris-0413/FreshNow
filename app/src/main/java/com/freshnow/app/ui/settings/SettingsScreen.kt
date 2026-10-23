@@ -59,7 +59,6 @@ import com.freshnow.app.ui.theme.FreshNowTheme
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-/** 当前打开的是哪个编辑面板，null 表示没打开 */
 private enum class SettingsEditor { BasicConfig, ExtraRequest }
 
 @OptIn(ExperimentalMaterial3Api::class)

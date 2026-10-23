@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-/** 局域网里发现的一台装了本应用的设备 */
 internal data class DiscoveredPeer(
     val deviceId: String,
     val deviceName: String,
@@ -38,7 +37,7 @@ internal class PeerDiscovery(context: Context) {
     private var registration: NsdManager.RegistrationListener? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
-    /** 把自己播出去。端口是本机服务端实际监听的端口 */
+    /** 端口是本机服务端实际监听的端口 */
     suspend fun advertise(deviceId: String, deviceName: String, port: Int) {
         val manager = nsdManager ?: return
         stopAdvertising()

@@ -40,7 +40,6 @@ internal class SyncClient(
     private val client: HttpClient = defaultHttpClient()
 ) {
 
-    /** 与一台对端交换整份状态 */
     suspend fun exchange(
         address: String,
         myDeviceId: String,

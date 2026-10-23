@@ -27,7 +27,7 @@ class ScanImageStore(private val directory: File) {
      * 先写临时文件再改名，而不是往目标文件直接写：中途失败会留下一张残缺的图，而它的名字已经声称
      * 「内容就是这张照片」，此后每次引用都会读到坏图，且没有任何迹象表明它坏在哪一步。
      * 改名在同一个目录里是原子操作：要么见到完整的图，要么什么也见不到。
-     * 要求 `frame` 是已编码的 JPEG 字节（见 [ScanImageCodec]）：一旦这里也做一次编码，
+     * 要求 `frame` 是已编码的 JPEG 字节（见 [toSquareJpegBytes]）：一旦这里也做一次编码，
      * 散列算出的名字就不再对应真实内容了。
      */
     suspend fun write(frame: ByteArray): String? = withContext(Dispatchers.IO) {

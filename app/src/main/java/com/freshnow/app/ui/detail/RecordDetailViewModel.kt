@@ -92,7 +92,6 @@ class RecordDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    /** 点下面那排缩略图：换主图。只认真实存在的下标 */
     fun showImage(index: Int) {
         _uiState.update { if (index in it.images.indices) it.copy(mainIndex = index) else it }
     }

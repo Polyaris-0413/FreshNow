@@ -18,7 +18,7 @@ import androidx.room.PrimaryKey
 data class SyncPeer(
     /** 对端自己生成的设备号。随机值，两台设备不会撞号 */
     @PrimaryKey val deviceId: String,
-    /** 对端显示名，配对时抄下来，用于设备列表 */
+    /** 配对时抄下来，用于设备列表 */
     val deviceName: String,
     /** 长期密钥，Base64。明文只在这台设备与那台设备之间存在 */
     val secret: String,

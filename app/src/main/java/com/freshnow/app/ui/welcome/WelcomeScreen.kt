@@ -64,7 +64,6 @@ import kotlinx.coroutines.launch
  */
 internal enum class WelcomeStep(
     val iconRes: Int,
-    /** 标题与正文。第 1 步的标题就是应用名 */
     val titleRes: Int,
     val bodyRes: Int
 ) {

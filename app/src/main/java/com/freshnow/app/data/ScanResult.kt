@@ -5,7 +5,7 @@ package com.freshnow.app.data
  * 由生产日期与保质期推算出的结果不写在这里，见 [ExpiryCalculator]
  */
 data class ScanResult(
-    /** 通用品名，按提示词要求不含品牌 */
+    /** 按提示词要求不含品牌 */
     val productName: String = "",
     val productionDate: String = "",
     val expiryDate: String = "",

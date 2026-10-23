@@ -44,7 +44,7 @@ class ScanPhotoTest {
         assertSquare(composeRule.onNodeWithContentDescription(MISSING).getBoundsInRoot())
     }
 
-    /** 有图时的照片块（图片本身在落盘前已裁方，见 ScanImageCodec） */
+    /** 有图时的照片块（图片本身在落盘前已裁方，见 ScanImageCodec.kt） */
     @Test
     fun photoIsSquare() {
         setContent { square(Color.RED) }

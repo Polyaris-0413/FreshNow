@@ -154,10 +154,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val records: StateFlow<List<HomeRecordItem>?> = repository.records
         .map { records ->
             val ids = records.map { it.id }.toSet()
-            // 与上一次查库相比多出来的就是「刚存进去的」，「原来是有的、现在没了」就是刚被删空。
-            // 这两步都在数据到达的那一刻定下来，界面是这一刻之后才读的，所以不论它读得早还是晚、
-            // 列表是整棵重新合成还是条目后加，结论都一样——判据原来落在合成时机上，于是「逐条淡入」
-            // 和空态的淡出淡入都变成了「取决于这一刻是不是刚好在合成」
+            // 多出来的就是刚存进去的，原来是有的、现在没了就是刚被删空。
+            // 判据在数据到达这一刻定下，不落在界面合成时机上。
             _newRecordIds.value = ids - knownIds
             _justEmptied.value = ids.isEmpty() && knownIds.isNotEmpty()
             // 首次查库就是空，是另一回事：它没有「刚被删空」这个前情，但同样是用户眼前第一次出现的东西
@@ -183,7 +181,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** 上一次查库见到的 id，用来挑出刚存进来的那几条、以及判断是不是刚被删空 */
     private var knownIds: Set<Long> = emptySet()
 
-    /** 这个 ViewModel 查过库没有。只用来认第一次 */
     private var loadedOnce = false
 
     private val _newRecordIds = MutableStateFlow<Set<Long>>(emptySet())

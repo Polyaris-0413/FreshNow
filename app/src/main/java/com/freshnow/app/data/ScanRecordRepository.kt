@@ -23,12 +23,11 @@ import java.util.UUID
  * 分成加/删/换三个接口的话，调用方得自己决定先做哪个，而这里有个不能颠倒的顺序（见 [ScanRecordRepository.update]）。
  */
 sealed interface ImageChange {
-    /** 照片原样保留 */
     data object Keep : ImageChange
 
     /**
      * 目标状态：留下的旧图名字（有序，取自这条记录当前的 [com.freshnow.app.data.local.ScanRecord.imageNames]）
-     * 加上新加的图（按顺序接在后面）。字节已是正方形 JPEG（见 ScanImageCodec），这里只负责落盘。
+     * 加上新加的图（按顺序接在后面）。字节已是正方形 JPEG（见 ScanImageCodec.kt），这里只负责落盘。
      *
      * 去掉其中某一张 = 不把它放进 [kept]；一张都不要 = 两者都给空。
      */
@@ -165,7 +164,7 @@ class ScanRecordRepository(
     /** 某一张照片的文件，名字对不上形态或文件已不在时返回 null */
     fun imageFile(name: String): File? = imageStore.find(name)
 
-    /** 本地有没有这张照片（名字对得上形态且文件还在） */
+    /** 名字对得上形态且文件还在 */
     fun hasImage(name: String): Boolean = imageStore.find(name) != null
 
     /** 记录名下所有还在磁盘上的照片，顺序与 [ScanRecord.imageNames] 一致 */

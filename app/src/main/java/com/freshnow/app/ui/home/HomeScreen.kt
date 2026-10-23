@@ -383,7 +383,6 @@ fun HomeScreen(
     }
 }
 
-/** 主页顶栏那两个动作各开哪一个面板，null 表示没开 */
 private enum class HomeSheet { Overflow, Sort }
 
 /**

@@ -36,7 +36,6 @@ class WelcomeViewModel(application: Application) : AndroidViewModel(application)
     private val _configSavedCount = MutableStateFlow(0)
     val configSavedCount: StateFlow<Int> = _configSavedCount.asStateFlow()
 
-    /** 引导结束（「已看过」也已落盘），界面据此切到主页 */
     private val _finished = MutableStateFlow(false)
     val finished: StateFlow<Boolean> = _finished.asStateFlow()
 

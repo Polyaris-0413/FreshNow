@@ -61,7 +61,6 @@ fun PhotoViewer(
         val viewport = IntSize(constraints.maxWidth, constraints.maxHeight)
         var zoom by remember(image) { mutableFloatStateOf(1f) }
         var offset by remember(image) { mutableStateOf(Offset.Zero) }
-        // 退出时图跟手的位移（像素，两轴都算）
         var dragOffset by remember(image) { mutableStateOf(Offset.Zero) }
         // 一旦触发退出，这一页就在退场了：这时再来手势只会把「跟手位移」在退场动画中途改掉，
         // 共享元素记住的是旧矩形、内容却已经挪走，图就留在屏幕角落（复现：滑走后 200~300ms 内
@@ -108,7 +107,6 @@ fun PhotoViewer(
             }
         }
 
-        /** 唯一的出口：先关手势再交给调用方 */
         fun dismiss() {
             if (dismissing) return
             dismissing = true

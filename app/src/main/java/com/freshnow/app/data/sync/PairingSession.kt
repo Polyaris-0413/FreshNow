@@ -17,7 +17,6 @@ internal class PairingSession {
 
     private val _code = MutableStateFlow<String?>(null)
 
-    /** 当前该显示的码，null 表示窗口没开 */
     val code: StateFlow<String?> = _code.asStateFlow()
 
     val isOpen: Boolean
