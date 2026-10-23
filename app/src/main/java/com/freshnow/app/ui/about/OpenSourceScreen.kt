@@ -125,7 +125,7 @@ fun OpenSourceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         // 几百行一次组合会明显拖慢进页：只在需要时组合
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 条目滚到顶栏下面时顶栏才变色（见 FreshNowTopAppBar），视口因此要铺满整个 Scaffold
+            // 条目要能滚到顶栏下面（在顶栏下沿被裁切），视口因此要铺满整个 Scaffold
             contentPadding = innerPadding
         ) {
             items(projects) { project ->

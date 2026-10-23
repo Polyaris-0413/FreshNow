@@ -92,7 +92,9 @@ internal fun SyncScreen(
         onBack = onBack,
         modifier = modifier,
         actions = {
-            // 同步期间置灰：一次同步要打包、往返、写库，连点只会让第二次在第一次还没写完时插进去
+            // 同步期间置灰：一次同步要打包、往返、写库，连点只会让第二次在第一次还没写完时插进去。
+            // 没配对时照样可点：那一轮会走回 SyncReport.NoPeers，由既有的 toast 说明「还没有配对」，
+            // 比一颗看不出为什么灰的按钮更容易懂
             IconButton(onClick = viewModel::syncNow, enabled = !syncing) {
                 Icon(
                     painter = painterResource(R.drawable.ic_sync),
@@ -112,7 +114,7 @@ internal fun SyncScreen(
             onManualPair = { manualPairing = true },
             onPick = { pairingWith = it },
             onForget = { viewModel.forget(it.deviceId) },
-            // 不垫 padding：列表要能滚到顶栏下面才变色，内边距由 LazyColumn 的 contentPadding 接
+            // 不垫 padding：列表才是在顶栏下沿被裁切，内边距由 LazyColumn 的 contentPadding 接
             contentPadding = innerPadding
         )
     }

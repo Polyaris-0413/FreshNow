@@ -101,7 +101,7 @@ fun AboutScreen(
             onCheckUpdateClick = { checkUpdate() },
             modifier = Modifier
                 .fillMaxSize()
-                // 不从外层垫内边距：内容要能滚到顶栏下面，顶栏才变色（见 verticalScrollUnderTopBar）
+                // 不从外层垫内边距：内容才是在顶栏下沿被裁切（见 verticalScrollUnderTopBar）
                 .verticalScrollUnderTopBar(innerPadding)
         )
     }

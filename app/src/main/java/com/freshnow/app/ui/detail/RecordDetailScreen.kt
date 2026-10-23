@@ -161,7 +161,7 @@ private fun RecordDetailContent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    // 内边距不在外层垫：内容要能滚到顶栏下面，顶栏才变色（见 verticalScrollUnderTopBar）
+                    // 内边距不在外层垫：内容才是在顶栏下沿被裁切（见 verticalScrollUnderTopBar）
                     .verticalScrollUnderTopBar(innerPadding)
                     .padding(FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)

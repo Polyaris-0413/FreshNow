@@ -107,6 +107,7 @@ fun HomeRoute(
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val behavior by viewModel.behavior.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val canRefresh by viewModel.canRefresh.collectAsStateWithLifecycle()
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
 
     // 离开本页就清掉「刚存进来的」这份标记：再回来时重新合成的还是同一批记录，不该再演一遍。
@@ -132,6 +133,7 @@ fun HomeRoute(
         onExitSelection = viewModel::clearSelection,
         onDeleteSelected = viewModel::deleteSelected,
         refreshing = refreshing,
+        canRefresh = canRefresh,
         syncMessage = syncMessage,
         onSync = viewModel::syncNow,
         onSyncMessageShown = viewModel::consumeSyncMessage,
@@ -165,6 +167,8 @@ fun HomeScreen(
     onDeleteSelected: () -> Unit,
     /** 本页的下拉刷新在跑（只算本页发起的那一轮，见 HomeViewModel.refreshing） */
     refreshing: Boolean,
+    /** 这一下拉有没有用：还没有配对过设备时同步没有对方，见 HomeViewModel.canRefresh */
+    canRefresh: Boolean,
     /** 上一次手动同步的结果，报过一句就调 [onSyncMessageShown] 销掉 */
     syncMessage: SyncMessage?,
     onSync: () -> Unit,
@@ -286,12 +290,14 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // 不垫 innerPadding：滚动视口要铺到顶栏底下，条目滚过去时顶栏才会变色。
+                // 不垫 innerPadding：滚动视口要铺到顶栏底下，条目才是在顶栏下沿被裁切，
                 // 内边距交给列表自己的 contentPadding（见 RecordsList）
                 .pullToRefresh(
                     isRefreshing = refreshing,
                     state = pullState,
-                    enabled = !inSelectionMode,
+                    // 两种时候不给这个手势：选择模式下（那一刻用户在挑要删的），以及还没配对过
+                    // 任何设备——没有对方可同步，下拉换来的只是一句「还没有配对」
+                    enabled = canRefresh && !inSelectionMode,
                     onRefresh = onSync
                 )
         ) {
@@ -705,6 +711,7 @@ private fun HomeScreenPreview() {
             onExitSelection = {},
             onDeleteSelected = {},
             refreshing = false,
+            canRefresh = true,
             syncMessage = null,
             onSync = {},
             onSyncMessageShown = {},
@@ -734,6 +741,7 @@ private fun HomeScreenSelectionPreview() {
             onExitSelection = {},
             onDeleteSelected = {},
             refreshing = false,
+            canRefresh = true,
             syncMessage = null,
             onSync = {},
             onSyncMessageShown = {},

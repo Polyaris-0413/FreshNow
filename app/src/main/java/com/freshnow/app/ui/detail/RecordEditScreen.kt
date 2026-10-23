@@ -361,7 +361,7 @@ private fun EditForm(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // 内边距不在这一层垫：表单要能滚到顶栏下面，顶栏才变色（见 verticalScrollUnderTopBar）
+                // 内边距不在这一层垫：表单才是在顶栏下沿被裁切（见 verticalScrollUnderTopBar）
                 .imePadding()
         ) {
             RecordEditForm(

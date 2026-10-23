@@ -125,7 +125,7 @@ fun SettingsScreen(
                 onSyncClick = onNavigateToSync,
                 modifier = Modifier
                     .fillMaxSize()
-                    // 内容要能滚到顶栏下面（顶栏靠它变色），所以内边距不从外层垫，见 verticallScrollUnderTopBar
+                    // 内边距不从外层垫：内容才是在顶栏下沿被裁切，见 verticalScrollUnderTopBar
                     .verticalScrollUnderTopBar(innerPadding)
             )
         }

@@ -93,6 +93,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** 排着几轮下拉（连点会各排一轮），全跑完指示器才收 */
     private var refreshesInFlight = 0
 
+    /**
+     * 有没有配对过的设备。没有的话「下拉刷新」这一下拉没有对方可同步：换来的只有一句
+     * 「还没有配对」，而那句话该在设置里说，不该由一个手势换来。
+     *
+     * 初值 false：配对表还没读出来时先不给这个手势。它是本地查库，一两帧就到，
+     * 先给再收回反而会让人下拉一下又被打回去。
+     *
+     * 与 [refreshing] 一样只订阅「能不能刷」这件事，不订阅对端列表本身：对端增删不该让主页重组。
+     */
+    val canRefresh: StateFlow<Boolean> = sync.pairedPeers
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+
     private val _syncMessage = MutableStateFlow<SyncMessage?>(null)
 
     /** 上一次手动同步的结果，界面报一句话之后由 [consumeSyncMessage] 清掉 */

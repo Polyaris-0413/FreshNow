@@ -688,6 +688,7 @@ class HomeScreenTest {
                     onExitSelection = {},
                     onDeleteSelected = {},
                     refreshing = false,
+                    canRefresh = true,
                     syncMessage = null,
                     onSync = {},
                     onSyncMessageShown = {},
@@ -751,6 +752,7 @@ class HomeScreenTest {
                     onExitSelection = {},
                     onDeleteSelected = {},
                     refreshing = false,
+                    canRefresh = true,
                     syncMessage = null,
                     onSync = {},
                     onSyncMessageShown = {},
@@ -828,6 +830,22 @@ class HomeScreenTest {
         assertEquals("选择模式下不该叫同步", 0, syncs)
     }
 
+    /**
+     * 没有配对过设备时，下拉连同步都不该叫。
+     *
+     * 那一刻没有对方可同步，唯一的结果是一句「还没有配对」——那句话该在设置里说，
+     * 不该由一个手势换来。禁用做在 enabled 上，所以连指示器都不会出现。
+     */
+    @Test
+    fun pullDown_isIgnoredWithoutPairedPeer() {
+        var syncs = 0
+        setContent(items = records(), canRefresh = false, onSync = { syncs++ })
+
+        pullDown()
+
+        assertEquals("没有配对设备时不该叫同步", 0, syncs)
+    }
+
     private fun pullDown() {
         composeRule.onRoot().performTouchInput {
             swipeDown(
@@ -851,6 +869,7 @@ class HomeScreenTest {
         onExitSelection: () -> Unit = {},
         onDeleteSelected: () -> Unit = {},
         refreshing: Boolean = false,
+        canRefresh: Boolean = true,
         syncMessage: SyncMessage? = null,
         onSync: () -> Unit = {},
         onSyncMessageShown: () -> Unit = {},
@@ -876,6 +895,7 @@ class HomeScreenTest {
                     onExitSelection = onExitSelection,
                     onDeleteSelected = onDeleteSelected,
                     refreshing = refreshing,
+                    canRefresh = canRefresh,
                     syncMessage = syncMessage,
                     onSync = onSync,
                     onSyncMessageShown = onSyncMessageShown,
