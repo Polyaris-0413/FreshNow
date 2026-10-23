@@ -44,7 +44,7 @@ import kotlinx.coroutines.withContext
 data class RecordEditUiState(
     val loaded: Boolean = false,
     val found: Boolean = false,
-    /** 这是一条还没落库的新记录（手动录入）：保存时是首次写入而不是覆盖，标题也不一样 */
+    /** 保存时是首次写入而不是覆盖，标题也不一样 */
     val isNew: Boolean = false,
     val productName: String = "",
     /**
@@ -198,7 +198,7 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
      */
     fun hasUnsavedChanges(): Boolean = _uiState.value.isDirtyAgainst(baseline)
 
-    /** 草稿照片的 id 发到哪儿了。只在草稿内部流转，不与库里的任何东西对应 */
+    /** 只在草稿内部流转，不与库里的任何东西对应 */
     private var nextPhotoId = 0L
 
     /**
@@ -258,8 +258,6 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * 开一份手填的新记录草稿：不读库，四个字段与照片都是空的。
-     *
      * 与 [load] 同样只做一次：本页重建（返回、进程内重建）会再调一次，重开一份空草稿会把用户
      * 已经敲进去的内容擦掉。
      */
@@ -452,8 +450,6 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * 把库里这条记录的照片读成草稿。
-     *
      * 解不出来的那张也照样进草稿（[EditPhoto.bitmap] 为 null，格子用占位图顶上）：它还在记录名下，
      * 从这里悄悄抹掉就等于用户一进编辑页、什么都没做、一保存就把那张图删了。
      */

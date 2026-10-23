@@ -58,7 +58,6 @@ import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.launch
 
 /**
- * 本页的整屏状态。裁剪、拍照都是一整屏，与编辑表单平级替换。
  * 裁剪那张源图挂在状态里（[EditStep.Crop]）而不是用时另读 ViewModel：
  * 状态从 [EditStep.Crop] 换成 [EditStep.Edit] 的那一帧，ViewModel 里的原图已经被清掉了，退场动画拿什么画？带着图走，退场那一帧内容就还在。
  */
@@ -292,8 +291,6 @@ fun RecordEditScreen(
 }
 
 /**
- * 编辑表单那一屏：顶栏（含保存）加表单本体。
- *
  * 从 [RecordEditScreen] 里拆出来只为让上面那段转场读得清——三个整屏状态各是一块。
  */
 @Composable

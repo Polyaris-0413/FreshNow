@@ -24,7 +24,7 @@ data class RecordDetailUiState(
     /** 记录里的照片，顺序与 [ScanRecord.imageNames] 一致；文件读不出来的那些不在里面 */
     val images: List<Bitmap> = emptyList(),
     /**
-     * 正在看的那一张（下标）。点下面那排缩略图改它，越界时按 0 处理。
+     * 越界时按 0 处理。
      * 放在这里而不是界面里：主图是这一页的主角，旋转、重建之后应当还在那一张上。
      */
     val mainIndex: Int = 0,
@@ -32,7 +32,7 @@ data class RecordDetailUiState(
     val loaded: Boolean = false
 )
 
-/** 主图。一张都没有时为 null，界面用占位图顶上 */
+/** 一张都没有时为 null，界面用占位图顶上 */
 val RecordDetailUiState.mainImage: Bitmap?
     get() = images.getOrNull(mainIndex)
 
