@@ -170,15 +170,3 @@ internal val DarkWarningColors = FreshNowWarningColors(
     warningContainer = Warning30,
     onWarningContainer = Warning90,
 )
-
-/**
- * 压在图片上的浮层（详情页那枚页码）的底色与文字色。
- *
- * 【规范缺席：M3 没有「压在图片上的浮层」这一档，本项目自定】
- * 刻意不跟随主题：照片的明暗是任意的，用 inverseOnSurface 这类主题色在深色照片上会变成
- * 「深底深字」而看不见（用户反馈）。固定成半透明黑加白，任何照片上都读得清。
- */
-internal val OverImageScrim = Color(0xCC000000)
-
-/** 压在图片上的浮层里的文字色，见 [OverImageScrim] */
-internal val OnOverImageScrim = Color(0xFFFFFFFF)
