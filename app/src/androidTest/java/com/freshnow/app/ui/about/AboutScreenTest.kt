@@ -32,7 +32,7 @@ class AboutScreenTest {
     val composeRule = createComposeRule()
 
     /**
-     * 版本号是这一行的「值」，与标题同一行、在右端。判据用纵向交叠：同一行时区间重叠，放到下面则不重叠。
+     * 版本号是这一行的「值」，与标题同一行、在右端。判据用纵向交叠：同一行时区间重叠（值的顶在标题的底之上），放到下面则不重叠。
      */
     @Test
     fun versionShowsBesideItsLabel() {
@@ -61,7 +61,7 @@ class AboutScreenTest {
 
     /**
      * 项目各行都去浏览器并各带对链接；「开源声明」进页内那一页，两者的区别要守住，否则会跳到某个外链上。
-     * 作者行给作者主页（给仓库就成了「访问仓库」的重复入口），群聊行给 QQ 加群页。
+     * 作者行给作者主页（给仓库就成了「访问仓库」的重复入口），群聊行给 QQ 加群页——那一页是对外的入口，不是应用内的页面。
      */
     @Test
     fun projectRowsOpenUrlsWhileOpenSourceStaysInApp() {

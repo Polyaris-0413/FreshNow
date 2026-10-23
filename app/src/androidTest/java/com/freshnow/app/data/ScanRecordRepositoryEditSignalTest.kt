@@ -137,7 +137,7 @@ class ScanRecordRepositoryEditSignalTest {
 
     /**
      * 订阅 [ScanRecordRepository.localEdits] 并把收到的事件丢进 channel。
-     * 必须用 UNDISPATCHED：流是 replay=0 的广播，订阅要赶在下一行之前生效。
+     * 必须用 UNDISPATCHED：流是 replay=0 的广播，订阅要赶在下一行之前生效，晚一步就漏掉整次写入。
      */
     private fun watchEdits(): Channel<Unit> {
         val received = Channel<Unit>(Channel.UNLIMITED)

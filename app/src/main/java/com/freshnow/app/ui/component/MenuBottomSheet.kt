@@ -55,11 +55,11 @@ fun MenuBottomSheet(
 }
 
 /**
- * 面板里的一张卡片。整张可点，颜色取容器色最亮的一档，与面板底色（surfaceContainerLow）拉开一层。
+ * 面板里的一张卡片。整张可点，颜色取容器色最亮的一档，与面板底色（surfaceContainerLow）拉开一层。文字居中而不左对齐：一叠卡片本来就不长，居中读起来更像「选一个」。
  * [selected] 是「单选里的当前项」：非 null 表示这是一叠可选项，选中项的文字换成 primary；
  * 传 null 表示这只是一个动作。
  * [shape] 默认取卡片自己的形状；同一组几块拼在一起时由调用处传拼接形状（见 [splicedShape]）。
- * 选项用 selectable 而不是 clickable：读屏软件才会念成「两项里的第几项、选没选中」。
+ * 选项用 selectable 而不是 clickable：读屏软件才会念成「两项里的第几项、选没选中」。不另加对勾图标：面板里选项本来就不多，换个颜色已经够读。
  * 提为 public 是为了让动作面板的调用方拼装内容（包括把两张并排拼成一块）。
  */
 @Composable

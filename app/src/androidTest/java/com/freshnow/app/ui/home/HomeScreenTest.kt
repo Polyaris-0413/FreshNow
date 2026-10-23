@@ -259,7 +259,7 @@ class HomeScreenTest {
     }
 
     /**
-     * 取消最后一个选中项时，正在淡出的顶栏要停在它自己的计数上，不能先滚一遍「已选 0 项」再淡出。
+     * 取消最后一个选中项时，正在淡出的顶栏要停在它自己的计数上，不能先滚一遍「已选 0 项」再淡出——那是把同一件事演了两遍。
      */
     @Test
     fun deselectingLastItem_keepsLastCountWhileFadingOut() {
@@ -504,7 +504,7 @@ class HomeScreenTest {
     /**
      * 新记录出现时，已在列表里的条目要从旧位置滑到新位置。
      * 位移的判据与淡入不同：淡入看对比度，位移看下面那条落在两点之间。
-     * 新记录慢一帧进列表，正是让 LazyLayout 手里有一份「上一轮的位置」可比较。
+     * 新记录慢一帧进列表，正是让 LazyLayout 手里有一份「上一轮的位置」可比较；没有它，条目只会被直接画在最终位置上。
      */
     @Test
     fun newRowAlreadyInListAtComposition_pushesRowsBelowDown() {

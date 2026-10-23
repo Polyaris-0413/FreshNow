@@ -303,7 +303,7 @@ internal class SyncCoordinator private constructor(context: Context) {
      * 本机的局域网地址，手动配对时念给对方听。
      * 取当前 WiFi 网络的地址而不是枚举所有网卡：VPN 隧道（tun0、vgate0）与移动数据网卡也满足
      * 「已启用、非回环」，对方在同一个 WiFi 下根本连不过去，全列出来只会让用户不知道该填哪个。
-     * 拿不到 WiFi 地址时（本机开热点、系统不让查）退回枚举网卡，但剔掉 VPN 隧道。
+     * 拿不到 WiFi 地址时（本机开热点、系统不让查）退回枚举网卡，但剔掉 VPN 隧道——那种地址对方一定连不上，列出来纯是干扰。
      */
     suspend fun localAddresses(): List<String> = withContext(Dispatchers.IO) {
         runCatching {

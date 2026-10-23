@@ -76,7 +76,7 @@ class ScanRecordRepository(
      * 覆盖整行，按 [image] 处理照片。保存时间沿用传入记录里的值（调用方在原有记录上改字段即可），
      * 于是编辑不会把记录提到列表最前面。
      * 返回 false 只表示照片没换成（新图没写成功，此时行还没动过）：旧照片原样保留，其余字段已经落盘，
-     * 调用方只需就这一件事提示用户。写盘失败不拦下整次编辑，与 [ScanImageStore.write] 的取舍一致。
+     * 调用方只需就这一件事提示用户。写盘失败不拦下整次编辑，与 [ScanImageStore.write] 的取舍一致——没有可用画面时本来就有「这条记录没有图片」这个正常状态。
      */
     suspend fun update(record: ScanRecord, image: ImageChange): Boolean {
         val stamped = stamp(record)
@@ -264,7 +264,7 @@ class ScanRecordRepository(
     /**
      * 删掉磁盘上没有任何记录引用的照片。
      * 与换照片互斥：照片先落盘、行后落库，中间那一刻这张图正是「没人引用」的，此时来个清理就会把它当孤儿删掉，
-     * 随后行写进去指向一个不存在的文件。按时间宽限只是把窗口缩小，该撞上的还是会撞上。
+     * 随后行写进去指向一个不存在的文件。互斥锁消除了这个窗口，而按时间宽限只是把它缩小，该撞上的还是会撞上。
      * 锁在伴生对象上而不是实例上：每个 ViewModel 各建一个 Repository，实例锁拦不住另一个实例。
      */
     suspend fun reconcileImages() = imageLock.withLock {
@@ -277,7 +277,7 @@ class ScanRecordRepository(
     /**
      * 盖上「谁在什么时候改的」。
      * 时刻取 max(现在, 上一版 + 1)：同一毫秒内改两次时，若时刻与设备号都相同，LWW 会判第二次「不比第一次新」，
-     * 对端于是永远停在第一版。这类丢更新极难复现，但一旦发生就是两台设备永久不一致。
+     * 对端于是永远停在第一版。这类丢更新（要同一毫秒、同一设备、同一条）极难复现，但一旦发生就是两台设备永久不一致。
      */
     private suspend fun stamp(record: ScanRecord): ScanRecord {
         val deviceId = identity.deviceId()
@@ -290,7 +290,7 @@ class ScanRecordRepository(
     /**
      * 换照片：先落图、再落行，且与 [reconcileImages] 互斥——中间那一刻图正是「没人引用」的。
      * 顺序不能倒：先落行的话图还没写成功，行里的名字已经指向不存在的文件，界面显示占位图而用户以为存上了；
-     * 反过来只留下一张没人引用的图，由 [reconcileImages] 收走。
+     * 反过来只留下一张没人引用的图，由 [reconcileImages] 收走，用户看到的「没换成功」与事实相符。
      * 一次写多张时逐张尽力而不是全或无：某一张失败（磁盘满、编码器拿不到内存）不该把已写好的丢掉，
      * 但只要有一张没成功就如实返回 false。
      * 一张都没写成时（[added] 非空而 [written] 为空）照片列回退到 [unchanged]：那一张都没换上，

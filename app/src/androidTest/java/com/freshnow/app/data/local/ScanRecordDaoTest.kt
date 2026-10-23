@@ -132,7 +132,7 @@ class ScanRecordDaoTest {
     }
 
     /**
-     * 时刻相同时比设备号。关键不是「谁赢」，而是两端按同一规则算出同一个人赢，否则越同步越分叉。
+     * 时刻相同时比设备号（多设备下同一毫秒改同一条是会发生的）。关键不是「谁赢」，而是两端按同一规则算出同一个人赢，否则越同步越分叉。
      */
     @Test
     fun merge_breaksTiesByDeviceTheSameWayOnBothSides() = runBlocking {

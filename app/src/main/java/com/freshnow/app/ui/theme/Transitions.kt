@@ -120,7 +120,7 @@ object FreshNowTransitions {
      * 这一下是「我拍到了」的回执，不是「请等待」：帧一直流着，从按下到结果只有几十毫秒，
      * 给它配等待话术等于把一段看不见的等待变成看得见的（见 ShutterSqueeze 的说明）。
      * 【规范缺席：M3 没有这一项，主流也没有公认值，本项目自定】M3 的按下反馈走的是**形状与尺寸令牌**
-     * （按钮的 PressedContainerShape、拖动手柄的 pressedSize），取景框不是组件、套不上那套令牌，
+     * （BaselineButtonTokens.PressedContainerShape、DragHandleSizes），取景框不是组件、套不上那套令牌，
      * 这里用整体缩放表达同一件事。
      */
     const val SHUTTER_SQUEEZE_SCALE = 0.97f
@@ -215,7 +215,7 @@ object FreshNowTransitions {
      * m2.material.io/design/motion/the-motion-system.html 的 fade through 一节写的是 incoming
      * "scaling in overall size from 92% to 100%"；两段时长（90 / 210，合 300ms）是同一个 pattern 的分段，
      * M3 的令牌表只给「总档」、没有分段值。
-     * 90 与 210 不落在 M3 的时长刻度上，但两段的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，
+     * 90 与 210 不落在 M3 的时长刻度上（刻度里最近的是 short2 的 100 与 short4 的 200），但两段的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，
      * 所以保留 pattern 的原文：这两条的依据是 M2 的 pattern，不是 M3 令牌；若哪天要求全部落回 M3 令牌刻度，
      * 只能写成 100 / 200，交叠比例随之从 0.3/0.7 变成 1/3 与 2/3。
      */
