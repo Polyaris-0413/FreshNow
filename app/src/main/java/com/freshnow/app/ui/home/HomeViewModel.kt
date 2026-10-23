@@ -30,25 +30,23 @@ import java.io.File
 import java.time.LocalDate
 
 /**
- * 列表条目：查库拿到记录后，过期日期与照片文件都在这里算好，界面只管画。
+ * 过期日期与照片文件在这里算好（查库拿到的记录里没有这两项），界面只管画。
  * 「今天」刻意不放进状态——剩余天数由界面现取当天现算，否则跨过零点后列表会一直显示旧值。
  */
 data class HomeRecordItem(
     val record: ScanRecord,
     val expiry: ExpiryOutcome,
-    /** 记录的照片文件，没有图片或文件已不在时为 null */
+    /** 没有图片或文件已不在时为 null */
     val image: File?
 )
 
 /**
- * 按 [order] 重排列表条目。
- * 创建时间：新存的在前（与查库的 `ORDER BY savedAt DESC` 同一方向，这里再排一次是为了两种排序共用一条出口）。
+ * 创建时间：新存的在前，与查库的 `ORDER BY savedAt DESC` 同一方向（两种排序共用这一条出口）。
  * 过期日期：快到期的在前（升序），**已过期的因此排在最上面**——那正是「该先处理」的语义；
  * 算不出来的（印刷值认不出、或推不出）一律排到最后，由稳定排序保留创建时间顺序。
  * **这个排序是用户得知「有东西该处理了」的唯一途径**：主动的到期通知没做（2026-10-20 决定）——
- * 国产 ROM 里有一部分把「从最近任务划掉」实现成强制停止，被强停的包收不到任何广播（含开机广播），
- * 只能等用户手动打开应用（Android 15 行为变更「Changes to package stopped state」）；
- * 而唯一可靠的手段是常驻前台服务，与「不在后台常驻」相冲突。
+ * 被强停的包收不到任何广播（Android 15 行为变更「Changes to package stopped state」），
+ * 而唯一可靠的手段是常驻前台服务，与本项目「不在后台常驻」相冲突。
  */
 internal fun List<HomeRecordItem>.sortedFor(order: SortOrder): List<HomeRecordItem> = when (order) {
     SortOrder.CREATED_AT -> sortedByDescending { it.record.savedAt }
@@ -56,8 +54,8 @@ internal fun List<HomeRecordItem>.sortedFor(order: SortOrder): List<HomeRecordIt
 }
 
 /**
- * 这一条算得出的过期日期。判据与 [ExpiryCalculator.daysRemaining] 一致：印刷值认不出、
- * 或算不出来的都给 null，不能拿着原文字符串去比大小（`2026年12月` 这种排出来的次序是假的）。
+ * 判据与 [ExpiryCalculator.daysRemaining] 一致：印刷值认不出、或算不出来的都给 null，
+ * 不能拿着原文字符串去比大小（`2026年12月` 这种排出来的次序是假的）。
  */
 private fun HomeRecordItem.expiryDate(): LocalDate? =
     (expiry as? ExpiryOutcome.Resolved)?.let { ScanValueFormat.parseDate(it.date.trim()) }
@@ -98,7 +96,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _syncMessage = MutableStateFlow<SyncMessage?>(null)
 
-    /** 上一次手动同步的结果，界面报一句话之后由 [consumeSyncMessage] 清掉 */
+    /** 报过一句就由 [consumeSyncMessage] 销掉 */
     val syncMessage: StateFlow<SyncMessage?> = _syncMessage
 
     fun consumeSyncMessage() {
@@ -106,7 +104,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 手动同步一轮，下拉刷新走这里。
+     * 下拉刷新走这里。
      *
      * 必须报一句：用户做的就是「我要现在同步」，不给回音的话，他没有办法区分「同步完了没变化」
      * 与「这个手势根本没生效」。
@@ -135,7 +133,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val behavior: StateFlow<BehaviorSettings> = behaviorRepository.behaviorSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), BehaviorSettings())
 
-    /** 改排序方式。先读库里现值再改：界面上那份可能还没收到第一帧，拿它改会把其它项一并写回默认值 */
+    /** 先读库里现值再改：界面上那份可能还没收到第一帧，拿它改会把其它项一并写回默认值 */
     fun onSortOrderChange(order: SortOrder) {
         viewModelScope.launch {
             val current = behaviorRepository.behaviorSettings.first()
@@ -169,8 +167,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     /**
-     * 列表内容按当前排序方式排好，界面只读这一条。
-     *
      * 排序在内存里做，不重查库：过期日期可能是印刷值，也可能是现算出来的（见 ExpiryCalculator），
      * SQL 排不了。初值同样是 null，与 [records] 一样表示「还没查完」。
      */
@@ -178,7 +174,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         combine(records, behavior) { list, settings -> list?.sortedFor(settings.sortOrder) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
-    /** 上一次查库见到的 id，用来挑出刚存进来的那几条、以及判断是不是刚被删空 */
     private var knownIds: Set<Long> = emptySet()
 
     private var loadedOnce = false
@@ -191,8 +186,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _justEmptied = MutableStateFlow(false)
 
     /**
-     * 上一次查库把列表查空了，且此前是有记录的。见 [onRecordsShown]。
-     *
      * 空态只有在这种时候才该淡入：删光时用户正看着列表，那是他眼前发生的变化。从别的页面
      * 回到主页不是变化——空态早就显示过，那次它跟着整页一起出现就够了，再淡一遍是重复。
      */
@@ -201,8 +194,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _firstEmptyLoad = MutableStateFlow(false)
 
     /**
-     * 这个 ViewModel 的第一次查库结果就是空列表（见 [onRecordsShown]）。
-     *
      * 与 [justEmptied] 分开：两者都该让空态淡入，但这一种前面没有要等的事——删光时紧跟在条目淡出
      * 与对话框退场之后，所以得多等一拍；冷启动（首次启动刚走完欢迎页那一次）没有前一件事要等，
      * 跟着整页的淡入一起收尾就行。
@@ -210,8 +201,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val firstEmptyLoad: StateFlow<Boolean> = _firstEmptyLoad.asStateFlow()
 
     /**
-     * 界面已经把这一批变化演过了，清掉。
-     *
      * 从主页离开时调用：下次回来（转场返回、转屏）重新合成的是同一批内容，不必再演一遍。
      * 变化是在离开期间发生的（保存后立即返回扫描页那一侧），清空发生在它之前，因此不受影响。
      */
@@ -230,14 +219,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
 
     /**
-     * 选择模式里被选中的记录。
-     *
      * 选择模式不另设开关，就由这个集合是否为空表示：两者分开存会出现「处于选择模式但一个都没选中」
      * 这种界面无法表达的状态（顶栏要显示「已选 0 项」吗？删除按钮可不可点？）。
      */
     val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
 
-    /** 长按进入选择模式并选中该条；已选中则取消。取消掉最后一条即自动离开选择模式 */
+    /** 长按进入选择模式并选中该条；取消掉最后一条即自动离开选择模式 */
     fun toggleSelection(id: Long) {
         _selectedIds.update { if (id in it) it - id else it + id }
     }
@@ -247,8 +234,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 删除选中的记录。
-     *
      * 先退出选择模式再落库：界面应当立刻回到普通列表，而不是等数据库写完、列表已经空了
      * 顶上还挂着「已选 N 项」；记录本身会经 records 这条流回到界面，不需要在这里等。
      */
