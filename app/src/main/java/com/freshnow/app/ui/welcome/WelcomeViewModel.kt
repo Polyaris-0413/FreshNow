@@ -14,8 +14,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 欢迎页的状态：配置三项的草稿、落盘结果、引导是否结束。
- *
  * 配置走的是与设置页同一份 [AiBasicConfigDraft]，校验规则不会在两个入口分叉；
  * 落盘的仓库也是同一个（[AiSettingsRepository]），因此欢迎页填完与设置页填完等价。
  */

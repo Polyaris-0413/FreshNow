@@ -55,7 +55,7 @@ import com.freshnow.app.ui.theme.FreshNowTransitions
 import kotlinx.coroutines.launch
 
 /**
- * 引导的第几步。枚举顺序就是显示顺序，页数也由它决定（进度条与「还有几步」都以它为唯一来源）。
+ * 枚举顺序就是显示顺序，页数也由它决定（进度条与「还有几步」都以它为唯一来源）。
  * 每一步的主视觉与标题、正文也挂在这里：这三件在各个步骤上是同一套版式，[WelcomeStepContent] 因此能
  * 一次渲染完，不必在五个分支里各写一遍。
  * [CAMERA] 是相机权限的 permission priming：先说明用途、再由用户点按钮触发系统弹窗。取值来自 Android 官方的
@@ -141,7 +141,6 @@ fun WelcomeScreen(
 }
 
 /**
- * 欢迎页的版式本身：几步内容 + 进度 + 跳过、上一步与主按钮。
  * [configSavedCount] 与 [cameraGrantedCount] 都是「已经发生的事实」，而不是「点过了」：前者等配置真的落盘，
  * 后者等相机权限真的授予——先走再等的话，推进过去的那一刻配置还没写进 DataStore，
  * 或者系统弹窗还盖在屏幕上。
@@ -337,7 +336,7 @@ internal fun WelcomeSteps(
 }
 
 /**
- * 已走完的进度条。淡入淡出单独放在函数里：直接写在底部的 Column 里会被解析成
+ * 淡入淡出单独放在函数里：直接写在底部的 Column 里会被解析成
  * ColumnScope 版的 AnimatedVisibility，而它在 Box 里调不到（那是另一个接收者）。
  */
 @Composable

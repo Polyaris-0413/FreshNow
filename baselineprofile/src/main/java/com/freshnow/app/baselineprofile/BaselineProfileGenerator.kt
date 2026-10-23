@@ -44,7 +44,6 @@ class BaselineProfileGenerator {
             }
             awaitDesc(ADD, LAUNCH_TIMEOUT_MS)
 
-            // 扫描页
             clickDesc(ADD)
             awaitText(SCAN_TITLE)
             backToHome()
@@ -63,7 +62,6 @@ class BaselineProfileGenerator {
             awaitText(SYNC_PAIRED_TITLE)
             backToHome()
 
-            // 关于页 → 开源声明页
             openOverflow()
             clickText(ABOUT)
             awaitText(LEGAL)

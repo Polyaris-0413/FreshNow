@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * 「把第几张挪到最前」。编辑页与扫描页共用这一条判据：设为首图就是把那张挪到第一位，
+ * 编辑页与扫描页共用这一条判据：设为首图就是把那张挪到第一位，
  * 其余保持原序——顺序本身就是这一栏的全部含义（列表缩略图与详情页主图都取第一张）。
  */
 class PhotoOrderTest {
