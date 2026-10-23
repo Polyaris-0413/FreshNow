@@ -22,7 +22,6 @@ fun FreshNowTheme(
 
     // 页面底色与启动图、窗口底色共用 @color/window_background 这一个资源。
     // 方向只能是这个：XML 主题在 Compose 之前就被系统解析，读不到 colorScheme；反过来才行。
-    // 动态取色开着时其余角色仍随壁纸，只有页面底色固定——启动图无法在运行时算色，只能这样对齐。
     val windowBackground = colorResource(R.color.window_background)
 
     MaterialTheme(

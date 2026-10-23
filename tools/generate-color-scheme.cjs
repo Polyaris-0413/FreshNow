@@ -7,7 +7,7 @@
  *   node tools/generate-color-scheme.cjs '#4285F4'          # 只换品牌色，警示色沿用默认
  *   node tools/generate-color-scheme.cjs '#4285F4' '#FFA000' # 品牌色与警示色一起换
  *
- * node_modules 与 npm 生成的 package.json 已在 .gitignore 里，不影响 Android 构建。
+ * 依赖清单（package.json、package-lock.json）入库以便在新机器上复现，node_modules 不入库。
  *
  * 为何固定 0.3.0：它开箱可用（0.4.0 的 ESM 打包缺少 .js 后缀，Node 严格模式加载不了）。
  * 已核对 0.3.0 与 0.4.0 对同一 seed 输出完全一致，故用前者不必给依赖打补丁。
