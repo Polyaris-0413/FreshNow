@@ -57,8 +57,6 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
 /**
- * 局域网同步的总览页：本机是谁、已经和谁配上、附近还有谁、以及手动同步。
- *
  * 进页面就开始找设备、离开就停：发现要持组播锁，锁着不放会持续耗电，而用户看这一页的时间
  * 通常只有几秒。
  *
