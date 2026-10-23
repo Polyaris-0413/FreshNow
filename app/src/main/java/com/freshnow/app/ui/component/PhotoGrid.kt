@@ -53,21 +53,16 @@ internal data class PhotoGridItem(val key: String, val image: Bitmap?)
 
 /**
  * 记录里的照片区：一格一张，末尾一格是「+」。
- *
- * 一格里有两个手势：**点一下 = 看这张的大图**（与详情页同一套看图页）；**长按 = 问这张怎么办**
- * （用作首图 / 移除，由调用方弹面板）。分成两个手势是因为两个动作后果不同：看只是看，
- * 而移除会改草稿——前者不该需要确认，后者不该一下就做。
- *
+ * 一格两个手势：**点一下 = 看这张的大图**（与详情页同一套看图页）；**长按 = 问这张怎么办**（用作首图 / 移除）。
+ * 分成两个手势是因为后果不同：看只是看，而移除会改草稿——前者不该需要确认，后者不该一下就做。
  * 不在格子上再压一枚 ✕：格子只有一百来 dp，角上叠一个按钮既难看又容易点错。整格一个动作之后，
  * 误触的代价也只是「再多点一下确认」——草稿里的删改在保存前不落盘。
- *
- * 格子之间的间距取 [FreshNowSpacing.xs]（8dp）：M3 布局规范给的网格槽间距在 compact（手机）上
- * 就是 8dp，medium 16dp，large 以上 24dp。它不是「拼接块之间那条缝」（[FreshNowSpacing.xxxs]），
+ * 格子间距取 [FreshNowSpacing.xs]（8dp）：M3 布局规范给 compact（手机）的网格槽间距就是 8dp，
+ * medium 16dp、large 以上 24dp。它不是「拼接块之间那条缝」（[FreshNowSpacing.xxxs]），
  * 那一条只用来把同一组里的填充块拼在一起。
- *
  * 用 LazyVerticalGrid 而不是手写的 Column + Row：删掉中间一张时，剩下的格子要有位移与淡出动画
- * （`Modifier.animateItem`），而那套动画只有惰性布局给得了。它自己不许滚
- * （`userScrollEnabled = false`）：这个组件嵌在一个本身会滚动的表单里，抢走手势就会让表单卡住。
+ * （`Modifier.animateItem`），那套动画只有惰性布局给得了。它自己不许滚（`userScrollEnabled = false`）：
+ * 这个组件嵌在一个本身会滚动的表单里，抢走手势就会让表单卡住。
  */
 @Composable
 internal fun PhotoGrid(

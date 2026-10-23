@@ -23,8 +23,8 @@ internal const val MAX_CROP_ZOOM = 4f
 internal data class CropWindow(val left: Int, val top: Int, val side: Int)
 
 /**
- * 源图铺满正方形视窗所需的最小倍数（cover）。小于它就会在视窗里露出空白，
- * 与「看到什么就裁什么」冲突，所以它是缩放的起点而不是终点。
+ * 源图铺满正方形视窗所需的最小倍数（cover）。小于它就会在视窗里露出空白，与「看到什么就裁什么」冲突，
+ * 所以它是缩放的起点而不是终点。
  */
 internal fun coverScale(imageWidth: Int, imageHeight: Int, viewportSide: Float): Float {
     if (imageWidth <= 0 || imageHeight <= 0 || viewportSide <= 0f) return 1f
@@ -72,9 +72,8 @@ internal fun cropWindow(
 
 /**
  * 按裁剪框切下一块。坐标已经由 [cropWindow] 夹进图内，这里只做最后一道保险。
- *
- * 放在这里而不是各页自己的 ViewModel 里：编辑页与扫描页的「选图 → 裁剪」是同一件事，
- * 两份实现分家之后，同一张图在两边裁出来的方块会不一样。
+ * 放在这里而不是各页的 ViewModel 里：编辑页与扫描页的「选图 → 裁剪」是同一件事，
+ * 两份实现分家之后同一张图在两边裁出来的方块会不一样。
  */
 internal fun Bitmap.croppedTo(window: CropWindow): Bitmap {
     val side = window.side.coerceAtMost(minOf(width, height))

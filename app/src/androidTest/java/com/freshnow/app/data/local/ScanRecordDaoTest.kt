@@ -52,8 +52,7 @@ class ScanRecordDaoTest {
     }
 
     /**
-     * 墓碑行本身必须还在，否则对端不知道有过这次删除，下次同步会把这条推回来。
-     * 时刻与设备号也不能漏：删除就是一次修改，对端要拿它们跟自己的版本比新旧。
+     * 墓碑行、删除时刻与设备号都必须留下：少了它们对端不知道有过这次删除，下次同步会把记录推回来。
      */
     @Test
     fun markDeleted_keepsRowWithItsMomentAndDevice() = runBlocking {
@@ -133,9 +132,7 @@ class ScanRecordDaoTest {
     }
 
     /**
-     * 时刻完全相同时比设备号（多设备下同一毫秒改同一条是会发生的）。
-     * 关键不是「谁赢」，而是两边按同一个规则算出同一个人赢——否则一次冲突会在两台设备上
-     * 得到相反的结果，越同步越分叉。
+     * 时刻相同时比设备号。关键不是「谁赢」，而是两端按同一规则算出同一个人赢，否则越同步越分叉。
      */
     @Test
     fun merge_breaksTiesByDeviceTheSameWayOnBothSides() = runBlocking {

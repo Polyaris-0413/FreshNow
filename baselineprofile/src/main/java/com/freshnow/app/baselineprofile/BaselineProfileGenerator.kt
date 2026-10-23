@@ -102,11 +102,9 @@ class BaselineProfileGenerator {
 
     /**
      * 等两种首屏中的一种出现。
-     *
-     * 不用两段串行的 `wait`：那等于给每一种首屏各自一个窗口，而慢设备上第一个窗口就耗光了
-     * 整个判定期，第二个窗口开始时应用才刚画完（2026-10-20 就挂在这里：GMD 上 `Displayed`
-     * 花了 10.4 秒，两段各 10 秒的探针全空，于是既没走引导又等不到首页的「添加」）。
-     * 现在是一个窗口内轮询两个信号，谁先到算谁；正常设备几百毫秒就返回。
+     * 不用两段串行的 `wait`：那等于给每一种首屏各自一个窗口，而慢设备上第一个窗口就耗光了整个判定期，
+     * 第二个窗口开始时应用才刚画完（2026-10-20 就挂在这里：GMD 上 `Displayed` 花了 10.4 秒，两段各 10 秒的
+     * 探针全空，于是既没走引导又等不到首页的「添加」）。现在是一个窗口内轮询两个信号，谁先到算谁。
      */
     private fun MacrobenchmarkScope.awaitFirstScreen(timeoutMs: Long): FirstScreen? {
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -126,11 +124,9 @@ class BaselineProfileGenerator {
 
     /**
      * 退回首页。
-     *
-     * 按到达为准，而不是按固定次数返回（二级页可能叠了两层）。关键是用 [HOME_WAIT_MS] 而不是
-     * 1 秒来判「到了没有」：托管虚拟机负载重时，一次无障碍树查询会从百毫秒退化成秒级，
-     * 短等待会造成「还没回首页」的假阴性，脚本于是连按返回把应用直接退出到桌面，
-     * 最后 30 秒也等不到那个描述符（见 docs/r8-baseline-profile-notes.md 的 A-2）。
+     * 按到达为准，而不是按固定次数返回（二级页可能叠了两层）。判「到了没有」用 [HOME_WAIT_MS] 而不是 1 秒：
+     * 托管虚拟机负载重时，一次无障碍树查询会从百毫秒退化成秒级，短等待会造成「还没回首页」的假阴性，
+     * 脚本于是连按返回把应用直接退出到桌面（见 docs/r8-baseline-profile-notes.md 的 A-2）。
      */
     private fun MacrobenchmarkScope.backToHome() {
         repeat(MAX_BACK_STEPS) {

@@ -120,10 +120,8 @@ class WelcomeScreenTest {
     }
 
     /**
-     * 连点「上一步」不能崩。
-     *
-     * 翻页过半时当前页已经变成 0，而按钮这时正在淡出、仍接得到点击；照当前页下标减一直接取
-     * 就会取到 steps[-1]——真机上连点两次曾因此闪退。
+     * 连点「上一步」不能崩：翻页过半时当前页已是 0，而正在淡出的按钮仍接得到点击，
+     * 下标减一会取到 steps[-1]（真机上连点两次曾因此闪退）。
      */
     @Test
     fun tappingPreviousTwiceQuicklyDoesNotCrash() {
@@ -210,7 +208,7 @@ class WelcomeScreenTest {
     }
 
     /**
-     * 点「允许使用相机」只发起请求，不自己往下走：结果没回来之前必须留在这一页，
+     * 点「允许使用相机」只发起请求：结果没回来之前必须留在这一页，
      * 否则用户在系统弹窗里点拒绝时，人已经站在收尾页上了。
      */
     @Test
@@ -371,9 +369,7 @@ class WelcomeScreenTest {
 
     /**
      * 这一屏上看不到这段文字。
-     *
-     * 判的是「显没显示」而不是「存不存在」：pager 会把相邻页也组合进来，它们躺在视口外面，
-     * 当「存在」算。若这段文字压根没被组合，这断言同样成立。
+     * 判的是「显没显示」而不是「存不存在」：pager 会把相邻页也组合进视口外，按存在算。
      */
     private fun assertNotVisible(text: String) {
         val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot

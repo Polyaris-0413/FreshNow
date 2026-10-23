@@ -22,10 +22,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 关于页：这个应用是什么、出处在哪。
- *
- * 只摆 [AboutList] 与 [OpenSourceScreen] 本体：前者不含导航与浏览器（那两件事在 AboutScreen
- * 里接上），后者只读本地资源——两者都不碰设备上的数据，也因此不必去验 intent。
+ * 关于页：这个应用是什么、出处在哪。只摆 [AboutList] 与 [OpenSourceScreen] 本体，
+ * 两者都不碰设备上的数据，因此不必验 intent。
  */
 @RunWith(AndroidJUnit4::class)
 class AboutScreenTest {
@@ -34,9 +32,7 @@ class AboutScreenTest {
     val composeRule = createComposeRule()
 
     /**
-     * 版本号是这一行的「值」，与标题同一行、在右端，而不是落在标题下面当说明。
-     *
-     * 判据用纵向交叠：同一行时两者的纵向区间重叠（值的顶在标题的底之上），放到下面则不重叠。
+     * 版本号是这一行的「值」，与标题同一行、在右端。判据用纵向交叠：同一行时区间重叠，放到下面则不重叠。
      */
     @Test
     fun versionShowsBesideItsLabel() {
@@ -64,11 +60,8 @@ class AboutScreenTest {
     }
 
     /**
-     * 项目各行都去浏览器、各自带对链接；「开源声明」进的是页内那一页，不是浏览器。
-     * 两者的区别要守住，否则点「开源声明」会跳到某个外链上。
-     *
-     * 作者行给的必须是作者主页而不是仓库：给成仓库就成了「访问仓库」的重复入口。
-     * 群聊行给的是 QQ 的加群页：那一页是对外的入口，不是应用内的页面。
+     * 项目各行都去浏览器并各带对链接；「开源声明」进页内那一页。
+     * 作者行给作者主页（给仓库就成了「访问仓库」的重复入口），群聊行给 QQ 加群页。
      */
     @Test
     fun projectRowsOpenUrlsWhileOpenSourceStaysInApp() {
@@ -128,10 +121,8 @@ class AboutScreenTest {
     }
 
     /**
-     * 版本与检查更新两行各自的点击：前者是彩蛋，后者是「敬请期待」。
-     *
-     * 判据取「回调有没有被叫到」而不是「toast 有没有弹出来」——[AboutList] 只负责往外报，
-     * 弹什么由 AboutScreen 决定，这里验的是前者；顺带盯住这两行不去浏览器、也不导航。
+     * 「版本」（彩蛋）与「检查更新」（敬请期待）两行各自报回调，不去浏览器也不导航。
+     * 判据取回调有没有被叫到：[AboutList] 只负责往外报，弹什么由 AboutScreen 决定。
      */
     @Test
     fun versionAndCheckUpdateInvokeTheirOwnActions() {

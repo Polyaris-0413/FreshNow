@@ -116,17 +116,11 @@ object FreshNowTransitions {
 
     /**
      * 按下快门那一下取景框收多少：收下去再弹回，回弹就取上面那族弹簧里的 [fastSpatial]。
-     *
-     * 取 0.97：再小就看得出来是在「做动画」，而不是快门那一下收紧；这个量级在正方形取景框上
-     * 边缘只挪几个 dp，配上 stiffness 1400 的弹簧，收得快、回得也快。
-     *
+     * 取 0.97：再小就看得出来是在「做动画」，而不是快门那一下收紧。
      * 这一下是「我拍到了」的回执，不是「请等待」：帧一直流着，从按下到结果只有几十毫秒，
      * 给它配等待话术等于把一段看不见的等待变成看得见的（见 ShutterSqueeze 的说明）。
-     *
-     * 【规范缺席：M3 没有这一项，主流也没有公认值，本项目自定】M3 的按下反馈走的是
-     * **形状与尺寸令牌**，不是缩放比例：
-     * 按钮按下时容器从 full 圆角变 CornerSmall（BaselineButtonTokens.PressedContainerShape），
-     * 拖动手柄按下有单独的 pressedSize（DragHandleSizes）。取景框不是组件，套不上那套令牌，
+     * 【规范缺席：M3 没有这一项，主流也没有公认值，本项目自定】M3 的按下反馈走的是**形状与尺寸令牌**
+     * （按钮的 PressedContainerShape、拖动手柄的 pressedSize），取景框不是组件、套不上那套令牌，
      * 这里用整体缩放表达同一件事。
      */
     const val SHUTTER_SQUEEZE_SCALE = 0.97f
@@ -154,15 +148,12 @@ object FreshNowTransitions {
 
     /**
      * 页内状态切换：时长取 M3 时长令牌 [DURATION_SHORT4]（200ms），缓动取 [Standard]。
-     *
-     * 曲线必须显式给：`tween` 默认的是 Compose 的 FastOutSlowInEasing，那是 M3 里的 legacy
-     * 曲线（0.4, 0, 0.2, 1），起手慢；而这类变化要的是立刻跟上状态，所以取 [Standard]。
-     *
-     * 【这一档为什么是 200 而不是 150】技能表里 short3（150ms）标的是「小转场」、short4 标的是
-     * 「退出转场」。真机上试过把这里改成 150ms，反而不行：选中框淡入、数字滚动都是小幅度变化，
-     * 时长压得太短眼睛跟不上，观感更接近硬切；200ms 是短组里最大的一档，慢下来才看得出这是过渡
-     * 而不是跳变。所以「看着像小变化但需要看清」的那些留在这一档，纯颜色过渡另走 [smallChange]。
-     * 今后若要再调，同样请先实测对比，不要仅仅因为「技能表说 short3」就回退。
+     * 曲线必须显式给：`tween` 默认的是 Compose 的 FastOutSlowInEasing，那是 M3 里的 legacy 曲线
+     * （0.4, 0, 0.2, 1），起手慢；而这类变化要的是立刻跟上状态。
+     * 【这一档为什么是 200 而不是 150】short3（150ms）在技能表里标的是「小转场」。真机上试过改成 150，
+     * 反而不行：选中框淡入、数字滚动都是小幅度变化，压得太短眼睛跟不上，观感更接近硬切；
+     * 200 是短组里最大的一档。所以「看着像小变化但需要看清」的留在这一档，纯颜色过渡另走 [smallChange]。
+     * 今后若要再调，请先实测对比，不要仅仅因为「技能表说 short3」就回退。
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT4, easing = Standard)
@@ -185,17 +176,12 @@ object FreshNowTransitions {
 
     /**
      * 与 [stateChange] 同一档时长，但晚一拍才开始。
-     *
-     * 用于「前一件事演完才轮到它」的地方，目前只有一处：列表被删空后空态的出现。它紧跟在条目
-     * 淡出之后，而确认删除的对话框也正好在这段时间退场——两者同时开始的话，它的前半段整段被
-     * 对话框盖着，用户看到的是「对话框一关，它已经在那儿了」，等于没有淡入。等一拍再淡入，
-     * 才看得出它是淡进来的。
-     *
+     * 用于「前一件事演完才轮到它」的地方，目前只有一处：列表被删空后空态的出现——它紧跟在条目淡出之后，
+     * 而确认删除的对话框也正好在这段时间退场；同时开始的话，它的前半段整段被对话框盖着，等于没有淡入。
      * 延迟取同一档时长而不是另取一个数：要等的那件事（条目淡出）就是用 [stateChange] 演的，
      * 它结束的时刻就是这个数。
-     *
-     * 【规范缺席：M3 没有延迟这一档，主流也只有原则没有数值，本项目自定】M2 的 Choreography
-     * 里说可以给一组 incoming 元素加「短延迟」，但没给毫秒。所以这个数由「等它演完」推出来。
+     * 【规范缺席：M3 没有延迟这一档，主流也只有原则没有数值，本项目自定】M2 的 Choreography 里说可以给
+     * 一组 incoming 元素加「短延迟」，但没给毫秒，所以这个数由「等它演完」推出来。
      */
     fun <T> stateChangeDelayed(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT4, delayMillis = DURATION_SHORT4, easing = Standard)
@@ -225,15 +211,12 @@ object FreshNowTransitions {
 
     /**
      * fade through 的两段时长与缩放幅度。
-     *
-     * Material 的 motion system 把这个 pattern 给「**没有空间或导航关系**的两个视图」。92% 的
-     * 缩放有官方原文：m2.material.io/design/motion/the-motion-system.html 的 fade through 一节
-     * 写的是 incoming "scaling in overall size from 92% to 100%"；两段时长（90 / 210，合 300ms）
-     * 是同一个 pattern 的分段，M3 的令牌表只给「总档」、没有分段值。
-     *
-     * 90 与 210 不落在 M3 的时长刻度上（刻度里最近的是 short2 的 100 与 short4 的 200），但两段
-     * 的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，所以保留 pattern 的原文。
-     * 也就是说：这两条的依据是 M2 的 pattern，不是 M3 令牌；若哪天要求全部落回 M3 令牌刻度，
+     * Material 的 motion system 把这个 pattern 给「**没有空间或导航关系**的两个视图」。92% 的缩放有官方原文：
+     * m2.material.io/design/motion/the-motion-system.html 的 fade through 一节写的是 incoming
+     * "scaling in overall size from 92% to 100%"；两段时长（90 / 210，合 300ms）是同一个 pattern 的分段，
+     * M3 的令牌表只给「总档」、没有分段值。
+     * 90 与 210 不落在 M3 的时长刻度上，但两段的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，
+     * 所以保留 pattern 的原文：这两条的依据是 M2 的 pattern，不是 M3 令牌；若哪天要求全部落回 M3 令牌刻度，
      * 只能写成 100 / 200，交叠比例随之从 0.3/0.7 变成 1/3 与 2/3。
      */
     const val FADE_THROUGH_OUT_MS = 90
@@ -303,13 +286,10 @@ object FreshNowTransitions {
 
     /**
      * 状态胶囊上同一句话在画面里至少留多久。
-     *
      * 取 600ms：比页内状态切换（[DURATION_SHORT4] 的 200ms）长，因为它挡的不是一次过渡好不好看，
      * 而是两句话来回打架——请求每秒回来好几次，跟着信号换字的话一秒里能翻三次。
      * 停留期内报上来的短状态由 ScanStatusDwell 直接丢掉，不排队补演。
-     *
-     * 【规范缺席：M3 只给动画时长、不给文案停留，主流也没有公认值，本项目自定】能对的只有
-     * 「防闪烁」这条惯例：一句话至少要留过一帧的若干倍，免得同一位置来回改字。
+     * 【规范缺席：M3 只给动画时长、不给文案停留，主流也没有公认值，本项目自定】能对的只有「防闪烁」这条惯例。
      */
     const val STATUS_DWELL_MS = 600L
 
@@ -363,15 +343,12 @@ private fun <T> pageSpec(): FiniteAnimationSpec<T> =
     )
 
 /**
- * 选中计数里数字的滚动：变多往上滚、变少往下滚。方向由数量本身决定，与界面无关，
- * 因此判据在这里而不是调用方。
- *
- * 位移取整个行高，而不是留一部分：调用方只把这一个数字放进 AnimatedContent，它的框
- * 正好一行高，整行偏移配合 AnimatedContent 的裁剪就是一个滚动窗口——旧数字从一侧滑出、
- * 新数字从另一侧滑入。偏移不足两个数字反而会同时留在框里，看着是重影。
- *
- * 不做成 [FreshNowTransitions] 的成员：它要在 transitionSpec 里直接调用，而那个 lambda 的
- * 接收者是 AnimatedContentTransitionScope，成员形式的扩展函数在那里调不到。
+ * 选中计数里数字的滚动：变多往上滚、变少往下滚。方向由数量本身决定，与界面无关，因此判据在这里。
+ * 位移取整个行高，而不是留一部分：调用方只把这一个数字放进 AnimatedContent，它的框正好一行高，
+ * 整行偏移配合 AnimatedContent 的裁剪就是一个滚动窗口——旧数字从一侧滑出、新数字从另一侧滑入；
+ * 偏移不足两个数字反而会同时留在框里，看着是重影。
+ * 不做成 [FreshNowTransitions] 的成员：它要在 transitionSpec 里直接调用，而那个 lambda 的接收者是
+ * AnimatedContentTransitionScope，成员形式的扩展函数在那里调不到。
  */
 fun AnimatedContentTransitionScope<Int>.countRoll(): ContentTransform {
     val roll = if (targetState > initialState) 1 else -1

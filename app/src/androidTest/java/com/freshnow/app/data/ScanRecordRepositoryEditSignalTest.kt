@@ -45,8 +45,7 @@ class ScanRecordRepositoryEditSignalTest {
     private lateinit var repository: ScanRecordRepository
 
     /**
-     * 订阅者起在这个作用域上，而不是 runBlocking 的作用域里：这个流不会结束，挂在 runBlocking
-     * 名下的子协程会让 runBlocking 一直等它——表现是整个用例卡死，而看不出卡在哪一步。
+     * 订阅者必须起在这个作用域：这个流不会结束，挂在 runBlocking 名下会让整个用例卡死。
      */
     private val watcherScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -137,10 +136,8 @@ class ScanRecordRepositoryEditSignalTest {
     }
 
     /**
-     * 订阅 [ScanRecordRepository.localEdits] 并把收到的事件丢进一个 channel。
-     *
-     * 用 UNDISPATCHED 起：订阅必须在下一行之前就挂上（这个流是 replay=0 的广播，晚一步就漏掉整次
-     * 写入），而 UNDISPATCHED 会先把 collect 跑到挂起点，那时订阅已经生效。
+     * 订阅 [ScanRecordRepository.localEdits] 并把收到的事件丢进 channel。
+     * 必须用 UNDISPATCHED：流是 replay=0 的广播，订阅要赶在下一行之前生效。
      */
     private fun watchEdits(): Channel<Unit> {
         val received = Channel<Unit>(Channel.UNLIMITED)

@@ -9,9 +9,7 @@ import com.freshnow.app.data.SortOrder
 
 /**
  * 排序方式的两张卡：主页顶栏的排序动作与设置页的「排序方式」共用同一份。
- *
- * 同一件事在两个入口长成一个样，连文案都不必各写一遍（[label] 是文案的唯一来源）；
- * 把「当前项」也交给这里标出来，两处才不会一个标一个不标。
+ * 同一件事在两个入口长成一个样（[label] 是文案的唯一来源），「当前项」也交给这里标出，两处才不会一个标一个不标。
  */
 @Composable
 fun ColumnScope.SortOrderMenuItems(

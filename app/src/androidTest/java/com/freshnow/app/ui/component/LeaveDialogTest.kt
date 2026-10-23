@@ -69,10 +69,8 @@ class LeaveDialogTest {
 
     /**
      * 扫描页那份文案也走这个组件：两处问的是同一件事，只是页面名不同。
-     *
-     * 【为什么没有「返回键只收起弹窗」那条】返回键落在对话框自己那个 window 上，Espresso 在它上面
-     * 等焦点会超时（全量跑时必现，单跑靠运气），而把弹窗收起的是框架的 AlertDialog，不是本项目的
-     * 接线。想验它得另上 uiautomator，代价大于它守的那一条；这里只守三条回调各自通到哪儿。
+     * 【没有「返回键只收起弹窗」那条】返回键落在对话框自己的 window 上，Espresso 等焦点会超时；
+     * 想验它得另上 uiautomator，代价大于它守的那一条。
      */
     @Test
     fun scanWordingShowsTheSameActions() {

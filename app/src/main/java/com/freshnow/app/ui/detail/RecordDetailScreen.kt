@@ -82,9 +82,8 @@ fun RecordDetailScreen(
     BackHandler(enabled = viewingImageIndex != null) { viewingImageIndex = null }
 
     // 详情页常驻，看图页作为覆盖层进出：**同一个实例**进出，快速连点最多是把这段过渡反向，
-    // 不可能出现「退场与进场同时进行」——重叠时框架会把上一段留在屏幕上（实测：滑走后 200~300ms
-    // 内再点一下，图就卡在屏幕角落，且那个僵尸页几秒后仍在收手势）。
-    // 顺带把「退场要重建整页」的合成成本也省了（之前实测退出那一刻有一帧 80~100ms）。
+    // 不可能出现「退场与进场同时进行」（实测：滑走后 200~300ms 内再点一下，图就卡在屏幕角落）。
+    // 顺带省掉了「退场要重建整页」的合成成本（之前实测退出那一刻有一帧 80~100ms）。
     SharedTransitionLayout(modifier = modifier) {
         RecordDetailContent(
             uiState = uiState,

@@ -8,10 +8,9 @@ import java.io.OutputStream
 
 /**
  * 把 [BackupArchive] 那层文件格式接到本机的记录上。
- *
- * 合并走的是同步用的那个 [ScanRecordRepository.mergeAll]：备份导入与局域网同步是同一件事——
- * 把另一份状态并进来、按 syncId 与 LWW 定胜负，所以不该有两套合并规则。这也意味着备份里的
- * 删除会随着导入生效（墓碑参与合并），与同步的表现一致。
+ * 合并走同步用的那个 [ScanRecordRepository.mergeAll]：备份导入与局域网同步是同一件事——
+ * 把另一份状态并进来、按 syncId 与 LWW 定胜负，不该有两套合并规则。
+ * 这也意味着备份里的删除会随着导入生效（墓碑参与合并），与同步的表现一致。
  */
 internal class BackupRepository(private val records: ScanRecordRepository) {
 

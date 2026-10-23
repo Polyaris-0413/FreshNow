@@ -29,8 +29,7 @@ interface ScanRecordDao {
     suspend fun findById(id: Long): ScanRecord?
 
     /**
-     * 同步交换用：连墓碑一起交出去。墓碑必须出去，否则对端只会看到「它没有这条」，
-     * 于是把这条当成新增又推回来，删除就永远生效不了。
+     * 同步交换用：连墓碑一起交出去。墓碑不出去，对端只会看到「它没有这条」并把这条当成新增推回来。
      */
     @Query("SELECT * FROM scan_records")
     suspend fun findAll(): List<ScanRecord>
@@ -92,16 +91,11 @@ interface ScanRecordDao {
     suspend fun deletePurgeable(cutoff: Long)
 
     /**
-     * 把一条对端来的记录并进本地。
-     *
-     * 事务是必须的：合并读一次、写一次，中间被另一次合并插进来就会两边都判定「本地没有」，
-     * 于是同一个 [ScanRecord.syncId] 被插两次——唯一索引会挡住第二次并让整次同步失败，
+     * 把一条对端来的记录并进本地。事务是必须的：合并的读与写之间若被另一次合并插进来，
+     * 两边都会判定「本地没有」，同一个 [ScanRecord.syncId] 被插两次，唯一索引挡住并让整次同步失败——
      * 而这条记录其实只是重复而非冲突。
-     *
-     * 保留本地的 [ScanRecord.id]：那条 id 可能正被详情页的路由、列表的选中集合引用着，
-     * 换成对端的 id 会让用户眼前的界面指向一条不存在的记录。
-     *
-     * 返回是否真的写入了。没赢的那次返回 false，让调用方知道界面不需要刷新。
+     * 保留本地的 [ScanRecord.id]：它可能正被详情页的路由、列表的选中集合引用着，换成对端的 id
+     * 会让用户眼前的界面指向一条不存在的记录。返回是否真的写入（没赢返回 false，界面不需要刷新）。
      */
     @Transaction
     suspend fun merge(record: ScanRecord): Boolean {

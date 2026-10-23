@@ -245,9 +245,7 @@ class SyncEngineTest {
     }
 
     /**
-     * 一方解除配对，另一方那边那条也得没。
-     *
-     * 否则用户会看到一台「已配对」但其实早就连不上的设备，而且每次同步都白白试它一遍。
+     * 一方解除配对，另一方那条也得没：否则对方会挂着一台永远连不上的设备，每次同步都白试一遍。
      */
     @Test
     fun unpairing_tellsTheOtherSide() = runBlocking {
@@ -279,8 +277,7 @@ class SyncEngineTest {
     }
 
     /**
-     * 地址失效后可能连到别的设备上：那台也会说「我不认识你」，但那段话与本次配对关系无关。
-     * 光看标记不够——必须确认说这话的正是本机要找的那台，否则地址一变就会误删一段还好好的配对。
+     * 收到「不认识你」还必须确认对方就是要找的那台：地址失效后可能连到别的设备，否则会误删好好的配对。
      */
     @Test
     fun aStrangerSayingItDoesNotKnowUs_keepsThePairing() = runBlocking {

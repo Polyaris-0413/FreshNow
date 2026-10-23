@@ -19,13 +19,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 照片动作面板：给了哪些动作、动手之前先收起。
- *
- * 收起这一步不能省。直接把这页从组合里拿掉（不等收起动画）会连带丢掉两件东西：那一下收起动画
- * 根本没机会播；同一个 SheetState 停在展开态，下次打开时 `show()` 立刻完成——弹入动画就此消失。
- * 用户看到的是「删掉一张、马上点另一张，第二片面板是突然冒出来的」。
- *
- * 时钟握在手里：要验的正是「动手发生在收起动画之后」，而不是「点了就一定回调」。
+ * 照片动作面板：给哪些动作、动手之前先收起。
+ * 收起不能省：直接把这页从组合里拿掉，收起动画没机会播，同一个 SheetState 停在展开态，
+ * 下次打开时 `show()` 立刻完成，弹入动画就此消失。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @RunWith(AndroidJUnit4::class)
@@ -95,9 +91,7 @@ class PhotoActionsSheetDismissTest {
 
     /**
      * 用户报的那一幕：删掉一张、马上点另一张，第二片面板直接蹦出来。
-     *
-     * 同一个 SheetState 被两次打开复用（与页面里一致）；第一次收起之后它必须已经归位，
-     * 第二次打开才能从头播弹入动画——时钟没往前推时它应当还在 Hidden，而不是已经 Expanded。
+     * 同一个 SheetState 被复用，第一次收起后必须已归位：时钟没推进时应还在 Hidden。
      */
     @Test
     fun secondOpeningStartsFromHiddenAndAnimates() {

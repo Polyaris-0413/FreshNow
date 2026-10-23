@@ -70,15 +70,11 @@ sealed interface UpdateCheckResult {
 
 /**
  * 查 GitHub 的最新 release（公开接口，不需要认证）。
- *
- * [repositoryUrl] 是仓库页地址，由调用方从 strings.xml 的 project_repository_url 传进来——
- * 仓库地址因此只有那一条资源可用，接口与发布页都从它推出来（见 [latestReleaseApiUrl]）。
- *
+ * [repositoryUrl] 由调用方从 strings.xml 的 project_repository_url 传进来——仓库地址因此只有那一条资源可用，
+ * 接口与发布页都从它推出来（见 [latestReleaseApiUrl]）。
  * 用 HttpURLConnection 而不是 OkHttp：本应用只有这一处 GET，为它引一个 HTTP 客户端不划算
  * （识别请求走的也是同一个原生接口，见 AiVisionClient）。
- *
- * 与用 OkHttp 的一个差别要记住：**GitHub 的接口要求带 User-Agent**，缺了直接 403；
- * OkHttp 自带一个，HttpURLConnection 不自带，所以下面显式设置。
+ * 差别要记住：**GitHub 的接口要求带 User-Agent**，缺了直接 403；OkHttp 自带，HttpURLConnection 不自带。
  */
 class UpdateChecker(private val repositoryUrl: String) {
 
@@ -144,10 +140,8 @@ internal fun parseLatestRelease(body: String, fallbackUrl: String): LatestReleas
 
 /**
  * 从 assets 里取安装包的下载地址；没传 apk 时返回 null（由 [LatestRelease.downloadUrl] 退回发布页）。
- *
- * 按后缀认而不是按名字认 "app-release.apk"：产物改名（如加个架构后缀）不该让「下载」退回发布页，
- * 而名字能对上的其他文件也不一定是安装包。资产字段缺失或不是数组时同样给 null——接口多一个字段
- * 不该让整条检查更新变成「没查成」。
+ * 按后缀认而不是按名字认 "app-release.apk"：产物改名不该让「下载」退回发布页，而名字对上的其他文件也不一定是安装包。
+ * 资产字段缺失或不是数组时同样给 null——接口多一个字段不该让整条检查更新变成「没查成」。
  */
 private fun apkAssetUrl(json: JsonObject): String? = runCatching {
     json["assets"]?.jsonArray?.firstNotNullOfOrNull { asset ->
@@ -182,15 +176,11 @@ fun compareVersions(a: String, b: String): Int {
 }
 
 /**
- * 该不该向用户提示这个版本。
- *
- * 两个条件缺一不可：**确实更新**（不比当前旧，也不能相同），且**没被忽略过**。
- *
+ * 该不该向用户提示这个版本。两个条件缺一不可：**确实更新**（不比当前旧，也不能相同），且**没被忽略过**。
  * [ignoredVersion] 是用户点过「关闭」的那个版本号，比的是一个具体的版本而不是一个开关：
  * 忽略过 1.0.1 之后发了 1.0.2，仍然要提示。
- *
- * 抽成纯函数是为了能直接断言四种组合（新/旧/同版 × 忽略与否）：它是「冷启动该不该弹窗」的
- * 全部判据，而弹窗本身要靠真有一个 release 才能端到端验（见 AutoUpdateCheck）。
+ * 抽成纯函数是为了能直接断言四种组合：它是「冷启动该不该弹窗」的全部判据，
+ * 而弹窗本身要靠真有一个 release 才能端到端验（见 AutoUpdateCheck）。
  */
 internal fun shouldPromptUpdate(
     release: LatestRelease,

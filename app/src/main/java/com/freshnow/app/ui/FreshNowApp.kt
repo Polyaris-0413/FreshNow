@@ -20,14 +20,9 @@ import kotlinx.coroutines.flow.first
 
 /**
  * 冷启动的第一层：决定这一次进欢迎页还是主页。
- *
- * 「有没有看过欢迎页」是异步读出来的（DataStore）。读完之前两边都不渲染，只铺一层主题背景：
- * 先渲染主页再切走的话，用户会看到主页闪一下，而那一帧里应用已经能点了。背景色取
- * colorScheme.background，它与启动图、窗口底色是同一个值（见 FreshNowTheme），
- * 于是从启动图到第一帧没有色差。
- *
- * 首次检查更新挂在这里而不是 MainActivity：它要在进了主页之后才开始查，否则冷启动的第一屏
- * 是欢迎页，更新对话框却盖在它上面。
+ * 「有没有看过欢迎页」是异步读出来的，读完之前两边都不渲染，只铺 colorScheme.background——
+ * 它与启动图、窗口底色是同一个值（见 FreshNowTheme），于是从启动图到第一帧没有色差。
+ * 首次检查更新挂在这里而不是 MainActivity：它要在进了主页之后才开始查，否则对话框会盖在欢迎页上。
  */
 @Composable
 fun FreshNowApp() {

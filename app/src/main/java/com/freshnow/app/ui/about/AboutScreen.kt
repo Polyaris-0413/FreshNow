@@ -121,7 +121,7 @@ fun AboutScreen(
 
 /**
  * 关于页的正文：三个分区与各行。不含导航与浏览器——那两件事由 [AboutScreen] 接上，
- * 于是这里可以按定值直接断言（见 AboutScreenTest），不必去验 intent。
+ * 于是这里可以按定值直接断言（见 AboutScreenTest），不必验 intent。
  */
 @Composable
 internal fun AboutList(
@@ -143,11 +143,9 @@ internal fun AboutList(
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 
-        // 版本号放右端：它是这一行的「值」，不是对标题的说明。按 M3 列表项的解剖，说明在下
-        // （supporting-text）、短值在右（trailing-supporting-text），这里没有要解释的东西，
-        // 因此只给值、不给说明。
-        //
-        // 点它是彩蛋：弹一个日期。同页其余各行都可点，这一行也不该按下去毫无反应。
+        // 版本号放右端：它是这一行的「值」。按 M3 列表项的解剖，说明在下（supporting-text）、短值在右
+        // （trailing-supporting-text），这里没有要解释的东西。
+        // 点它是彩蛋：弹一个日期——同页其余各行都可点，这一行也不该按下去毫无反应。
         ListItem(
             leadingContent = {
                 Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
@@ -185,11 +183,10 @@ internal fun AboutList(
             modifier = Modifier.padding(top = FreshNowSpacing.md)
         )
 
-        // 三行都去浏览器：链接从资源取，行本身不知道具体地址
-        //
-        // 作者行放首行：先说这是谁做的，再说去哪看、去哪反馈。它指的是作者主页而不是仓库——
-        // 与「访问仓库」指向同一个仓库就成了一条重复的入口（昵称与 GitHub 用户名也不同，
-        // 由这一行来落这一处出处）。昵称是这一行的「值」，与版本号同一种摆法，放右端。
+        // 三行都去浏览器：链接从资源取，行本身不知道具体地址。
+        // 作者行放首行：先说这是谁做的，再说去哪看、去哪反馈；它指的是作者主页而不是仓库——
+        // 与「访问仓库」指向同一个仓库就成了重复入口（昵称与 GitHub 用户名也不同，由这一行落这处出处）。
+        // 昵称是这一行的「值」，与版本号同一种摆法，放右端。
         ListItem(
             leadingContent = {
                 Icon(painter = painterResource(R.drawable.ic_author), contentDescription = null)

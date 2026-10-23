@@ -59,10 +59,8 @@ import kotlinx.coroutines.launch
 
 /**
  * 本页的整屏状态。裁剪、拍照都是一整屏，与编辑表单平级替换。
- *
- * 裁剪那张源图挂在状态里（[EditStep.Crop]）而不是用时另读 ViewModel：状态从 [EditStep.Crop]
- * 换成 [EditStep.Edit] 的那一帧，ViewModel 里的原图已经被清掉了，退场动画拿什么画？
- * 带着图走，退场那一帧内容就还在。
+ * 裁剪那张源图挂在状态里（[EditStep.Crop]）而不是用时另读 ViewModel：
+ * 状态从 [EditStep.Crop] 换成 [EditStep.Edit] 的那一帧，ViewModel 里的原图已经被清掉了，退场动画拿什么画？
  */
 internal sealed interface EditStep {
     data object Edit : EditStep

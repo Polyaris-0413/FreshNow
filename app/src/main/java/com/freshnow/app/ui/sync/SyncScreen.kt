@@ -162,11 +162,9 @@ internal fun SyncScreen(
 
 /**
  * 本页的内容：只吃数据与回调，不碰 ViewModel，所以能单独演、也能单独验。
- *
- * 用 LazyColumn 而不是 Column + verticalScroll：这一页会自己变的地方就是两张设备表——发现到的
- * 设备逐个进来、被忘掉的设备走掉、其余条目滑到新位置——靠的是 LazyColumn 的条目动画。三块
- * 「状态话」（正在查找 / 没有找到 / 还没有配对）也各自是一条带自己 key 的条目：状态换掉时旧的
- * 淡出、新的淡入，而不是整块硬切。
+ * 用 LazyColumn 而不是 Column + verticalScroll：这一页会自己变的地方就是两张设备表，靠的是 LazyColumn 的条目动画。
+ * 三块「状态话」（正在查找 / 没有找到 / 还没有配对）也各自是一条带自己 key 的条目：状态换掉时旧的淡出、
+ * 新的淡入，而不是整块硬切。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -332,11 +330,9 @@ internal fun SyncContent(
 }
 
 /**
- * 这一页所有条目共用的动画参数：出现、消失、以及被别的条目顶开时的位移，都取页内状态切换
- * 那一档（见 FreshNowTransitions.stateChange，与主页列表同一套）。
- *
- * 三块「状态话」也是有 key 的条目，所以换状态时旧的淡出、新的淡入，而不是整块硬切——这一页上
- * 用户看得见的变化基本都在这几处：搜索中变成一行行设备、忘掉一台之后其余条目滑上来。
+ * 这一页所有条目共用的动画参数：出现、消失、以及被别的条目顶开时的位移，都取页内状态切换那一档
+ * （见 FreshNowTransitions.stateChange，与主页列表同一套）。
+ * 三块「状态话」也是有 key 的条目，所以换状态时旧的淡出、新的淡入，而不是整块硬切。
  */
 private fun LazyItemScope.animatedItem(): Modifier = Modifier.animateItem(
     fadeInSpec = FreshNowTransitions.stateChange(),
@@ -373,11 +369,9 @@ private fun PairedDeviceRow(peer: SyncPeer, onForget: () -> Unit, modifier: Modi
 
 /**
  * 本机配对码。字号给到 display：对面那台设备的人要照着念，越大越省事。
- *
  * 三块内容（码、说明、本机地址）排在一条中轴上，块与块之间统一 [FreshNowSpacing.xs]：
- * 码居中而说明左对齐的话，同一块面板里会出现两个重心，读起来像两样东西拼在一起。
+ * 码居中而说明左对齐的话，同一块面板里会出现两个重心。
  * 面板顶边的间距原来由标题占着，标题拿掉后接在这里——不然配对码会贴在拖柄下面。
- *
  * 底部取 [FreshNowSpacing.md] 而不是段间距 [FreshNowSpacing.lg]：面板底边不是段落分界，
  * 用段间距那一档会在最下面多出一截，看着像还没排完。
  */
@@ -574,9 +568,8 @@ private fun rememberLocalNetworkPermission(): LocalNetworkPermissionState {
 }
 
 /**
- * 这个权限是 Android 17（API 37）才有的，在那之前的系统上它根本不存在——直接去检查会一律回
- * 「未授予」，于是所有老设备一进本页就顶着一句要授权的提示，而那句提示在那里毫无意义。
- * 所以低版本一律当作「不需要」，不去检查也不去请求。
+ * 这个权限是 Android 17（API 37）才有的，在那之前的系统上它根本不存在——直接去检查会一律回「未授予」，
+ * 于是所有老设备一进本页就顶着一句毫无意义的授权提示。所以低版本一律当作「不需要」，不检查也不请求。
  */
 private fun Context.hasLocalNetworkPermission(): Boolean =
     Build.VERSION.SDK_INT < LOCAL_NETWORK_PERMISSION_API ||

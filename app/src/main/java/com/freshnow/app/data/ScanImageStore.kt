@@ -24,13 +24,11 @@ class ScanImageStore(private val directory: File) {
 
     /**
      * 落盘成功返回文件名，失败返回 null（该条记录就没有图片，界面用占位图代替）。
-     *
-     * 先写临时文件再改名，而不是往目标文件直接写：中途失败会留下一张残缺的图，而它的名字已经
-     * 声称「内容就是这张照片」，此后每次引用都会读到坏图，且没有任何迹象表明它坏在哪一步。
-     * 改名在同一个目录里是原子操作，要么见到完整的图，要么什么也见不到。
-     *
-     * 要求 `frame` 是已经编码好的 JPEG 字节（见 [ScanImageCodec]），这里不碰图像内容——
-     * 一旦这里也做一次编码，散列算出的名字就不再对应真实内容了。
+     * 先写临时文件再改名，而不是往目标文件直接写：中途失败会留下一张残缺的图，而它的名字已经声称
+     * 「内容就是这张照片」，此后每次引用都会读到坏图，且没有任何迹象表明它坏在哪一步。
+     * 改名在同一个目录里是原子操作：要么见到完整的图，要么什么也见不到。
+     * 要求 `frame` 是已编码的 JPEG 字节（见 [ScanImageCodec]）：一旦这里也做一次编码，
+     * 散列算出的名字就不再对应真实内容了。
      */
     suspend fun write(frame: ByteArray): String? = withContext(Dispatchers.IO) {
         val name = contentName(frame)
@@ -84,8 +82,8 @@ class ScanImageStore(private val directory: File) {
         const val NAME_BYTES = 16
 
         /**
-         * 合法的照片名：内容散列的十六进制（[NAME_BYTES] 字节写成双倍字符数）加上文件后缀。
-         * 由这两个常量拼出来而不是写死，改任何一个都不会让校验与写入分家。
+         * 合法的照片名：内容散列的十六进制（[NAME_BYTES] 字节写成双倍字符数）加文件后缀。
+         * 由这两个常量拼出来，改任何一个都不会让校验与写入分家。
          */
         val NAME_PATTERN = Regex("^[0-9a-f]{${NAME_BYTES * 2}}${Regex.escape(FILE_SUFFIX)}$")
 

@@ -196,10 +196,8 @@ fun HomeScreen(
         scope.hideSheetThen(sheetState, onHidden = { openSheet = null }, action = action)
 
     // 顶栏的两副面孔用一个可空计数表示：null 是普通列表，非 null 是选择模式及其计数。
-    //
-    // 计数放进状态里，而不是在选择模式那一支里现读 selectedIds.size：AnimatedContent 按状态
-    // 缓存内容，退出选择模式时被淡出的那条顶栏拿到的仍是它自己的计数，会停在「已选 1 项」上淡出。
-    // 若现读，它会跟着最新的选中数量先滚一遍「已选 0 项」再淡出，同一件事演两遍。
+    // 计数必须放进状态里，不能在选择模式那一支里现读 selectedIds.size：AnimatedContent 按状态缓存内容，
+    // 退出选择模式时被淡出的那条顶栏拿到的仍是它自己的计数；现读的话它会先滚一遍「已选 0 项」再淡出。
     val selectionCount: Int? = selectedIds.size.takeIf { inSelectionMode }
 
     Scaffold(
@@ -279,12 +277,10 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
-        // 下拉刷新。主页这一页上「刷新」就是同步：记录只在已配对的设备之间变，别处没得可刷，
-        // 所以下拉直接同步一轮，不另做一次重查库——库本来是 Flow，同步合进来的东西自己就到列表了。
-        //
-        // 用的是 Modifier.pullToRefresh 而不是 PullToRefreshBox：只有前者带 enabled，
-        // 而选择模式下不能刷（那一刻用户在挑要删的，这期间同步把某条删掉或改掉，
-        // 会让「已选 N 项」与眼前的列表对不上）。指示器照 PullToRefreshBox 内部那套摆。
+        // 下拉刷新。主页这一页上「刷新」就是同步：记录只在已配对的设备之间变，库本来是 Flow，
+        // 同步合进来的东西自己就到列表了，不必另做一次重查库。
+        // 用 Modifier.pullToRefresh 而不是 PullToRefreshBox：只有前者带 enabled，而选择模式下不能刷
+        // （同步把某条删掉或改掉，会让「已选 N 项」与眼前的列表对不上）。指示器照 PullToRefreshBox 内部那套摆。
         val pullState = rememberPullToRefreshState()
         Box(
             modifier = Modifier
@@ -391,9 +387,7 @@ fun HomeScreen(
 private enum class HomeSheet { Overflow, Sort }
 
 /**
- * 选中计数。前后两段文字不动，只有中间的数字滚——整句一起滚会把「已选」「项」也带着动，
- * 看着像标题在抖，而这一屏里真正在变的只有数字。
- *
+ * 选中计数。前后两段文字不动，只有中间的数字滚——整句一起滚会把「已选」「项」也带着动。
  * 三段文字合并成一个语义节点，否则读屏软件会读成「已选」「2」「项」三截。
  */
 @Composable
@@ -432,11 +426,9 @@ private fun RecordsList(
     val latest = records ?: return
 
     // 刚存进来的那几条慢一帧才进列表。
-    //
-    // LazyLayout 的位移比的是"上一轮的键表"：一次合成里就把新记录摆到最终位置，它手里没有可
-    // 比较的过去，只会直接画在预期位置上——位移因此演不出来，看着就是"不走路地出现在该在的地方"。
-    // 先只摆上一批（新记录已经在缓存里时，这一批就是用户上一条看到的内容），下一帧再放新的，
-    // 于是"其余条目从旧位置滑到新位置"这件事有了旧位置可比；新记录自己的淡入照旧由 appearFadeIn 演。
+    // LazyLayout 的位移比的是「上一轮的键表」：一次合成里就把新记录摆到最终位置，它手里没有可比较的过去，
+    // 只会直接画在预期位置上——位移演不出来。先只摆上一批（就是用户上一条看到的内容），下一帧再放新的，
+    // 于是「其余条目从旧位置滑到新位置」有了旧位置可比；新记录自己的淡入照旧由 appearFadeIn 演。
     var placedIds by remember { mutableStateOf(emptySet<Long>()) }
     LaunchedEffect(latest, newRecordIds) {
         withFrameNanos { }
@@ -444,11 +436,10 @@ private fun RecordsList(
     }
     val shown = latest.filterNot { it.record.id in newRecordIds && it.record.id !in placedIds }
 
-    // 增删与位移的时长取页内状态切换（见 FreshNowTransitions.stateChange）：删除时选中框也按
-    // 同一时长淡出（见 RecordRow），两者同时收尾，不会一个已经没了另一个还在淡。
-    //
-    // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
-    // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
+    // 增删与位移的时长取页内状态切换（见 FreshNowTransitions.stateChange）：删除时选中框也按同一时长淡出，
+    // 两者同时收尾，不会一个已经没了另一个还在淡。
+    // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：换下去的话那条记录会跟着整棵子树一起消失，
+    // 淡出根本来不及演。
     LazyColumn(modifier = modifier) {
         // 判据用 latest 而不是 shown：新记录还没落地的那一帧列表是空的，但数据并不空，
         // 这时候不该闪一句「还没有扫描记录」
@@ -516,11 +507,9 @@ private const val EMPTY_LIST_KEY = "empty"
 
 /**
  * 一条记录都没有时的空态：一枚曲奇加一句话，居中。
- *
  * 曲奇是装饰，语义由文案承担，因此不写 contentDescription，读屏软件不会把同一件事读两遍。
- * 边长取 [FreshNowSize.icon]（设计源里这一档就是「空态/占位图标边长」，48dp，与列表缩略图同档），
- * 与文案的间距取 [FreshNowSpacing.sm]——M3 技能里「Between components」给的是 8/12/16/24，
- * 这里取 16，与其余区块之间的距离同一档。
+ * 边长取 [FreshNowSize.icon]（设计源里这一档就是「空态/占位图标边长」，48dp，与列表缩略图同档）；
+ * 与文案的间距取 [FreshNowSpacing.sm]——M3 技能里「Between components」给的是 8/12/16/24，这里取 16。
  */
 @Composable
 private fun EmptyRecordsHint(modifier: Modifier = Modifier) {
@@ -545,13 +534,10 @@ private fun EmptyRecordsHint(modifier: Modifier = Modifier) {
 
 /**
  * 出现时淡入一次。
- *
- * 没走 `animateItem` 的 `fadeInSpec`，是因为「谁该淡入」的判据不同：后者认的是「这个条目刚被
- * 合成出来」，滚动时进入视口的旧条目、以及每次回到本页重新合成的空态，都会被算进去。这里由
- * 调用方按数据给——[RecordsList] 传的是「刚存进来的那几条」与「刚被删空」——于是只有用户眼前
- * 发生的变化才演。
- *
- * animate 只在第一次合成时读一次：演到一半时上游若又更新（比如又存了一条），动画不会被中途掐断。
+ * 没走 `animateItem` 的 `fadeInSpec`：「谁该淡入」的判据不同——后者认的是「条目刚被合成出来」，
+ * 滚动时进入视口的旧条目、以及每次回到本页重新合成的空态，都会被算进去。
+ * 这里由调用方按数据给（[RecordsList] 传「刚存进来的那几条」与「刚被删空」），只有眼前发生的变化才演。
+ * animate 只在第一次合成时读一次：演到一半时上游若又更新，动画不会被中途掐断。
  */
 @Composable
 private fun Modifier.appearFadeIn(
@@ -567,9 +553,8 @@ private fun Modifier.appearFadeIn(
 }
 
 /**
- * 今天的日期，跨过零点会自己更新。
- *
- * 剩余天数是按当天算的，「今天」若固化成常量，应用停在列表上过夜后数字就是错的。
+ * 今天的日期，跨过零点会自己更新。剩余天数是按当天算的，「今天」固化成常量的话，
+ * 应用停在列表上过夜后数字就是错的。
  */
 @Composable
 private fun rememberToday(): LocalDate {
@@ -649,11 +634,10 @@ private fun RecordRow(
 private val ROW_INSET = FreshNowSpacing.xxs
 
 /**
- * 选中描边：一圈圆角矩形，正好画在条目（也就是留白之后那一块）的边界上。
- *
- * 不用 Modifier.border 而自己画，是为了把透明度交给动画，描边的出现与消失才是淡入淡出。
- * 它只是画、不参与布局，所以选中前后条目不会跳动；位置与形状则完全交给外层的留白与裁剪
- * （见 RecordRow），描边因此和涟漪必然落在同一块区域的同一条边上。
+ * 选中描边：一圈圆角矩形，正好画在条目（留白之后那一块）的边界上。
+ * 不用 Modifier.border 而自己画，是为了把透明度交给动画，出现与消失才是淡入淡出。
+ * 它只画、不参与布局，选中前后条目不会跳动；位置与形状交给外层的留白与裁剪（见 RecordRow），
+ * 描边因此和涟漪必然落在同一块区域的同一条边上。
  */
 private fun Modifier.selectionOutline(
     color: Color,

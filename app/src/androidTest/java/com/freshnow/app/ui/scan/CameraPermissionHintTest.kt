@@ -35,8 +35,8 @@ class CameraPermissionHintTest {
     }
 
     /**
-     * 系统弹窗已经不会再出现：文案得说清是「已被拒绝、要去系统设置」，否则用户点按钮发现没反应，
-     * 只会以为坏了；按钮随之换成去设置
+     * 系统弹窗不会再出现：文案要说清「已拒绝、去系统设置」，按钮随之换成去设置，
+     * 否则用户点按钮没反应只会以为坏了。
      */
     @Test
     fun blocked_pointsAtSystemSettings() {

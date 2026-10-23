@@ -33,10 +33,8 @@ internal sealed interface SyncExchange {
 }
 
 /**
- * 去连对端那一次。
- *
- * 所有失败都折成返回值，而不是往上抛：对端随时可能关掉应用、切走网络、换了端口，
- * 这些都不是「错误」而是局域网同步的常态，界面要显示的是「这次没连上」而不是一个异常。
+ * 去连对端那一次。所有失败都折成返回值而不往上抛：对端随时可能关应用、切网络，
+ * 那是局域网同步的常态，界面要显示的是「这次没连上」而不是一个异常。
  */
 internal class SyncClient(
     private val client: HttpClient = defaultHttpClient()

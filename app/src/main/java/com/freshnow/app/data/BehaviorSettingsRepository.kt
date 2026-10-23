@@ -34,8 +34,8 @@ class BehaviorSettingsRepository(private val dataStore: DataStore<Preferences>) 
     }
 
     /**
-     * 存的是枚举名。认不出的值（改过名、手改过配置文件）回落到默认，而不是让整份设置读不出来——
-     * 排序方式是偏好的小事，读不出来按默认排序就好。
+     * 存的是枚举名。认不出的值（改过名、手改过配置文件）回落到默认：
+     * 排序方式是偏好的小事，不该让整份设置读不出来。
      */
     private fun String?.toSortOrder(): SortOrder =
         SortOrder.entries.firstOrNull { it.name == this } ?: SortOrder.CREATED_AT

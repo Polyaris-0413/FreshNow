@@ -13,10 +13,9 @@ import com.freshnow.app.ui.theme.FreshNowTransitions
 
 /**
  * 照片缩略图与全屏看图之间共享元素的键。
- *
  * 传的必须是**这张照片自己的标识**（[com.freshnow.app.ui.component.EditPhoto.id] 或详情页的下标），
- * 不能是「第几格」：设首图会交换格子位置，键若按下标给，重排那一帧同一个键就从一张图转到了
- * 另一张上，框架把它当成一次共享元素飞行——用户看到的是图闪一下。
+ * 不能是「第几格」：设首图会交换格子位置，键按下标给的话重排那一帧同一个键就从一张图转到另一张上，
+ * 框架把它当成一次共享元素飞行——用户看到的是图闪一下。
  */
 internal fun photoKey(owner: Any): String = "recordPhoto-$owner"
 

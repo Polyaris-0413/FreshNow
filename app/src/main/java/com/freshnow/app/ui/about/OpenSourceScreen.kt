@@ -59,15 +59,10 @@ private data class Scm(val url: String = "")
 private val licenseJson = Json { ignoreUnknownKeys = true }
 
 /**
- * 把 licensee 生成的 artifacts.json 逐条摊成页面上的一行。
- *
- * 一个依赖一行，不做任何归并：归并规则（把 androidx.compose.* 折成「Jetpack Compose」那种）
- * 本来就是手写清单的替代品，会随依赖变化而失真——少归一条就露出 groupId，归错就把不同的库
- * 说成同一个。逐条摊开之后，页面上有的东西与依赖图里的东西一一对应，没有中间层可错。
- *
- * 代价是长：几百个依赖就是几百行，所以页面用 LazyColumn 而不是一次性组合。
- *
- * 解析不了就返回空列表：这份文件是构建期打到 APK 里的，读不出来说明包有问题，不值得让整页崩掉。
+ * 把 licensee 生成的 artifacts.json 逐条摊成页面上一行。
+ * 一个依赖一行，不做任何归并：归并规则会随依赖变化而失真——少归一条就露出 groupId，归错就把不同的库
+ * 说成同一个；逐条摊开之后，页面上有的东西与依赖图一一对应。
+ * 代价是长，所以页面用 LazyColumn。解析不了就返回空列表：文件读不出来说明包有问题，不值得让整页崩掉。
  */
 internal fun parseProjects(json: String): List<OpenSourceProject> {
     val artifacts = runCatching { licenseJson.decodeFromString<List<Artifact>>(json) }

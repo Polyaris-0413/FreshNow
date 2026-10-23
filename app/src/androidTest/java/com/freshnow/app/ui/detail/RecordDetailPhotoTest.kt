@@ -33,9 +33,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 /**
- * 详情页的照片能点开看图。
- *
- * 走真的库与真的图片文件（同 RecordEditReloadTest 的口径）：这一条要验的正是「界面把两件事接上」，
+ * 详情页的照片能点开看图。走真的库与真的图片文件：这一条验的正是「界面把两件事接上」，
  * 用假数据就绕过了要验的那一段。
  */
 @RunWith(AndroidJUnit4::class)

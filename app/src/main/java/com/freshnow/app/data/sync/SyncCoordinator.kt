@@ -41,22 +41,16 @@ internal sealed interface SyncReport {
 }
 
 /**
- * 一次配对的结果。
- *
- * [applied] 单独拿出来而不是并回配对成败：配对成了、同步没成是常事（对方刚好把应用关了），
- * 而那时该说「已配对」，不该让用户把配对码再输一遍。
+ * 一次配对的结果。[applied] 单独拿出来：配对成了、同步没成是常事（对方刚好把应用关了），
+ * 那时该说「已配对」，不该让用户把配对码再输一遍。
  */
 internal data class PairOutcome(val deviceName: String, val applied: Int)
 
 /**
  * 同步这件事对界面露出的全部。
- *
- * 做成进程级单例（[getInstance]）而不是每个 ViewModel 各拿一个：服务端要占一个端口、mDNS 广播
- * 在系统里也只有一个，多个实例会各自开一份，表现是「有时连得上有时连不上」，而两边看起来都正常。
- *
- * 会话跟随应用的前台状态起停（见 MainActivity）：后台常驻在 Android 15 以上已经走不通
- * （dataSync 前台服务每天只给 6 小时），而这类应用的使用节奏就是「打开看一眼」，
- * 在打开的那一刻同步，体感与常驻无异。
+ * 进程级单例（[getInstance]）：服务端要占一个端口、mDNS 广播在系统里也只有一个，多实例会「有时连得上有时连不上」。
+ * 会话跟随应用前台状态起停（见 MainActivity）：后台常驻在 Android 15 以上走不通
+ * （dataSync 前台服务每天只给 6 小时），而这类应用的使用节奏就是「打开看一眼」。
  */
 internal class SyncCoordinator private constructor(context: Context) {
 
@@ -83,10 +77,8 @@ internal class SyncCoordinator private constructor(context: Context) {
     private val syncLock = Mutex()
 
     /**
-     * 正在同步的调用数，[syncing] 由它折算。
-     *
-     * 用计数而不是布尔：第二个调用在 [syncLock] 外等的时候，第一个可能刚好放锁，
-     * 布尔会让指示器在那一瞬闪一下。
+     * 正在同步的调用数，[syncing] 由它折算。用计数而不是布尔：第二个调用在 [syncLock] 外等时
+     * 第一个可能刚好放锁，布尔会让指示器在那一瞬闪一下。
      */
     private val activeSyncs = AtomicInteger(0)
 
@@ -178,15 +170,12 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     /**
      * 前台期间每 [FOREGROUND_SYNC_INTERVAL] 同步一轮。
-     *
      * 只跟着会话来去：应用在前台才需要「对面动了本机也跟着动」，离开前台就该彻底停手。
      * 与界面停在哪一页无关——用户可能正停在列表上看，那正是最需要它新的时候。
-     *
-     * 单独起一个协程而不是把循环并进 [session]：会话那个协程的最后一步是同步，它跑完就该结束，
-     * 上面判「是否已在会话中」用 [sessionStarted] 而不是 job 活着没有，正是因为这个。
-     *
+     * 单独起协程而不是把循环并进 [session]：会话那个协程的最后一步是同步，跑完就该结束，
+     * 判「是否已在会话中」因此用 [sessionStarted] 而不是 job 活着没有。
      * 失败不报错也不提示：它只是兜底，连不上就等下一轮（多半是对方没打开应用），
-     * 每轮都弹一句「没连上」只会让用户来关这个功能。要立刻知道结果，用户会去下拉。
+     * 每轮弹一句「没连上」只会让用户来关这个功能。要立刻知道结果，用户会去下拉。
      */
     private fun startSyncTicker() {
         if (syncTicker?.isActive == true) return
@@ -312,13 +301,9 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     /**
      * 本机的局域网地址，手动配对时念给对方听。
-     *
-     * 取的是**当前 WiFi 网络**的地址，而不是枚举设备上所有网卡。真机上往往还挂着 VPN 隧道
-     * （tun0、vgate0 之类）和移动数据的网卡，它们也有地址、也都满足「已启用、非回环」，
-     * 但对方在同一个 WiFi 下根本连不过去。全列出来只会让用户对着三个地址不知道该填哪个。
-     *
-     * 拿不到 WiFi 地址时（本机开着热点，或系统不让查）退回枚举网卡，但把 VPN 隧道剔掉——
-     * 那种地址对方一定连不上，列出来纯是干扰。
+     * 取当前 WiFi 网络的地址而不是枚举所有网卡：VPN 隧道（tun0、vgate0）与移动数据网卡也满足
+     * 「已启用、非回环」，对方在同一个 WiFi 下根本连不过去，全列出来只会让用户不知道该填哪个。
+     * 拿不到 WiFi 地址时（本机开热点、系统不让查）退回枚举网卡，但剔掉 VPN 隧道。
      */
     suspend fun localAddresses(): List<String> = withContext(Dispatchers.IO) {
         runCatching {
@@ -355,16 +340,12 @@ internal class SyncCoordinator private constructor(context: Context) {
         name.lowercase().let { n -> VPN_INTERFACE_PREFIXES.any { n.startsWith(it) } }
 
     /**
-     * 解除与一台设备的配对。
-     *
-     * 先通知对方再删本机这条：本地记录一删，用来认证的密钥就没了，通知也就发不出去。
-     * 通知失败不影响解除本身——对方下次来同步时会从 401 的那个标记里自己发现
-     * （见 [SyncExchange.PeerUnknown]），而「解除了但对方还没发现」这个中间状态，
-     * 比「解除了却告诉用户已解除」诚实。
-     *
-     * 跑在 [scope] 上而不是调用方的作用域里：界面那一侧是 viewModelScope，用户点完解除配对
-     * 很可能马上离开同步页，那个作用域当场就取消了，通知会在半路被掉——而它恰恰是「让对方也
-     * 把这条清掉」的主动手段（剩下那条 401 自愈要求对方恰好在它自己下一轮发起时连得上本机）。
+     * 解除与一台设备的配对。先通知对方再删本机这条：本地记录一删，用来认证的密钥就没了，通知发不出去。
+     * 通知失败不影响解除本身——对方下次来同步时会从 401 的标记里自己发现（见 [SyncExchange.PeerUnknown]）；
+     * 「解除了但对方还没发现」这个中间状态，比「解除了却告诉用户已解除」诚实。
+     * 跑在 [scope] 上而不是调用方的作用域里：界面那侧是 viewModelScope，用户点完解除很可能马上离开同步页，
+     * 通知会在半路被掉——而它恰恰是「让对方也把这条清掉」的主动手段
+     * （剩下那条 401 自愈要求对方恰好在它自己下一轮发起时连得上本机）。
      */
     fun forget(deviceId: String) = scope.launch {
         val peer = peers.find(deviceId) ?: return@launch
@@ -418,14 +399,11 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     /**
      * 与每一台已配对设备各交换一轮。
-     *
-     * 逐台来而不是并发：一次交换就是把整份状态发给对方，几台设备同时来会让手机在几秒里
-     * 同时打包好几份、写好几轮库，收益只是省下一点点等待，代价是发热与更长的卡顿。
-     *
-     * 进来先排队（[syncLock]）：进前台、定时、下拉刷新、同步页按钮四条路都通到这里，两轮叠在
-     * 一起会同时打包整份状态、同时合并写库，还会各自认定「该补图」而重复拉一遍。第二个调用等
-     * 第一个跑完再跑自己那一轮，而不是复用第一轮的结果——发起方是一次刚做的手势，它要的回报
-     * 是这一轮自己的结果。
+     * 逐台来而不是并发：一次交换就是把整份状态发给对方，几台同时来会让手机在几秒里同时打包好几份、
+     * 写好几轮库，收益只是省下一点点等待，代价是发热与更长的卡顿。
+     * 进来先排队（[syncLock]）：进前台、定时、下拉刷新、同步页按钮四条路都通到这里，两轮叠在一起会同时
+     * 打包、同时合并写库，还会各自认定「该补图」而重复拉一遍。第二个调用跑自己那一轮而不是复用第一轮的结果
+     * ——发起方是一次刚做的手势，它要的是这一轮自己的回报。
      */
     suspend fun syncNow(): SyncReport {
         activeSyncs.incrementAndGet()
@@ -482,13 +460,9 @@ internal class SyncCoordinator private constructor(context: Context) {
 
     /**
      * 把本地缺的照片逐张补回来。
-     *
-     * 两个地方会叫它：自己发起的那一轮跑完之后（见 [exchangeAll]），以及收到对方推来的一轮之后
-     * （见 [SyncServer] 的 onIncomingSync）。后者不可省：对方推过来的记录里只带图片名，图本身不在
-     * 交换里，而对方此刻一定在线——等自己下一次发起同步再去取，对方可能已经退出应用了。
-     *
-     * 逐张而不是并发：一次取图就是一次完整的 HTTP 往返加一次落盘，同时发几十张只会让手机
-     * 在几秒里同时干几十件事，而用户此刻多半正在看列表，卡顿比多等一会儿更明显。
+     * 两个入口：自己发起的一轮跑完（见 [exchangeAll]），以及收到对方推来的一轮之后（见 [SyncServer] 的 onIncomingSync）。
+     * 后者不可省：交换里只有图片名，图本身不在交换里，而对方此刻一定在线；等自己下次发起时对方可能已退出应用。
+     * 逐张而不是并发：一次取图就是一次 HTTP 往返加一次落盘，几十张并发只会让正在看列表的用户感到卡顿。
      */
     private suspend fun backfillImages() {
         val missing = records.recordsMissingImages()
@@ -524,10 +498,8 @@ internal class SyncCoordinator private constructor(context: Context) {
             ?: peer.lastAddress.takeIf { it.isNotEmpty() }
 
     /**
-     * 发现一空就先起一次扫描并稍等片刻。
-     *
-     * 等的是一个短窗口而不是「等发现完」：mDNS 没有「发现完」这个时刻，它随设备上线下线持续报告，
-     * 而用户点下同步之后要的是尽快有结果，不是等到网络里所有设备都露过面。
+     * 发现一空就先起一次扫描并稍等片刻。等的是短窗口而不是「等发现完」：mDNS 没有「发现完」这个时刻，
+     * 它随设备上下线持续报告，而用户点下同步之后要的是尽快有结果。
      */
     private suspend fun awaitDiscovery(timeoutMillis: Long = DISCOVERY_GRACE) {
         if (_discovered.value.isNotEmpty()) return
@@ -542,9 +514,8 @@ internal class SyncCoordinator private constructor(context: Context) {
         private val VPN_INTERFACE_PREFIXES = listOf("tun", "tap", "ppp", "vgate")
 
         /**
-         * 等发现出结果的上限。取到 6 秒是因为 mDNS 本来就慢：设备刚起来时它要先把查询发出去、
-         * 等对方回，两三秒内没结果是常事，而窗口一短，这次同步就直接判失败了——用户看到的
-         * 就是「开了应用也没同步」。同步跑在后台协程里，多等几秒不会卡住任何界面。
+         * 等发现出结果的上限。取到 6 秒是因为 mDNS 本来就慢，窗口一短这次同步就直接判失败，
+         * 用户看到的就是「开了应用也没同步」；它跑在后台协程里，多等几秒不会卡住任何界面。
          */
         private const val DISCOVERY_GRACE = 6_000L
 
@@ -553,16 +524,12 @@ internal class SyncCoordinator private constructor(context: Context) {
 
         /**
          * 前台定时同步的间隔。
-         *
-         * 它现在是**兜底**，不是主力：本地一改动就有一轮主动推送（见 [startEditWatcher]），
-         * 而这一轮管的是「推送送不到」的两种情况——改动发生时对方不在前台（它服务端没起，
-         * 必然连不上），或者那次推送失败。于是一轮远一点反而合适：跟着改动走的那条已经是即时的，
-         * 这里再跟到两分钟只会让同一件事跑两遍。
-         *
-         * 五分钟这个量级也落在同类实现的区间里：局域网配对类的 KDE Connect 把掉线检测的 keepalive
-         * 从 10 秒调到 60 秒，另有一处把空闲后的 5 秒改成默认 9 分钟；云端同步类的 Bitwarden 是
-         * 30 分钟，Syncthing 的全量重扫是 1 小时。再往上限看，Android 官方把「每 15 秒一次网络
-         * 请求」列为耗电的反面例子（见《减少定期更新的影响》），所以也没有理由更快。
+         * 它是**兜底**，不是主力：本地一改动就有一轮主动推送（见 [startEditWatcher]），这一轮管的是「推送送不到」
+         * 的两种情况——改动发生时对方不在前台（它服务端没起，必然连不上），或者那次推送失败。
+         * 跟着改动走的那条已经是即时的，这里再跟到两分钟只会让同一件事跑两遍。
+         * 五分钟也落在同类实现的区间里：KDE Connect 把掉线检测的 keepalive 从 10 秒调到 60 秒，另有把空闲后的
+         * 5 秒改成默认 9 分钟；Bitwarden 是 30 分钟，Syncthing 的全量重扫是 1 小时。
+         * 再往上限看，Android 官方把「每 15 秒一次网络请求」列为耗电的反面例子（见《减少定期更新的影响》）。
          */
         private const val FOREGROUND_SYNC_INTERVAL = 5 * 60 * 1000L
 

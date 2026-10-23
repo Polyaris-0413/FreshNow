@@ -10,15 +10,11 @@ import androidx.compose.ui.Modifier
 
 /**
  * 全应用统一顶栏。
- *
- * 标题是插槽而不是字符串：选中计数那类内容需要在标题这个位置自己做动画（见 HomeScreen），
- * 收成一个 String 就把这个位置锁死了。M3 的 TopAppBar 本身也是插槽。
- * TopAppBar 会给标题位置套上标题样式，所以调用方直接放 Text 即可，不必自己写 style。
- *
- * containerColor 刻意与页面背景同色（background），不另设色调分层：
- * 页面切换带淡入淡出，两个页面的容器只要存在色差，半透明期间就会露出底色差，
- * 表现为顶栏上一条随动画移动的暗带，且无法靠调参消除。
- * 若今后要重新加回分层，需同时放弃淡化（改为纯位移）。
+ * 标题是插槽而不是字符串：选中计数那类内容要在标题位置自己做动画（见 HomeScreen）；M3 的 TopAppBar 本身也是插槽。
+ * TopAppBar 会给标题位置套上标题样式，调用方直接放 Text 即可。
+ * containerColor 刻意与页面背景同色（background），不另设色调分层：页面切换带淡入淡出，
+ * 容器只要存在色差，半透明期间就会露出底色差，表现为顶栏上一条随动画移动的暗带。
+ * 若今后要加回分层，需同时放弃淡化（改为纯位移）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -16,9 +16,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 手动录入：开一份空草稿，保存时是首次写入，而不是覆盖某条已有记录。
- *
- * 走真实的库，但只碰本用例自己插进去的那条（按名字回收），不依赖也不改动设备上的其它记录。
+ * 手动录入：空草稿，保存时是首次写入而非覆盖已有记录。
+ * 走真实的库，但只碰本用例自己插进去的那条（按名字回收）。
  */
 @RunWith(AndroidJUnit4::class)
 class ManualEntrySaveTest {

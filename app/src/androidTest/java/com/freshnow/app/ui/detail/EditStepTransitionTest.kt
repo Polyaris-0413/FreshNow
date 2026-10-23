@@ -69,8 +69,7 @@ class EditStepTransitionTest {
     }
 
     /**
-     * 时钟握在手里（autoAdvance = false）：不推它，转场就停在起始那一帧，
-     * 于是「两页同时在」这种只持续几百毫秒的状态才断言得到。
+     * 时钟握在手里（autoAdvance = false）：不推它转场就停在起始帧，「两页同时在」才断言得到。
      */
     private fun setContent(step: () -> EditStep) {
         composeRule.mainClock.autoAdvance = false

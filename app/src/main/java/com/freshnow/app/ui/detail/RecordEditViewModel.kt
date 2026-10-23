@@ -88,13 +88,11 @@ internal fun RecordEditUiState.toFormFields() = RecordFormFields(
 )
 
 /**
- * 有认不出的写法、或正在写库时不给保存。Material 的 Errors 模式：*"Disable the submission of a
- * form if errors are detected"*——写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」。
- *
- * 照片不进这个判据：它没有「认不出」这种状态，而读取失败是提示而不是校验（见 imageReadFailed）。
- *
- * 新记录另外要求至少填了一项：与扫描页「一个字段都没读到就不存」同一条规矩，免得手滑存下一堆
- * 什么都没有的记录。已有记录不受这条约束——把字段清空是一次编辑，不该被拦下。
+ * 有认不出的写法、或正在写库时不给保存。Material 的 Errors 模式：*"Disable the submission of a form
+ * if errors are detected"*——写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」。
+ * 照片不进这个判据：它没有「认不出」这种状态，读取失败是提示而不是校验（见 imageReadFailed）。
+ * 新记录另外要求至少填了一项：与扫描页「一个字段都没读到就不存」同一条规矩；
+ * 已有记录不受这条约束——把字段清空是一次编辑，不该被拦下。
  */
 val RecordEditUiState.canSave: Boolean
     get() = !saving && !productionDateInvalid && !shelfLifeInvalid && !expiryDateInvalid &&
@@ -109,15 +107,10 @@ val RecordEditUiState.hasAnyValue: Boolean
     get() = anyFieldFilled(productName, productionDate, expiryDate, shelfLife)
 
 /**
- * 这一页有没有东西会因为返回而丢掉：有才先问一句（与扫描页「有结果才问」同一条规矩），
- * 没有就直接退，不拿一句「尚未保存」去拦一个什么都没改的人。
- *
- * 新记录比的是「输没输入过」：字段一项没填就是空页，照片也是这次输入的一部分。
- * 已有记录比的是「与进页时那条记录差多少」，所以改了一种写法又改回去（落库只有一种写法，
- * 见 [ScanValueFormat]）、或者删了照片又原样加回来，都不算改动。
- *
- * 位置也算：它在这份草稿里，返回时一样会丢。
- *
+ * 这一页有没有东西会因为返回而丢掉：有才先问一句（与扫描页「有结果才问」同一条规矩）。
+ * 新记录比的是「输没输入过」，照片也是这次输入的一部分。
+ * 已有记录比的是「与进页时那条记录差多少」：改了一种写法又改回去（落库只有一种写法，见 [ScanValueFormat]）、
+ * 或者删了照片又原样加回来，都不算改动。位置也算，它在这份草稿里。
  * [baseline] 为 null 表示手上是一份手填的新记录，没有可比的旧版。
  */
 internal fun RecordEditUiState.isDirtyAgainst(baseline: RecordBaseline?): Boolean {
@@ -156,10 +149,8 @@ private fun RecordEditUiState.storedFields() = StoredFields(
 
 /**
  * 草稿里的照片与库里那串名字之间的关系，见 [ImageChange.Update]。
- *
  * 当场从草稿推出来，而不是每次增删都维护一份：草稿是唯一真相，关系是它的函数——
  * 两处各记一份的话，「删了又加回来」「同一张图选两次」这类操作迟早会让它们分家。
- *
  * 返回 [ImageChange.Update] 而不是基类：这里描的总是「目标状态」，没有「原样保留」那一支。
  */
 private val RecordEditUiState.photoChange: ImageChange.Update

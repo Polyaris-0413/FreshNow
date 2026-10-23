@@ -23,11 +23,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 转场还没演完就再出发一次导航：那一下要等这一程演完，而不是把动画挤掉。
- *
- * 判据用仓库里已有的那一条（见 EditStepTransitionTest）：转场中途新旧两页同时在。硬切的那一帧
- * 只会剩一个——这就是「动画没了」在测试里的样子；真机上那一下黑闪是一两帧的事，抢不到截图。
- *
+ * 转场未演完就再导航，那一下要等这一程演完，不能把动画挤掉。
+ * 判据同 EditStepTransitionTest：转场中途新旧两页同时在。硬切的那一帧只会剩一个——这就是「动画没了」
+ * 在测试里的样子；真机上那一下黑闪是一两帧的事，抢不到截图。
  * 时钟握在手里（autoAdvance = false）逐帧推：350ms 的窗口只有这么推才停得住。
  */
 @RunWith(AndroidJUnit4::class)
@@ -100,15 +98,12 @@ class SettledNavigatorTest {
     }
 
     /**
-     * 落定之后那条记录再走到 RESUMED 一次：不许崩。
-     *
-     * 【这条盯的是一个真撞过的崩溃】等落定的那个 lifecycle 观察者原先只在协程被取消时摘掉，正常
-     * resume 之后它就留在了那条记录的 lifecycle 上。那条记录下一次 RESUMED（返回回到它、或切后台
-     * 再回来）时，僵尸观察者会对一个已经结束的 continuation 再 resume 一次，抛 Already resumed，
-     * 把整个进程带走——真机上表现为「莫名闪退」。
-     *
-     * 复现走最短的一条路：先制造一次「转场中途再出发」（僵尸因此落在 B 那条记录上），等它落定，
-     * 再回退到 B——B 那条记录于是又 RESUMED 一次。
+     * 落定之后那条记录再走到 RESUMED 一次不许崩。
+     * 【这条盯的是一个真撞过的崩溃】等落定的 lifecycle 观察者原先只在协程被取消时摘掉，正常 resume 之后
+     * 它就留在了那条记录的 lifecycle 上；那条记录下一次 RESUMED（返回回到它、或切后台再回来）时，
+     * 僵尸观察者会对一个已经结束的 continuation 再 resume，抛 Already resumed 把整个进程带走
+     * （真机上表现为「莫名闪退」）。
+     * 复现走最短的一条路：先制造一次「转场中途再出发」（僵尸因此落在 B 那条记录上），等它落定，再回退到 B。
      */
     @Test
     fun resumingThatEntryAgain_doesNotCrash() {

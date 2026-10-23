@@ -40,8 +40,8 @@ class ScanServiceDialogTest {
     }
 
     /**
-     * 「复制」是主操作：本页的 AI 已经用不了了，把日志带给别的 AI 是此时唯一还有意义的动作。
-     * 验证真落到剪贴板上而不是只调用了一个回调
+     * 「复制」是主操作：AI 已经用不了了，把日志交给别的 AI 是唯一还有意义的动作。
+     * 验它真落到剪贴板，而不是只调了回调。
      */
     @Test
     fun failed_copyPutsLogOnClipboard() {
@@ -54,8 +54,8 @@ class ScanServiceDialogTest {
     }
 
     /**
-     * 没配置过时确认位换成去设置：这时没有日志可交出去，用户要的是去哪填。
-     * 顺带盯住「复制」不在这个形态里，否则就成了给用户一个任务
+     * 没配置过时确认位换成去设置：没有日志可交出去，用户要的是去哪填。
+     * 「复制」不该出现在这个形态里，否则就是给用户派任务。
      */
     @Test
     fun notConfigured_offersSettingsInsteadOfCopy() {
