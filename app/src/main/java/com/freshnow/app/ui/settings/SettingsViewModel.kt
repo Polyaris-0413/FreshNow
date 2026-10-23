@@ -37,7 +37,7 @@ data class SettingsUiState(
 
 /**
  * 一次备份操作的结果。不提条数与照片数：用户要知道的只是「成了没有」，
- * 而条数还得先解释墓碑算不算、已删的算不算，徒增负担。
+ * 而条数还得先解释墓碑算不算、已删的算不算。
  */
 sealed interface BackupMessage {
     data object Exported : BackupMessage

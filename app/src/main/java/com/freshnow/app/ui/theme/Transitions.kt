@@ -87,17 +87,12 @@ object FreshNowTransitions {
     /**
      * M3 把弹簧归成两族：**spatial**（位置、大小、形状）与 **effects**（透明度、颜色）；
      * 每族三档 fast / default / slow。**新增动画先在这六条里挑**，不要按用途另挑参数。
-     *
      * 本项目用弹簧的地方都是**接手势**的：拖动松手后的回落、退场时照片飞回原处、双击缩放。
-     * 这类运动不该用带固定时长的 tween：tween 默认曲线起手是缓入的，手指刚离开那几帧几乎不动，
-     * 手上读作「顿一下」；弹簧没有固定时长，起手就跟着手指的速度走。0.9 的阻尼比允许一点点过冲，
-     * 这也是它不显得拖泥带水的原因。
-     *
-     * 取值只能抄在这里：本项目 BOM（2026.02.01）解析到的是 material3 **1.4.0**，而那一版里
-     * MotionScheme 仍是 internal（Kotlin 侧取不到 MaterialTheme.motionScheme），到 1.5.0-alpha29
-     * 才对外公开（公开的是 default/fast/slow × spatial/effects 六个方法）。两版的 standard 取值
-     * 逐个相同，所以哪天 BOM 提到公开它的版本，把这六个函数换成 MaterialTheme.motionScheme.* 即可，
-     * 不会改观感，也别另挑参数。
+     * 这类运动不该用带固定时长的 tween：tween 默认曲线起手是缓入的，手指刚离开那几帧几乎不动；
+     * 弹簧没有固定时长，起手就跟着手指的速度走，0.9 的阻尼比允许一点点过冲。
+     * 取值只能抄在这里：本项目 BOM（2026.02.01）解析到的是 material3 **1.4.0**，那一版里 MotionScheme
+     * 仍是 internal（Kotlin 侧取不到 MaterialTheme.motionScheme），到 1.5.0-alpha29 才对外公开。
+     * 两版的 standard 取值逐个相同，BOM 提到公开它的版本后把这六个函数换成 MaterialTheme.motionScheme.* 即可。
      */
     fun <T> fastSpatial(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.9f, stiffness = 1400f)
 
@@ -151,9 +146,8 @@ object FreshNowTransitions {
      * 曲线必须显式给：`tween` 默认的是 Compose 的 FastOutSlowInEasing，那是 M3 里的 legacy 曲线
      * （0.4, 0, 0.2, 1），起手慢；而这类变化要的是立刻跟上状态。
      * 【这一档为什么是 200 而不是 150】short3（150ms）在技能表里标的是「小转场」。真机上试过改成 150，
-     * 反而不行：选中框淡入、数字滚动都是小幅度变化，压得太短眼睛跟不上，观感更接近硬切；
-     * 200 是短组里最大的一档。所以「看着像小变化但需要看清」的留在这一档，纯颜色过渡另走 [smallChange]。
-     * 今后若要再调，请先实测对比，不要仅仅因为「技能表说 short3」就回退。
+     * 观感更接近硬切（选中框淡入、数字滚动都是小幅度变化，压得太短眼睛跟不上）；200 是短组里最大的一档。
+     * 所以「看着像小变化但需要看清」的留在这一档，纯颜色过渡另走 [smallChange]。
      */
     fun <T> stateChange(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT4, easing = Standard)
@@ -161,14 +155,10 @@ object FreshNowTransitions {
 
     /**
      * 页内的小变化：时长取 M3 时长令牌 [DURATION_SHORT3]（150ms），缓动同样用 [Standard]。
-     *
-     * 与 [stateChange] 的分工按 M3 给档位的标注来：short3 标的是「小转场」、short4 标的是
-     * 「退出转场」。纯颜色过渡（手电筒的底色与前景色、扫描页底部两个按钮的可用/禁用色）不涉及
-     * 内容进出，属于前者，取 150ms 更利落；条目的出现与消失、空态、状态胶囊、文案换装这些是
-     * 内容在进出，归 [stateChange]。
-     *
-     * 【「颜色过渡算小转场」是本项目的归类，不是规范写的】M3 只说 short3 用于小转场，没列举
-     * 哪些变化算小转场。改这条归类不违反规范，只要时长仍落在短组里。
+     * 与 [stateChange] 的分工按 M3 给档位的标注来：short3 标「小转场」、short4 标「退出转场」。
+     * 纯颜色过渡（手电筒的底色与前景色、扫描页底部两个按钮的可用/禁用色）不涉及内容进出，属前者；
+     * 条目的出现与消失、空态、状态胶囊、文案换装这些是内容在进出，归 [stateChange]。
+     * 【「颜色过渡算小转场」是本项目的归类，不是规范写的】改这条归类不违反规范，只要时长仍落在短组里。
      */
     fun <T> smallChange(): FiniteAnimationSpec<T> =
         tween(DURATION_SHORT3, easing = Standard)
@@ -215,9 +205,8 @@ object FreshNowTransitions {
      * m2.material.io/design/motion/the-motion-system.html 的 fade through 一节写的是 incoming
      * "scaling in overall size from 92% to 100%"；两段时长（90 / 210，合 300ms）是同一个 pattern 的分段，
      * M3 的令牌表只给「总档」、没有分段值。
-     * 90 与 210 不落在 M3 的时长刻度上（刻度里最近的是 short2 的 100 与 short4 的 200），但两段的**交叠比例**就是这个 pattern 的表达，四舍五入会把它改掉，
-     * 所以保留 pattern 的原文：这两条的依据是 M2 的 pattern，不是 M3 令牌；若哪天要求全部落回 M3 令牌刻度，
-     * 只能写成 100 / 200，交叠比例随之从 0.3/0.7 变成 1/3 与 2/3。
+     * 90 与 210 不落在 M3 的时长刻度上（刻度里最近的是 short2 的 100 与 short4 的 200），但两段的
+     * **交叠比例**就是这个 pattern 的表达：这两条的依据是 M2 的 pattern，不是 M3 令牌。
      */
     const val FADE_THROUGH_OUT_MS = 90
     const val FADE_THROUGH_IN_MS = 210
@@ -300,28 +289,16 @@ object FreshNowTransitions {
 /**
  * 页面转场：前进与返回各一对，NavHost 与页内整屏切换（编辑页的表单 ↔ 裁剪）共用，走 M3 的
  * **shared axis X**（有前后关系的两个整屏视图沿同一根轴平移）。
- *
  * 【两页同速，是这套转场的要点】位移交给 [AnimatedContentTransitionScope] 自带的容器转场，
  * 它按当前内容与目标内容的实际尺寸算偏移，默认就是整屏；四条的时长与曲线取同一条 [pageSpec]。
- * shared axis 表达的是「同一个轴上的前后两个位置」，全靠两页同步移动；给两页不同的时长
- * （例如进场 400、退场 200）会让旧页先跑掉、新页还在后面磨，空间关系当场散掉。
- *
- * 【没有淡入淡出】也是同一个原因：位移不足整屏时两页会叠在一起，只能靠透明度区分，所以
- * 「缩位移」与「加淡」是一对——shared axis 要做的是把位移给满、不淡。
- *
+ * 【没有淡入淡出】也是同一个原因：位移给满了就不需要靠透明度区分。
  * 时长取 [FreshNowTransitions.DURATION_MEDIUM2]（300ms，令牌表里标注「标准转场」），曲线取
  * [FreshNowTransitions.Emphasized]（官方推荐给大多数转场的那条）。
- *
  * 方向：前进时新页自右侧移入、旧页向左移出；返回时两者相反。
- *
  * 只给**有层级关系**的跳转用（进子页、子页返回）；两个没有前后关系的顶层页之间用
- * [FreshNowTransitions.fadeThroughEnter] / [FreshNowTransitions.fadeThroughExit]——横向位移
- * 本身就在说「这两个页面是一前一后」，对平行去处是句假话。
- *
- * 【时长与位移是本项目的选择，不是规范要求】M3 没有给 shared axis 规定时长，也没规定位移量：
- * 300ms 是在令牌刻度里挑的一档（medium2 标「标准转场」，250/300/350/400 都自圆其说），整屏位移
- * 是 Compose 容器转场的默认值。改这两项都不违反规范，前提是两页仍同速、且位移与「要不要加淡」
- * 保持配套（位移不满整屏就会叠住，那时必须靠淡来区分）。
+ * [FreshNowTransitions.fadeThroughEnter] / [FreshNowTransitions.fadeThroughExit]。
+ * 【时长与位移是本项目的选择，不是规范要求】M3 没给 shared axis 规定时长，也没规定位移量；
+ * 改这两项都不违反规范，前提是两页仍同速、且位移与「要不要加淡」保持配套。
  */
 fun AnimatedContentTransitionScope<*>.forwardEnter(): EnterTransition =
     slideIntoContainer(SlideDirection.Left, pageSpec())

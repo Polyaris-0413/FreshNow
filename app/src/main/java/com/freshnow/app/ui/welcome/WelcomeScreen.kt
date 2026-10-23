@@ -356,8 +356,7 @@ private fun WelcomeProgress(visible: Boolean, progress: Float) {
 }
 
 /**
- * 已经走了多远：按「剩下几段」算，最后一页正好填满。除以页数的话，走到最后一步进度条还差一截，
- * 看着像没走完。
+ * 已经走了多远：按「剩下几段」算，最后一页正好填满。除以页数的话，走到最后一步进度条还差一截。
  */
 private fun pagerProgress(pagerState: PagerState, pageCount: Int): Float {
     if (pageCount <= 1) return 1f

@@ -52,9 +52,10 @@ internal class PeerDiscovery(context: Context) {
         suspendCancellableCoroutine { continuation ->
             val wake: () -> Unit = { if (continuation.isActive) continuation.resume(Unit) }
             val listener = object : NsdManager.RegistrationListener {
-                // 注册是异步的：registerService 当场就返回，结果只会从这几个回调里出来。
-                // 之前只写了失败分支，于是成功时没人叫醒协程，advertise 就永远挂在那里，
-                // 后面的事（包括同步）一件都不会做。
+                /**
+                 * 注册是异步的：registerService 当场就返回，结果只会从这几个回调里出来。
+                 * 成功分支也必须叫醒协程，否则 advertise 永远挂着，后面的事（包括同步）一件都不会做。
+                 */
                 override fun onServiceRegistered(info: NsdServiceInfo) = wake()
                 override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
                     Log.w(TAG, "mDNS 广播注册失败：$errorCode")
@@ -170,9 +171,11 @@ internal class PeerDiscovery(context: Context) {
                     )
                 }
             }
-            // resolveService 在 API 34 起标记为废弃（推荐 registerServiceInfoCallback），
-            // 但它在所有本应用支持的版本上仍然工作，而新接口要求 API 34 且要自己管 Executor——
-            // 为一个只在发现阶段用一次的调用同时维护两条路径，出问题时更难查
+            /**
+             * resolveService 在 API 34 起标记为废弃（推荐 registerServiceInfoCallback），但它在所有本应用
+             * 支持的版本上仍然工作；新接口要求 API 34 且要自己管 Executor，为一个只在发现阶段用一次的调用
+             * 维护两条路径，出问题时更难查。
+             */
             @Suppress("DEPRECATION")
             runCatching { manager.resolveService(serviceInfo, listener) }
                 .onFailure { continuation.resume(null) }

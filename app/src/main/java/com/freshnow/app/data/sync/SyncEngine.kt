@@ -19,13 +19,10 @@ internal data class SyncOutcome(
 
 /**
  * 把两边的内容合到一起。
- *
- * 一次同步就是一次往返（见 [SyncClient.exchange]）：本机把自己整份状态送过去，对端先合本机这份、
- * 再把它自己那一份送回来，本机合上。两边各合一次，一个来回就收敛——不必先问「你有哪些」
- * 再决定要什么，那是两次往返，而在局域网里往返虽快，多一次就多一处可能失败的中间状态。
- *
- * 合并靠 LWW（见 [com.freshnow.app.data.local.beats]），所以这个动作是幂等的、可重入的：
- * 同一条记录收到几次都合出同一个结果，中途失败重来一次即可，不需要记「上次同步到哪」。
+ * 一次同步就是一次往返（见 [SyncClient.exchange]）：本机送整份状态过去，对端先合、再送回它那一份，本机合上。
+ * 不做增量：增量要维护「每台设备同步到哪了」的水位，而时钟不同步、设备长期离线时很容易算错，
+ * 算错的代价是丢更新且很久才显形。
+ * 合并靠 LWW（见 [com.freshnow.app.data.local.beats]），因此幂等、可重入，不需要记「上次同步到哪」。
  */
 internal class SyncEngine(
     private val records: ScanRecordRepository,

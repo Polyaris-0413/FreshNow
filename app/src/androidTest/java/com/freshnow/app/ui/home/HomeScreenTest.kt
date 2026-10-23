@@ -328,8 +328,9 @@ class HomeScreenTest {
 
         composeRule.mainClock.autoAdvance = false
         composeRule.runOnUiThread { records.value = records.value.drop(1) }
-        // 取 1/4 处而不是半程：曲线是 M3 的 standard（0.2, 0, 0, 1），起手比原先的 legacy 快，
-        // 到半程时已经淡到接近底色，像素探针分不出它和收尾之后的差别
+        /**
+         * 取 1/4 处而不是半程：M3 的 standard 曲线起手快，半程时已淡到接近底色，像素探针分不出它和收尾后的差别。
+         */
         composeRule.mainClock.advanceTimeBy(STATE_CHANGE_HALF_MS / 2)
         val middle = samplePixel()
 

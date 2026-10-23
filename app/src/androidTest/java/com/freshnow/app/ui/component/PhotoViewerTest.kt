@@ -24,9 +24,7 @@ import org.junit.runner.RunWith
 
 /**
  * 看图的版式与手势。
- *
- * 手势没有可见的结果可以断言（缩放走 graphicsLayer，节点本身的尺寸不变），所以这里用「照片占了
- * 多少像素」来判：截图数一遍照片的颜色，捏合之后应该变多。这比只断言「没崩」有信息量。
+ * 手势没有可见结果可断言（缩放走 graphicsLayer，节点尺寸不变），所以用「照片占了多少像素」判：捏合后应当变多。
  */
 @RunWith(AndroidJUnit4::class)
 class PhotoViewerTest {
@@ -101,9 +99,7 @@ class PhotoViewerTest {
 
     /**
      * 挪一点点要弹回去：一摸就跑会让人不敢碰。
-     *
-     * 位移要**超过触摸阈值**才有意义：20px 那一档还在触摸阈内，会被当成单击（单击本来就该退出），
-     * 测的就不是这里要测的东西了。取 60px：过阈，但远不到退出阈值（视窗短边的 18%）。
+     * 位移取 60px：过触摸阈（否则会被当成单击），又远不到退出阈值（视窗短边的 18%）。
      */
     @Test
     fun aSmallDragDoesNotDismiss() {

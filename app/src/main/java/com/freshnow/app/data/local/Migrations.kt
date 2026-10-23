@@ -5,15 +5,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * v3 → v4：加进局域网同步要用的四列与对端表。
- *
- * scan_records 是**重建**的，不是 ALTER TABLE ADD COLUMN。SQLite 加一个非空列必须带 DEFAULT 子句，
- * 而那个 DEFAULT 会写进表结构本身，Room 打开库时拿它与实体比对（实体并没有声明默认值）就会报
- * 「迁移后结构不一致」，每次启动都失败。重建表能让表结构完全由实体说了算。
- *
- * 老记录的 syncId 在迁移时现生成：随机 128 位，两台设备各生成各的，撞不上。
- * updatedAt 回填成 savedAt——这些记录从建好之后没被改过，修改时刻就是保存时刻。
- * updatedBy 回填空串：那时还没有设备号，空串在 LWW 里会输给任何真设备号，正好表示「来历不明」，
- * 而本条第一次被编辑时就会带上真设备号（见 ScanRecordRepository）。
+ * scan_records 是**重建**的，不是 ALTER TABLE ADD COLUMN：带 DEFAULT 的非空列会让 Room 比对表结构与
+ * 实体时报「迁移后结构不一致」，重建才能让表结构完全由实体说了算。
+ * 老记录的 syncId 迁移时现生成（随机 128 位）；updatedAt 回填 savedAt；updatedBy 回填空串表示「来历不明」，
+ * 第一次被编辑时才带上真设备号（见 ScanRecordRepository）。
  */
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -58,11 +53,8 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 
 /**
  * v4 → v5：加「位置」一列。
- *
- * 这一次用 ALTER TABLE，没有像 3 → 4 那样重建表：那一次重建是为了给老记录现生成身份、并建出
- * 对端表，加列本身不需要重建。3 → 4 上面那段「带 DEFAULT 的列会与实体比对不上」的说法，
- * 由迁移测试来判——[ScanRecordMigrationTest.migrate4To5_keepsRecordsAndLeavesLocationEmpty]
- * 会拿真实表结构与实体核对一遍，那是唯一的准绳。
+ * 这一次用 ALTER TABLE，不重建表——加列本身不需要重建。表结构与实体对不对得上，以迁移测试为准
+ * （见 [ScanRecordMigrationTest.migrate4To5_keepsRecordsAndLeavesLocationEmpty]）。
  */
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -72,10 +64,8 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 
 /**
  * v5 → v6：照片从一根名字变成一串名字。
- *
- * 与 3 → 4 一样重建表：这一次列既改名（imageName → imageNames）又改类型（一列包住一串名字），
- * 而 4 → 5 那段注释说的「带 DEFAULT 的列会与实体比对不上」在这里同样成立——重建才能让表结构
- * 完全由实体说了算。老记录那张图搬成列表里的第一张，它本来就是这条记录的代表图。
+ * 与 3 → 4 一样重建表：列既改名又改类型，重建才能让表结构完全由实体说了算。
+ * 老记录那张图搬成列表里的第一张（它本来就是这条记录的代表图）。
  */
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {

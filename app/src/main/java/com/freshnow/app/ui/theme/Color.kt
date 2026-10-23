@@ -11,9 +11,8 @@ import androidx.compose.ui.graphics.Color
  * 警示 seed：#FFA000（H68.5 C61.1 T73.8）
  * 生成器：@material/material-color-utilities@0.3.0 的 themeFromSourceColor（经典色调映射）
  *
- * 色调映射完全以生成器为准，不要按 material-3 技能的映射表手改：那张表是设计参考，
- * 与实现在个别角色上并不一致（例如 background/surface 该实现取 neutral tone 99，技能表记的是 98；
- * 深色 surface 该实现取 tone 10，技能表记的是 6）。本文件的值全部来自生成器。
+ * 色调映射以生成器为准，不要按 material-3 技能的映射表手改：那张表是设计参考，
+ * 与实现在个别角色的色调上并不一致（background/surface 与深色 surface 都差一档）。本文件的值全部来自生成器。
  *
  * 警示色的色相（amber）是产品选择，具体 seed 是工程选择，没有规范出处，随时可换：
  *   node tools/generate-color-scheme.cjs '#4285F4' '<新的警示色>'

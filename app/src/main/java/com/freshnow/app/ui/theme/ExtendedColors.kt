@@ -46,14 +46,10 @@ internal fun ProvideWarningColors(darkTheme: Boolean, content: @Composable () ->
 
 /**
  * 压在图片上的浮层（详情页那枚页码）的底色与文字色。
- *
- * 【为什么放在这里】Color.kt 由 tools/generate-color-scheme.cjs 生成，生成器只输出能从
- * seed 推导的标准角色；这组色不从 seed 推导，写进 Color.kt 会在下次重新生成时被删掉。
- *
- * 【为什么固定黑/白】浮层底下是任意照片，不是主题表面。用 inverseOnSurface 这类主题色时，
- * 深色主题下它本身是深灰，压在深色照片上会「深底深字」；固定成 80% 黑底（`0xCC`）加白字后，
- * 最坏情况（纯白照片）合成色约 `#333`，白字对比度约 12.6:1，任何照片上都读得清。
- *
+ * 【为什么放在这里】Color.kt 由 tools/generate-color-scheme.cjs 生成，生成器只输出能从 seed 推导的标准角色；
+ * 这组色不从 seed 推导，写进 Color.kt 会在下次重新生成时被删掉。
+ * 【为什么固定黑/白】浮层底下是任意照片，不是主题表面，主题色在深色主题下会「深底深字」。
+ * 固定成 80% 黑底（`0xCC`）加白字后，纯白照片上的合成色约 `#333`，对比度约 12.6:1。
  * 【规范缺席】M3 没有「压在图片上的浮层」这一档，这是本项目自定角色。
  */
 internal val OverImageScrim = Color(0xCC000000)
