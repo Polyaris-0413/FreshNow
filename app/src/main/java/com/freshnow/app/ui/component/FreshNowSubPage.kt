@@ -14,16 +14,8 @@ import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 
 /**
- * 二级页面骨架：顶栏 + 返回键，页面内容由 content 填充。
+ * 二级页面骨架：分层顶栏 + 返回键，页面内容由 content 填充。
  * [actions] 是顶栏动作位（如编辑页的「保存」），默认没有动作
- *
- * 【内容的约定】顶栏是全应用统一的常驻分层底色（见 [FreshNowTopAppBar]），与滚动无关。
- * 内容仍建议**铺满整个 Scaffold**、把 top inset 交给自己的内边距，这样滚动内容会在顶栏下沿
- * 被裁切，而不是在顶栏上停出一条空白带：
- * - LazyColumn 一类的页：`contentPadding = innerPadding`
- * - Column + verticalScroll 的页：`Modifier.verticalScrollUnderTopBar(innerPadding)`
- * - 不滚动的页（裁剪、拍照、扫描预览这类固定布局）：照旧 `padding(innerPadding)` 即可，
- *   内容本来就不会跑到顶栏后面
  */
 @Composable
 fun FreshNowSubPage(

@@ -15,21 +15,10 @@ import androidx.compose.ui.Modifier
  * 收成一个 String 就把这个位置锁死了。M3 的 TopAppBar 本身也是插槽。
  * TopAppBar 会给标题位置套上标题样式，所以调用方直接放 Text 即可，不必自己写 style。
  *
- * 底色一律取 surfaceContainer —— 全应用所有顶栏都分层，不看滚动状态。
- *
- * M3 给顶栏规定的是「静止 surface、内容滚到它下面时切 surfaceContainer」
- * （m3.material.io/components/app-bars/specs：All app bars share the same color roles.
- * On scroll, the container changes color to surface container；token 见 material3 的
- * tokens/AppBarTokens.kt 的 ContainerColor / OnScrollContainerColor）。本应用刻意不跟滚动走：
- * 常驻分层的角色在 M3 里是导航面（NavigationBarTokens.ContainerColor = SurfaceContainer），
- * 拿到顶栏上来用，换来的是「每一页的边界都看得见」——不必让用户去猜哪一页的内容够长、
- * 也不会有「滚到底部时底色忽然退回」这种状态起落。
- *
- * 【代价，已知并接受】顶栏不再表达「内容是否滚到它下面」这个状态；同一份颜色同时用于有滚动
- * 与无滚动的页面。要恢复成跟滚动走，得给 Scaffold 接 pinnedScrollBehavior + nestedScroll，
- * 并把内容的内边距交给滚动容器（见 FreshNowSubPage 的说明）。
- *
- * 色值来自设计源（colorScheme 的语义角色），不另写色值。
+ * containerColor 刻意与页面背景同色（background），不另设色调分层：
+ * 页面切换带淡入淡出，两个页面的容器只要存在色差，半透明期间就会露出底色差，
+ * 表现为顶栏上一条随动画移动的暗带，且无法靠调参消除。
+ * 若今后要重新加回分层，需同时放弃淡化（改为纯位移）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +34,7 @@ fun FreshNowTopAppBar(
         navigationIcon = navigationIcon,
         actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant

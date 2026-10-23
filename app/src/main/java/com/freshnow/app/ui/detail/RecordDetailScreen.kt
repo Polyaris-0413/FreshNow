@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+
+import androidx.compose.foundation.verticalScroll
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,7 +48,6 @@ import com.freshnow.app.ui.component.FreshNowResultFields
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.PhotoViewerPage
 import com.freshnow.app.ui.component.photoKey
-import com.freshnow.app.ui.component.verticalScrollUnderTopBar
 import com.freshnow.app.ui.component.photoThumbnail
 import com.freshnow.app.ui.component.ScanPhoto
 import com.freshnow.app.ui.theme.OnOverImageScrim
@@ -161,8 +163,8 @@ private fun RecordDetailContent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    // 内边距不在外层垫：内容才是在顶栏下沿被裁切（见 verticalScrollUnderTopBar）
-                    .verticalScrollUnderTopBar(innerPadding)
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
                     .padding(FreshNowSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.sm)
             ) {

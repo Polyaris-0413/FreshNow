@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,7 +51,6 @@ import com.freshnow.app.ui.component.photoThumbnail
 import com.freshnow.app.ui.component.PhotoGridItem
 import com.freshnow.app.ui.component.RecordEditForm
 import com.freshnow.app.ui.component.hideSheetThen
-import com.freshnow.app.ui.component.verticalScrollUnderTopBar
 import com.freshnow.app.ui.scan.PhotoCaptureScreen
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -361,7 +361,7 @@ private fun EditForm(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // 内边距不在这一层垫：表单才是在顶栏下沿被裁切（见 verticalScrollUnderTopBar）
+                .padding(innerPadding)
                 .imePadding()
         ) {
             RecordEditForm(
@@ -376,7 +376,7 @@ private fun EditForm(
                 photoTileModifier = photoTileModifier,
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScrollUnderTopBar(innerPadding, formScroll)
+                    .verticalScroll(formScroll)
                     .padding(FreshNowSpacing.sm)
             )
         }

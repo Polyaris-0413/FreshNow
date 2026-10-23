@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -92,9 +91,7 @@ internal fun SyncScreen(
         onBack = onBack,
         modifier = modifier,
         actions = {
-            // 同步期间置灰：一次同步要打包、往返、写库，连点只会让第二次在第一次还没写完时插进去。
-            // 没配对时照样可点：那一轮会走回 SyncReport.NoPeers，由既有的 toast 说明「还没有配对」，
-            // 比一颗看不出为什么灰的按钮更容易懂
+            // 同步期间置灰：一次同步要打包、往返、写库，连点只会让第二次在第一次还没写完时插进去
             IconButton(onClick = viewModel::syncNow, enabled = !syncing) {
                 Icon(
                     painter = painterResource(R.drawable.ic_sync),
@@ -114,8 +111,7 @@ internal fun SyncScreen(
             onManualPair = { manualPairing = true },
             onPick = { pairingWith = it },
             onForget = { viewModel.forget(it.deviceId) },
-            // 不垫 padding：列表才是在顶栏下沿被裁切，内边距由 LazyColumn 的 contentPadding 接
-            contentPadding = innerPadding
+            modifier = Modifier.padding(innerPadding)
         )
     }
 
@@ -183,7 +179,6 @@ internal fun SyncContent(
     onManualPair: () -> Unit,
     onPick: (DiscoveredPeer) -> Unit,
     onForget: (SyncPeer) -> Unit,
-    contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
 ) {
     // 已经配上过的不再列出来：用户要的是「还有谁可以配」，不是网络里所有设备
@@ -191,7 +186,7 @@ internal fun SyncContent(
         peers.any { it.deviceId == found.deviceId }
     }
 
-    LazyColumn(modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
+    LazyColumn(modifier = modifier.fillMaxSize()) {
         if (!permissionGranted) {
             item(key = KEY_PERMISSION) {
                 PermissionNotice(

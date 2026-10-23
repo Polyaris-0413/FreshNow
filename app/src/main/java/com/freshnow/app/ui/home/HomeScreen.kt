@@ -13,7 +13,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -235,7 +234,7 @@ fun HomeScreen(
                                     contentDescription = stringResource(R.string.action_delete)
                                 )
                             }
-                        },
+                        }
                     )
                 } else {
                     FreshNowTopAppBar(
@@ -254,7 +253,7 @@ fun HomeScreen(
                                     contentDescription = stringResource(R.string.action_more_options)
                                 )
                             }
-                        },
+                        }
                     )
                 }
             }
@@ -290,8 +289,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // 不垫 innerPadding：滚动视口要铺到顶栏底下，条目才是在顶栏下沿被裁切，
-                // 内边距交给列表自己的 contentPadding（见 RecordsList）
+                .padding(innerPadding)
                 .pullToRefresh(
                     isRefreshing = refreshing,
                     state = pullState,
@@ -310,16 +308,12 @@ fun HomeScreen(
                 inSelectionMode = inSelectionMode,
                 onRecordClick = onRecordClick,
                 onRecordToggle = onRecordToggle,
-                contentPadding = innerPadding,
                 modifier = Modifier.fillMaxSize()
             )
             PullToRefreshDefaults.Indicator(
                 state = pullState,
                 isRefreshing = refreshing,
-                // 指示器落在顶栏底下那块地方，得自己让开——内容已经不再垫内边距了
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = innerPadding.calculateTopPadding())
+                modifier = Modifier.align(Alignment.TopCenter)
             )
         }
     }
@@ -430,7 +424,6 @@ private fun RecordsList(
     inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
-    contentPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
     val today = rememberToday()
@@ -456,7 +449,7 @@ private fun RecordsList(
     //
     // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
     // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
-    LazyColumn(modifier = modifier, contentPadding = contentPadding) {
+    LazyColumn(modifier = modifier) {
         // 判据用 latest 而不是 shown：新记录还没落地的那一帧列表是空的，但数据并不空，
         // 这时候不该闪一句「还没有扫描记录」
         if (latest.isEmpty()) {

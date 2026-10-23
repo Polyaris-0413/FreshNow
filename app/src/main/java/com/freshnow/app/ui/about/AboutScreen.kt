@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -29,7 +31,6 @@ import com.freshnow.app.data.compareVersions
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.component.UpdateDialog
-import com.freshnow.app.ui.component.verticalScrollUnderTopBar
 import com.freshnow.app.ui.openInBrowser
 import com.freshnow.app.ui.showToast
 import com.freshnow.app.ui.theme.FreshNowSpacing
@@ -101,8 +102,8 @@ fun AboutScreen(
             onCheckUpdateClick = { checkUpdate() },
             modifier = Modifier
                 .fillMaxSize()
-                // 不从外层垫内边距：内容才是在顶栏下沿被裁切（见 verticalScrollUnderTopBar）
-                .verticalScrollUnderTopBar(innerPadding)
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
         )
     }
 

@@ -3,6 +3,7 @@ package com.freshnow.app.ui.about
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ListItem
@@ -124,9 +125,9 @@ fun OpenSourceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     ) { innerPadding ->
         // 几百行一次组合会明显拖慢进页：只在需要时组合
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            // 条目要能滚到顶栏下面（在顶栏下沿被裁切），视口因此要铺满整个 Scaffold
-            contentPadding = innerPadding
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             items(projects) { project ->
                 ListItem(

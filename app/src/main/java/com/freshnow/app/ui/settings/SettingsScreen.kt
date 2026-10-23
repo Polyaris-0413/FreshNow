@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -48,7 +50,6 @@ import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.SectionHeading
-import com.freshnow.app.ui.component.verticalScrollUnderTopBar
 import com.freshnow.app.ui.component.SortOrderMenuItems
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.label
@@ -125,8 +126,8 @@ fun SettingsScreen(
                 onSyncClick = onNavigateToSync,
                 modifier = Modifier
                     .fillMaxSize()
-                    // 内边距不从外层垫：内容才是在顶栏下沿被裁切，见 verticalScrollUnderTopBar
-                    .verticalScrollUnderTopBar(innerPadding)
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
             )
         }
     }
