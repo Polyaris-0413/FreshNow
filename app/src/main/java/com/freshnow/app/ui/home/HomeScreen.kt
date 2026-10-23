@@ -33,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -49,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
@@ -201,14 +199,8 @@ fun HomeScreen(
     // 若现读，它会跟着最新的选中数量先滚一遍「已选 0 项」再淡出，同一件事演两遍。
     val selectionCount: Int? = selectedIds.size.takeIf { inSelectionMode }
 
-    // 顶栏的分层靠这个：滚动量从这里流到顶栏（见 FreshNowTopAppBar）。顶栏的两副面孔共用
-    // 同一个状态，进出选择模式时底色不必从头开始
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-
     Scaffold(
-        modifier = modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.fillMaxSize(),
         topBar = {
             // 顶栏是「列表」与「选择模式」两副面孔，直接换会很生硬，整条一起淡入淡出。
             // 整条换而不是分开淡标题与图标：选择模式下标题左边多出退出按钮、标题本身要右移，
@@ -240,7 +232,6 @@ fun HomeScreen(
                                 )
                             }
                         },
-                        scrollBehavior = scrollBehavior
                     )
                 } else {
                     FreshNowTopAppBar(
@@ -260,7 +251,6 @@ fun HomeScreen(
                                 )
                             }
                         },
-                        scrollBehavior = scrollBehavior
                     )
                 }
             }

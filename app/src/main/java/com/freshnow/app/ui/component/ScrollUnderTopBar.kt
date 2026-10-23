@@ -14,11 +14,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 /**
  * 整页可滚内容：能滚到顶栏下面，而首屏仍从顶栏下方开始。
  *
- * 顶栏分层只在内容滚到它下面时出现（见 [FreshNowTopAppBar]），而「滚到下面」要求滚动视口本身
- * 覆盖顶栏那块地方。所以 Scaffold 给的 innerPadding **不能**用 `Modifier.padding(innerPadding)`
- * 包在外层：那样视口整个被推到顶栏下方，内容滚到边界就停住，顶栏永远等不到滚动量。
- * Scaffold 把内容摆在 (0,0) 再画顶栏（material3 1.4.0 的 Scaffold.kt: bodyContentPlaceable
- * .place(0, 0) 之后才是 topBarPlaceable.place(0, 0)），所以视口铺满是安全的，顶栏会盖在上面。
+ * 顶栏是全应用常驻的分层底色（见 [FreshNowTopAppBar]）。要让滚动内容在顶栏下沿干净地被裁切、
+ * 而不是「滚到顶栏上就停住、在顶栏下留一条空白带」，滚动视口本身就必须覆盖顶栏那块地方，
+ * 所以 Scaffold 给的 innerPadding **不能**用 `Modifier.padding(innerPadding)` 包在外层——
+ * 那样视口整个被推到顶栏下方。Scaffold 把内容摆在 (0,0) 再画顶栏（material3 1.4.0 的
+ * Scaffold.kt: bodyContentPlaceable.place(0, 0) 之后才是 topBarPlaceable.place(0, 0)），
+ * 所以视口铺满是安全的，顶栏会盖在上面。
  *
  * 这个修饰符把 innerPadding 拆成两半：左右与底部留在外层（视口不被导航栏、刘海压住），
  * 顶部挪到 [verticalScroll] 之后，成为滚内容的第一段空白——静止时首项仍从头栏下方开始，
