@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 interface SyncPeerDao {
 
     /**
-     * 覆盖写入。同一个 deviceId 再次配对（比如对端重装应用、换了密钥）时，旧的密钥已经解不开
+     * 同一个 deviceId 再次配对（比如对端重装应用、换了密钥）时，旧的密钥已经解不开
      * 对端的请求，留着它只会让同步一直失败；新的配对结果必须能盖过它。
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)

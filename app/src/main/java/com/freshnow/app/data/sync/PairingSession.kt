@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * 一次配对的时间窗。
  * 配对码是一把共享秘密，谁先看到谁就能配上，所以不能长期有效：只在用户打开配对页之后存在，
  * 配对成功或超时即作废。在线猜码的成本由两条一起挡住：每次尝试都要拿配对码派生出密钥去解密请求
  * （PBKDF2 十万次迭代，见 [SyncCrypto.derivePairingKey]），解不开就记一次失败（[recordFailure]），
@@ -26,7 +25,7 @@ internal class PairingSession {
         get() = _code.value
 
     /**
-     * 开窗并给出新码。重复调用会作废上一个码——用户中途退出配对页再进来，屏幕上显示的是新码，
+     * 重复调用会作废上一个码——用户中途退出配对页再进来，屏幕上显示的是新码，
      * 旧码继续有效就等于把窗口延长了一倍。
      */
     @Synchronized

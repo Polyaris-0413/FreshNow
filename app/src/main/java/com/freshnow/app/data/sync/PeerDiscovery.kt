@@ -79,8 +79,6 @@ internal class PeerDiscovery(context: Context) {
     }
 
     /**
-     * 持续报告局域网里有哪些设备。
-     *
      * 拿不到组播锁时有些机型收不到 mDNS 报文（组播会被省电策略掐掉），所以这里一并持锁；
      * 锁的代价是它按引用计数泄漏，获取与释放必须成对，[awaitClose] 里释放是为了让调用方
      * 取消收集时也能还回去。
@@ -103,7 +101,6 @@ internal class PeerDiscovery(context: Context) {
                 // 并发发起时后面的会失败，表现是「有时能发现有时不能」
                 launch {
                     val peer = resolve(serviceInfo) ?: return@launch
-                    // 自己也会被自己的服务找到，跳过它
                     found[peer.deviceId] = peer
                     publish()
                 }

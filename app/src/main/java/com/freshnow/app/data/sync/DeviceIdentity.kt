@@ -13,7 +13,6 @@ import java.util.UUID
 private val Context.identityDataStore: DataStore<Preferences> by preferencesDataStore(name = "device_identity")
 
 /**
- * 本机在同步里的身份。
  * 设备号必须落盘，且**一经定下不再变**：对端把它记在 sync_peers 的主键上，改一次等于换了台设备，
  * 所有已配对的关系一起失效。
  * 用随机值而不是 ANDROID_ID 一类的系统标识：同步只要求在这几台设备之间认得出对方，随机值就够；
@@ -26,7 +25,6 @@ class DeviceIdentity(private val dataStore: DataStore<Preferences>) {
     constructor(context: Context) : this(context.identityDataStore)
 
     /**
-     * 读设备号，没有就当场生成一个。
      * 生成写在 edit 里，而不是「先读、再判空、后写」：并发调用时后者会各自生成一个再互相覆盖，
      * 同一次启动里两条路径于是拿到两个不同的设备号，对端那边就变成了两台设备。
      */
@@ -45,8 +43,7 @@ class DeviceIdentity(private val dataStore: DataStore<Preferences>) {
     }
 
     /**
-     * 本机在对方设备列表里的名字，取机型名。
-     * 读不到机型时给中性的占位而不是空串——空名字在列表里就是一行没有内容的条目。
+     * 取机型名。读不到机型时给中性的占位而不是空串——空名字在列表里就是一行没有内容的条目。
      */
     fun deviceName(): String = Build.MODEL?.takeIf { it.isNotBlank() } ?: "Android"
 

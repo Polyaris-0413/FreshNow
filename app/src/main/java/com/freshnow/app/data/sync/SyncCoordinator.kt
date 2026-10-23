@@ -46,7 +46,6 @@ internal sealed interface SyncReport {
 internal data class PairOutcome(val deviceName: String, val applied: Int)
 
 /**
- * 同步这件事对界面露出的全部。
  * 进程级单例（[getInstance]）：服务端要占一个端口、mDNS 广播在系统里也只有一个，多实例会「有时连得上有时连不上」。
  * 会话跟随应用前台状态起停（见 MainActivity）：后台常驻在 Android 15 以上走不通
  * （dataSync 前台服务每天只给 6 小时），而这类应用的使用节奏就是「打开看一眼」。
@@ -191,8 +190,6 @@ internal class SyncCoordinator private constructor(context: Context) {
     // ---- 配对 ----
 
     /**
-     * 开配对窗口，返回要显示在屏幕上的码。
-     *
      * 两分钟后自动关：用户看到码就不再盯着屏幕了，而一个没人管的窗口等在那里，等于把「限时」
      * 这件事交给用户自己去记。超时长度写在文案里（「码两分钟内有效」），两处必须一致。
      */
@@ -213,8 +210,6 @@ internal class SyncCoordinator private constructor(context: Context) {
     }
 
     /**
-     * 用 [peer] 的地址和用户输入的码去配上它，成功后本机也把它记下来，并立即同步一次。
-     *
      * 配对请求里的密钥由本机生成，对方存下来再回传同一把——两边拿到的是同一个值，
      * 之后谁发起同步都能解开对方的载荷。
      */
@@ -236,7 +231,6 @@ internal class SyncCoordinator private constructor(context: Context) {
             ?.let { syncRightAfterPairing(it) }
 
     /**
-     * 配完就同步一次。
      * 刚配完这一刻对方肯定在线（它刚处理完那个配对请求），这是最不用赌的同步时机。
      * 只同步刚配上的这一台：一次交换是双向的，对方处理这次请求时会把本机的数据一并合上。
      * 失败不报错：配对本身已经成了，这次没拉到数据下次进前台还会再来。
@@ -274,14 +268,14 @@ internal class SyncCoordinator private constructor(context: Context) {
         return peer
     }
 
-    /** 补上约定端口。用户已经写好端口时原样用 */
+    /** 用户已经写好端口时原样用 */
     private fun withDefaultPort(address: String): String {
         val trimmed = address.trim().removePrefix("http://").removeSuffix("/")
         return if (trimmed.contains(':')) trimmed else "$trimmed:$DEFAULT_PORT"
     }
 
     /**
-     * 本机的局域网地址，手动配对时念给对方听。
+     * 手动配对时念给对方听。
      * 取当前 WiFi 网络的地址而不是枚举所有网卡：VPN 隧道（tun0、vgate0）与移动数据网卡也满足
      * 「已启用、非回环」，对方在同一个 WiFi 下根本连不过去，全列出来只会让用户不知道该填哪个。
      * 拿不到 WiFi 地址时（本机开热点、系统不让查）退回枚举网卡，但剔掉 VPN 隧道——那种地址对方一定连不上，列出来纯是干扰。
@@ -321,7 +315,7 @@ internal class SyncCoordinator private constructor(context: Context) {
         name.lowercase().let { n -> VPN_INTERFACE_PREFIXES.any { n.startsWith(it) } }
 
     /**
-     * 解除与一台设备的配对。先通知对方再删本机这条：本地记录一删，用来认证的密钥就没了，通知发不出去。
+     * 先通知对方再删本机这条：本地记录一删，用来认证的密钥就没了，通知发不出去。
      * 通知失败不影响解除本身——对方下次来同步时会从 401 的标记里自己发现（见 [SyncExchange.PeerUnknown]）；
      * 「解除了但对方还没发现」这个中间状态，比「解除了却告诉用户已解除」诚实。
      * 跑在 [scope] 上而不是调用方的作用域里：界面那侧是 viewModelScope，用户点完解除很可能马上离开同步页，
@@ -335,8 +329,6 @@ internal class SyncCoordinator private constructor(context: Context) {
     }
 
     /**
-     * 告诉对方本机不再与它同步。
-     *
      * 两个地址都试（发现到的、以及记下的），与 [syncOne] 同一个道理：发现到的那个可能是过期
      * 条目（NsdManager 会缓存解析结果），只试它就等于把通知押在一次可能落空的投递上。而不同于
      * 同步，这里的失败是没有回音的——用户那边看起来「已经解除了」，对方却还挂着这台设备。
@@ -379,7 +371,6 @@ internal class SyncCoordinator private constructor(context: Context) {
     // ---- 同步 ----
 
     /**
-     * 与每一台已配对设备各交换一轮。
      * 逐台来而不是并发：一次交换就是把整份状态发给对方，几台同时来会让手机在几秒里同时打包好几份、
      * 写好几轮库，收益只是省下一点点等待，代价是发热与更长的卡顿。
      * 进来先排队（[syncLock]）：进前台、定时、下拉刷新、同步页按钮四条路都通到这里，两轮叠在一起会同时
@@ -408,8 +399,6 @@ internal class SyncCoordinator private constructor(context: Context) {
     }
 
     /**
-     * 与一台对端交换一轮。
-     *
      * 先用记下来的地址试，不成才去做发现——这个顺序很要紧：发现要等 mDNS 出结果（几秒），
      * 而记住的地址在多数情况下直接就连上了。反过来写（先等发现再连）等于每次同步都白等
      * 几秒，而等出来的东西未必比手里的地址更有用。
@@ -432,7 +421,7 @@ internal class SyncCoordinator private constructor(context: Context) {
         return null
     }
 
-    /** 把一条记录缺的照片从对端取回来。本地都齐了就直接返回 true，不会去打扰对端 */
+    /** 本地都齐了就直接返回 true，不会去打扰对端 */
     suspend fun fetchPhoto(record: ScanRecord): Boolean {
         val peer = peers.find(record.updatedBy) ?: peers.all().firstOrNull() ?: return false
         val address = addressOf(peer) ?: return false
@@ -440,7 +429,6 @@ internal class SyncCoordinator private constructor(context: Context) {
     }
 
     /**
-     * 把本地缺的照片逐张补回来。
      * 两个入口：自己发起的一轮跑完（见 [exchangeAll]），以及收到对方推来的一轮之后（见 [SyncServer] 的 onIncomingSync）。
      * 后者不可省：交换里只有图片名，图本身不在交换里，而对方此刻一定在线；等自己下次发起时对方可能已退出应用。
      * 逐张而不是并发：一次取图就是一次 HTTP 往返加一次落盘，几十张并发只会让正在看列表的用户感到卡顿。
@@ -479,7 +467,7 @@ internal class SyncCoordinator private constructor(context: Context) {
             ?: peer.lastAddress.takeIf { it.isNotEmpty() }
 
     /**
-     * 发现一空就先起一次扫描并稍等片刻。等的是短窗口而不是「等发现完」：mDNS 没有「发现完」这个时刻，
+     * 等的是短窗口而不是「等发现完」：mDNS 没有「发现完」这个时刻，
      * 它随设备上下线持续报告，而用户点下同步之后要的是尽快有结果。
      */
     private suspend fun awaitDiscovery(timeoutMillis: Long = DISCOVERY_GRACE) {
