@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -111,7 +112,8 @@ internal fun SyncScreen(
             onManualPair = { manualPairing = true },
             onPick = { pairingWith = it },
             onForget = { viewModel.forget(it.deviceId) },
-            modifier = Modifier.padding(innerPadding)
+            // 不垫 padding：列表要能滚到顶栏下面才变色，内边距由 LazyColumn 的 contentPadding 接
+            contentPadding = innerPadding
         )
     }
 
@@ -179,6 +181,7 @@ internal fun SyncContent(
     onManualPair: () -> Unit,
     onPick: (DiscoveredPeer) -> Unit,
     onForget: (SyncPeer) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
 ) {
     // 已经配上过的不再列出来：用户要的是「还有谁可以配」，不是网络里所有设备
@@ -186,7 +189,7 @@ internal fun SyncContent(
         peers.any { it.deviceId == found.deviceId }
     }
 
-    LazyColumn(modifier = modifier.fillMaxSize()) {
+    LazyColumn(modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
         if (!permissionGranted) {
             item(key = KEY_PERMISSION) {
                 PermissionNotice(

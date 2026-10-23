@@ -13,6 +13,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -47,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
@@ -198,8 +201,14 @@ fun HomeScreen(
     // 若现读，它会跟着最新的选中数量先滚一遍「已选 0 项」再淡出，同一件事演两遍。
     val selectionCount: Int? = selectedIds.size.takeIf { inSelectionMode }
 
+    // 顶栏的分层靠这个：滚动量从这里流到顶栏（见 FreshNowTopAppBar）。顶栏的两副面孔共用
+    // 同一个状态，进出选择模式时底色不必从头开始
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             // 顶栏是「列表」与「选择模式」两副面孔，直接换会很生硬，整条一起淡入淡出。
             // 整条换而不是分开淡标题与图标：选择模式下标题左边多出退出按钮、标题本身要右移，
@@ -230,7 +239,8 @@ fun HomeScreen(
                                     contentDescription = stringResource(R.string.action_delete)
                                 )
                             }
-                        }
+                        },
+                        scrollBehavior = scrollBehavior
                     )
                 } else {
                     FreshNowTopAppBar(
@@ -249,7 +259,8 @@ fun HomeScreen(
                                     contentDescription = stringResource(R.string.action_more_options)
                                 )
                             }
-                        }
+                        },
+                        scrollBehavior = scrollBehavior
                     )
                 }
             }
@@ -285,7 +296,8 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                // 不垫 innerPadding：滚动视口要铺到顶栏底下，条目滚过去时顶栏才会变色。
+                // 内边距交给列表自己的 contentPadding（见 RecordsList）
                 .pullToRefresh(
                     isRefreshing = refreshing,
                     state = pullState,
@@ -302,12 +314,16 @@ fun HomeScreen(
                 inSelectionMode = inSelectionMode,
                 onRecordClick = onRecordClick,
                 onRecordToggle = onRecordToggle,
+                contentPadding = innerPadding,
                 modifier = Modifier.fillMaxSize()
             )
             PullToRefreshDefaults.Indicator(
                 state = pullState,
                 isRefreshing = refreshing,
-                modifier = Modifier.align(Alignment.TopCenter)
+                // 指示器落在顶栏底下那块地方，得自己让开——内容已经不再垫内边距了
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = innerPadding.calculateTopPadding())
             )
         }
     }
@@ -418,6 +434,7 @@ private fun RecordsList(
     inSelectionMode: Boolean,
     onRecordClick: (Long) -> Unit,
     onRecordToggle: (Long) -> Unit,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
     val today = rememberToday()
@@ -443,7 +460,7 @@ private fun RecordsList(
     //
     // 空态也摆成一个条目，而不是把整条列表换成居中的文字框：删掉最后一条时列表若被换下去，
     // 那条记录会跟着整棵子树一起消失，淡出根本来不及演。
-    LazyColumn(modifier = modifier) {
+    LazyColumn(modifier = modifier, contentPadding = contentPadding) {
         // 判据用 latest 而不是 shown：新记录还没落地的那一帧列表是空的，但数据并不空，
         // 这时候不该闪一句「还没有扫描记录」
         if (latest.isEmpty()) {
