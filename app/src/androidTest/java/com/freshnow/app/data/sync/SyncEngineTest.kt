@@ -294,7 +294,6 @@ class SyncEngineTest {
         }
     }
 
-    /** 没配对就去同步，对端必须回绝 */
     /**
      * 服务端替对端合完一次交换后要报一声。
      *
@@ -313,6 +312,7 @@ class SyncEngineTest {
         assertEquals("发起方自己那台不算：它走的是另一条触发（自己那一轮跑完）", 0, deviceB.incomingSyncs)
     }
 
+    /** 没配对就去同步，对端必须回绝 */
     @Test
     fun syncingWithoutPairing_isRefused() = runBlocking {
         deviceA.addRecord("纯牛奶")

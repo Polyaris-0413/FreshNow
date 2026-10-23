@@ -381,10 +381,10 @@ class WelcomeScreenTest {
     }
 
     private companion object {
-        /** 进度指示器在语义树里就是「带范围信息的节点」，M3 的 LinearProgressIndicator 自带 */
         /** 页内状态切换时长的一半（见 FreshNowTransitions.stateChange 的 200ms） */
         const val HALF_STATE_CHANGE_MS = 100L
 
+        /** 进度指示器在语义树里就是「带范围信息的节点」，M3 的 LinearProgressIndicator 自带 */
         val progressBar = SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
     }
 }
