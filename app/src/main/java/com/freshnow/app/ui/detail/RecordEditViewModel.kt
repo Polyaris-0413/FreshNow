@@ -252,7 +252,6 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(productName = value) }
     }
 
-    /** 表单报回来的是「哪一项 + 新值」，在这里分派到各自的写入方法 */
     fun onFieldChange(field: RecordField, value: String) {
         when (field) {
             RecordField.PRODUCT_NAME -> onProductNameChange(value)
@@ -317,12 +316,10 @@ class RecordEditViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    /** 放弃这次裁剪：原图与草稿照片都保持原样 */
     fun cancelCrop() {
         _uiState.update { it.copy(cropSource = null) }
     }
 
-    /** 裁剪页确认：按用户摆出来的框裁方、编码，进草稿等保存 */
     internal fun applyCrop(window: CropWindow) {
         val source = _uiState.value.cropSource ?: return
         viewModelScope.launch {

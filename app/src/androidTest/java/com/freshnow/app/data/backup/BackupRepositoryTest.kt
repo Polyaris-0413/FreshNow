@@ -46,7 +46,6 @@ class BackupRepositoryTest {
         deviceB.close()
     }
 
-    /** 换机的正路：另一台设备上记录在、照片也在 */
     @Test
     fun exportThenRestore_carriesRecordsAndPhotosToAnotherDevice() = runBlocking {
         deviceA.addRecord("纯牛奶", listOf(MILK_PHOTO))
@@ -110,7 +109,6 @@ class BackupRepositoryTest {
         )
     }
 
-    /** 同一份备份导第二次不该再改动任何东西（连点、或从两个位置各导一次） */
     @Test
     fun restoringSameBackupTwice_changesNothingTheSecondTime() = runBlocking {
         deviceA.addRecord("纯牛奶", listOf(MILK_PHOTO))

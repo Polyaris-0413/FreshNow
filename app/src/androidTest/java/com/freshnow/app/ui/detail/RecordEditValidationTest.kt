@@ -78,7 +78,6 @@ class RecordEditValidationTest {
         assertTrue(vm.uiState.value.canSave)
     }
 
-    /** 推算跟着草稿走：过期日期留空时，改生产日期或保质期都要当场重算 */
     @Test
     fun derivedExpiryFollowsDraft() {
         val vm = viewModel()

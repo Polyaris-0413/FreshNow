@@ -73,7 +73,6 @@ internal class SyncServer(
 
     private var server: EmbeddedServer<*, *>? = null
 
-    /** 起服务并返回实际端口 */
     suspend fun start(): Int {
         stop()
         // 端口先探一下再启动，不靠「起了失败就换一个」：CIO 引擎是异步启动的，绑定失败的异常

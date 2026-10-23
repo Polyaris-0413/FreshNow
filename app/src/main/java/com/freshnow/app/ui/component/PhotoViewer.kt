@@ -122,7 +122,6 @@ fun PhotoViewer(
             onDismiss()
         }
 
-        /** 没到阈值就把图弹回原位 */
         fun animateDragBack() {
             gestureAnimation?.cancel()
             if (dismissing || dragOffset == Offset.Zero) return

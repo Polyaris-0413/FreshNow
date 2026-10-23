@@ -38,7 +38,6 @@ internal fun coverScale(imageWidth: Int, imageHeight: Int, viewportSide: Float):
 internal fun maxPan(imageExtent: Int, scale: Float, viewportSide: Float): Float =
     max(0f, (imageExtent * scale - viewportSide) / 2f)
 
-/** 把平移量夹进 [maxPan] 的范围里 */
 internal fun clampPan(offset: Float, imageExtent: Int, scale: Float, viewportSide: Float): Float =
     offset.coerceIn(-maxPan(imageExtent, scale, viewportSide), maxPan(imageExtent, scale, viewportSide))
 

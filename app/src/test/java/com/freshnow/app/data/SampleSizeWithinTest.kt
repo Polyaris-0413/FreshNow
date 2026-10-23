@@ -15,13 +15,11 @@ class SampleSizeWithinTest {
         assertEquals(1, sampleSizeWithin(width = 2048, height = 1536, maxLongSide = 2048))
     }
 
-    /** 刚超一点也只降一档，结果落在 (上限/2, 上限] 之间 */
     @Test
     fun slightlyOverTheCap_doublesOnce() {
         assertEquals(2, sampleSizeWithin(width = 3000, height = 2000, maxLongSide = 2048))
     }
 
-    /** 手机原图量级：一路翻倍到长边落回上限之内 */
     @Test
     fun hugeImage_isDownsampledUntilItFits() {
         assertEquals(4, sampleSizeWithin(width = 8000, height = 6000, maxLongSide = 2048))

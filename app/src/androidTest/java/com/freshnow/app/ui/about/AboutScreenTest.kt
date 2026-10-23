@@ -51,7 +51,6 @@ class AboutScreenTest {
         )
     }
 
-    /** 分区顺序：应用 → 项目 → 法律信息 */
     @Test
     fun sectionsAreOrdered() {
         setAboutList()

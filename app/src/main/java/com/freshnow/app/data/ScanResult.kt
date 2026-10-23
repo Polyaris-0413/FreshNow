@@ -42,7 +42,6 @@ private fun ScanResult.orObservation(
     else -> observed.ifBlank { field.valueOf(this) }
 }
 
-/** 按字段取出这一项当前的值 */
 private fun RecordField.valueOf(result: ScanResult): String = when (this) {
     RecordField.PRODUCT_NAME -> result.productName
     // 位置不在 [ScanResult] 里（模型读不到它，见 ScanRecord.location），锁对它也就没有过作用

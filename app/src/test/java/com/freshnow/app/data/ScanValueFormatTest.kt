@@ -148,7 +148,6 @@ class ScanValueFormatTest {
         }
     }
 
-    /** 数量的上下限：0 与超出上限的拒，限内的认 */
     @Test
     fun shelfLife_amountBounds_areEnforced() {
         assertEquals("9999天", ScanValueFormat.shelfLife("9999天"))
@@ -182,7 +181,6 @@ class ScanValueFormatTest {
         assertEquals("14天", ScanValueFormat.shelfLife("两个星期"))
     }
 
-    /** 端到端：周也能算出过期日期 */
     @Test
     fun weekShelfLife_producesExpiryDate() {
         assertEquals(
@@ -196,7 +194,6 @@ class ScanValueFormatTest {
         assertEquals("见包装", ScanValueFormat.shelfLife("见包装"))
     }
 
-    /** 端到端：中文数字的保质期也能算出过期日期 */
     @Test
     fun chineseShelfLife_producesExpiryDate() {
         assertEquals(

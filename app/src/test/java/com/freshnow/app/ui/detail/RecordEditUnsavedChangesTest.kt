@@ -29,7 +29,6 @@ class RecordEditUnsavedChangesTest {
         assertFalse(state.isDirtyAgainst(existingBaseline()))
     }
 
-    /** 手动录入刚开出来：空草稿，直接退 */
     @Test
     fun emptyNewDraft_isNotDirty() {
         val state = RecordEditUiState(loaded = true, found = true, isNew = true)
@@ -37,7 +36,6 @@ class RecordEditUnsavedChangesTest {
         assertFalse(state.isDirtyAgainst(null))
     }
 
-    /** 手动录入填了一项：会丢，要问 */
     @Test
     fun newDraftWithOneField_isDirty() {
         val state = RecordEditUiState(loaded = true, found = true, isNew = true, productName = NAME)
@@ -73,7 +71,6 @@ class RecordEditUnsavedChangesTest {
         assertTrue(state.isDirtyAgainst(existingBaseline()))
     }
 
-    /** 位置也在这份草稿里，改了同样算改动 */
     @Test
     fun changedLocation_isDirty() {
         val state = existingDraft(location = "冷藏")

@@ -33,7 +33,6 @@ data class AiBasicConfigDraft(
 ) {
 
     companion object {
-        /** 用已落盘的值填草稿，错误标记一并清掉 */
         fun of(settings: AiSettings) = AiBasicConfigDraft(
             baseUrl = settings.baseUrl,
             modelName = settings.modelName,
@@ -41,7 +40,6 @@ data class AiBasicConfigDraft(
         )
     }
 
-    /** 三项必填：没填的字段标错 */
     fun validated(): AiBasicConfigDraft = copy(
         baseUrlError = baseUrl.isBlank(),
         modelNameError = modelName.isBlank(),

@@ -46,7 +46,6 @@ class OpenSourceProjectsTest {
         assertEquals("Apache License 2.0 / BSD 3-Clause License", projects.single().license)
     }
 
-    /** POM 里没写 <name> 的退回坐标，不能露出一行空白 */
     @Test
     fun `没有名称的依赖用坐标顶替`() {
         val projects = parseProjects(
@@ -61,7 +60,6 @@ class OpenSourceProjectsTest {
         assertEquals("com.example:widget", projects.single().name)
     }
 
-    /** SLF4J 这类在 POM 里没写 SPDX id 的走 unknownLicenses，同样要显示出来 */
     @Test
     fun `认不出 SPDX 的协议也显示`() {
         val projects = parseProjects(

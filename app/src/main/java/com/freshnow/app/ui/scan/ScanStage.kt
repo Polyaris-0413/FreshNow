@@ -104,15 +104,12 @@ internal fun ScanUiState.storedResult(): ScanResult = record.copy(
  * 提前 `return` 掉：那样进出一趟是硬切，项目里已经有的整屏转场就用不上了。
  */
 internal sealed interface ScanStep {
-    /** 扫描态：只有相机与只读结果 */
     data object Scanning : ScanStep
 
     /** 编辑态：记录表单（设计文档里叫「补充信息」） */
     data object Editing : ScanStep
 
-    /** 裁剪相册选来的图 */
     data object Crop : ScanStep
 
-    /** 拍照 */
     data object Capture : ScanStep
 }

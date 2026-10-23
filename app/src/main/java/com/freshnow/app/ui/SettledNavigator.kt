@@ -43,7 +43,6 @@ class SettledNavigator internal constructor(
     /** 去 [route]；上一次转场若还没演完，等它收尾再走 */
     fun navigate(route: String) = navigateWhenSettled { navController.navigate(route) }
 
-    /** 退回上一页；同上 */
     fun navigateUp() = navigateWhenSettled { navController.navigateUp() }
 
     private fun navigateWhenSettled(action: () -> Unit) {

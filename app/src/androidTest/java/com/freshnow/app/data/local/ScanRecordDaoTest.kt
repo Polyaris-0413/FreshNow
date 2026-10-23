@@ -82,9 +82,6 @@ class ScanRecordDaoTest {
         assertEquals(setOf(fresh, alive), remaining)
     }
 
-    /**
-     * 本地没有的一条要插进来。
-     */
     @Test
     fun merge_insertsARecordItHasNotSeen() = runBlocking {
         val applied = dao.merge(record(name = "新来的", imageName = "").copy(syncId = "s1"))

@@ -29,7 +29,6 @@ class PhotoGridTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 满九张时「+」必须消失 */
     @Test
     fun addTileDisappearsAtTheLimit() {
         setContent(items = (1..MAX_RECORD_IMAGES).map { PhotoGridItem(key = "k$it", image = null) })
@@ -38,7 +37,6 @@ class PhotoGridTest {
         composeRule.onAllNodesWithContentDescription(TILE).assertCountEquals(MAX_RECORD_IMAGES)
     }
 
-    /** 六张时还留着一格「+」 */
     @Test
     fun addTileShowsBeforeTheLimit() {
         setContent(items = (1..6).map { PhotoGridItem(key = "k$it", image = null) })
@@ -55,7 +53,6 @@ class PhotoGridTest {
         composeRule.onAllNodesWithContentDescription(TILE).assertCountEquals(0)
     }
 
-    /** 点某一格是「看这一张」，报的是那一格的序号（0 起） */
     @Test
     fun tapOpensTheTappedIndex() {
         var opened = -1
@@ -69,7 +66,6 @@ class PhotoGridTest {
         assertEquals("第二格要报回下标 1", 1, opened)
     }
 
-    /** 长按某一格是「问这一张要怎么办」，报的同样是那一格的序号 */
     @Test
     fun longPressOffersActionsForTheTappedIndex() {
         var actions = -1

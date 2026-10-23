@@ -13,7 +13,6 @@ import org.junit.Test
  */
 class ScanStageTest {
 
-    /** 翻面之后表单里看到的就是刚读到的那些值 */
     @Test
     fun flippingIntoEditingCarriesTheScannedFields() {
         val state = ScanUiState(record = ScanResult(productName = "纯牛奶", shelfLife = "12个月"))

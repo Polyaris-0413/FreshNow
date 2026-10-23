@@ -41,7 +41,6 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("下一步").assertIsDisplayed()
         assertNotVisible("跳过")
         composeRule.onNodeWithText("借助模型管理食品保质期。").assertIsDisplayed()
-        // 定位之后再摆一节：相比传统 OCR 的三条优势
         composeRule.onNodeWithText("多模态识别相比传统 OCR 的优势").assertIsDisplayed()
         composeRule.onNodeWithText("识别效率与准确度相当，成本更低").assertIsDisplayed()
     }
@@ -166,7 +165,6 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText("API Key").assertExists()
     }
 
-    /** 三个字段都没填时各报一次必填，不多不少 */
     @Test
     fun configStepShowsARequiredErrorPerEmptyField() {
         setContent(
@@ -228,7 +226,6 @@ class WelcomeScreenTest {
         assertNotVisible("都设置好了")
     }
 
-    /** 权限真的授予之后才推进到收尾那一步 */
     @Test
     fun grantedCameraAdvancesToDoneStep() {
         val grantedCount = mutableStateOf(0)
@@ -257,7 +254,6 @@ class WelcomeScreenTest {
         assertNotVisible("都设置好了")
     }
 
-    /** 权限被系统锁死时，主按钮换成去系统设置，并说明原因 */
     @Test
     fun blockedCameraOffersSystemSettings() {
         var openedSettings = 0
@@ -349,7 +345,6 @@ class WelcomeScreenTest {
         composeRule.onNodeWithText(text).performClick()
     }
 
-    /** 从第 1 步用「下一步」走到配置那一步（这两步没有「跳过」） */
     private fun goToConfigStep() {
         clickSettled("下一步")
         awaitText("标签上的字交给模型读")
@@ -360,7 +355,6 @@ class WelcomeScreenTest {
         composeRule.waitForIdle()
     }
 
-    /** 再从配置那一步「跳过」（不填）到相机权限那一步 */
     private fun goToCameraStep() {
         goToConfigStep()
         clickSettled("跳过")

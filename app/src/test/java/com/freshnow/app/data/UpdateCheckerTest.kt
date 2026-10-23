@@ -48,13 +48,11 @@ class UpdateCheckerTest {
         assertEquals(0, compareVersions("", "0"))
     }
 
-    /** 确实更新且没被忽略过 → 提示 */
     @Test
     fun promptsForNewerVersion() {
         assertTrue(shouldPromptUpdate(release("v1.0.1"), currentVersion = "1.0.0", ignoredVersion = null))
     }
 
-    /** 点过「关闭」的那个版本不再提示 */
     @Test
     fun doesNotPromptForIgnoredVersion() {
         assertTrue(
@@ -98,7 +96,6 @@ class UpdateCheckerTest {
         assertEquals("${url.trimEnd('/')}/releases/latest", releasesPageUrl(url))
     }
 
-    /** 地址末尾多一个斜杠、或写成 clone 的 .git 形式，推出来的要是同一对 URL */
     @Test
     fun repositoryUrl_toleratesTrailingSlashAndGitSuffix() {
         val expected = "Polyaris-0413/FreshNow"

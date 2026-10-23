@@ -14,7 +14,6 @@ class PhotoOrderTest {
         assertEquals(listOf("c", "a", "b"), listOf("a", "b", "c").movedToFront(2))
     }
 
-    /** 第一张再设一次首图：原样返回，不把顺序搅乱 */
     @Test
     fun firstItemStaysPut() {
         assertEquals(listOf("a", "b", "c"), listOf("a", "b", "c").movedToFront(0))

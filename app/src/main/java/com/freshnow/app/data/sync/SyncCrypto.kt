@@ -48,7 +48,6 @@ internal object SyncCrypto {
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
     }
 
-    /** 一次配对的盐 */
     fun newPairingSalt(): ByteArray =
         ByteArray(PAIRING_SALT_BYTES).also { SecureRandom().nextBytes(it) }
 

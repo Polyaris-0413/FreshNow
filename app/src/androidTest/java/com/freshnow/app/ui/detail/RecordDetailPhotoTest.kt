@@ -134,7 +134,6 @@ class RecordDetailPhotoTest {
 
     private fun capture() = composeRule.onRoot().captureToImage().toPixelMap()
 
-    /** 两帧之间有多少像素不一样 */
     private fun diff(a: androidx.compose.ui.graphics.PixelMap, b: androidx.compose.ui.graphics.PixelMap): Int {
         var count = 0
         for (y in 0 until minOf(a.height, b.height)) {
@@ -256,7 +255,6 @@ class RecordDetailPhotoTest {
 
     private companion object {
         const val PHOTO = "扫描照片"
-        /** 没有照片时的占位图描述 */
         const val MISSING = "无图片"
         /** 取样与步进：一帧 16ms，开头取一帧当「半路」的样本 */
         const val FRAME_MS = 16L

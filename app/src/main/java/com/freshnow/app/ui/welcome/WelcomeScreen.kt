@@ -66,7 +66,6 @@ import kotlinx.coroutines.launch
  * 进入主页之前，用户此时刚看完「扫描要拍标签」，说明与动作之间没有别的东西插队。
  */
 internal enum class WelcomeStep(
-    /** 主视觉图标 */
     val iconRes: Int,
     /** 标题与正文。第 1 步的标题就是应用名 */
     val titleRes: Int,

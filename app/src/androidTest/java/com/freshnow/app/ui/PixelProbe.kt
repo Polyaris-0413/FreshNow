@@ -26,7 +26,6 @@ internal fun channelDifference(a: Int, b: Int): Int = maxOf(
     abs(Color.blue(a) - Color.blue(b))
 )
 
-/** 两个颜色是否看得出差别：通道差超过容差即可 */
 internal fun differs(a: Int, b: Int): Boolean = channelDifference(a, b) > CHANNEL_TOLERANCE
 
 /** 该区域里与页面底色差得最远的那个像素差多少：文字淡入时它会从 0 涨到最终值 */

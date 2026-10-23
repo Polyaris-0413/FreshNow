@@ -33,7 +33,6 @@ class SyncContentTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 附近：正在查找 → 发现一台 */
     @Test
     fun nearbySearchingToFoundIsASwap() {
         var discovered by mutableStateOf(emptyList<DiscoveredPeer>())
@@ -42,7 +41,6 @@ class SyncContentTest {
         assertSwap(outgoing = SEARCHING) { discovered = listOf(found(KITCHEN)) }
     }
 
-    /** 已配对：还没有配对 → 一台设备 */
     @Test
     fun pairedEmptyToDeviceIsASwap() {
         var peers by mutableStateOf(emptyList<SyncPeer>())
@@ -64,9 +62,6 @@ class SyncContentTest {
         assertSwap(outgoing = SEARCHING) { discovered = listOf(found(KITCHEN)) }
     }
 
-    /**
-     * 换一块状态话：换掉之前那句所在的区域，半程上应当既不是旧样子、也不是新样子。
-     */
     private fun assertSwap(outgoing: String, change: () -> Unit) {
         val region = composeRule.onNodeWithText(outgoing).getBoundsInRoot()
         val before = composeRule.maxContrast(region)

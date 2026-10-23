@@ -42,11 +42,9 @@ private fun trimmedRepositoryUrl(repositoryUrl: String): String =
 private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 10_000
 
-/** GitHub 上的最新 release */
 data class LatestRelease(
     /** 版本串，与 release 的 tag 一致（如 v1.0.1） */
     val version: String,
-    /** 发布页地址 */
     val htmlUrl: String,
     /** 安装包直链：这个 release 没传 apk 时为 null */
     val apkUrl: String? = null

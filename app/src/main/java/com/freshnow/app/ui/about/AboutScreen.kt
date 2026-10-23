@@ -140,7 +140,6 @@ internal fun AboutList(
     Column(modifier = modifier) {
         SectionHeading(
             text = stringResource(R.string.app_settings_section_title),
-            // 与页面顶端的距离
             modifier = Modifier.padding(top = FreshNowSpacing.sm)
         )
 

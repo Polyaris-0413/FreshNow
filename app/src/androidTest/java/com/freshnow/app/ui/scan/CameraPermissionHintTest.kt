@@ -23,7 +23,6 @@ class CameraPermissionHintTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 还没拒过：文案说需要权限，按钮是「授予权限」，点下去是再请求一次 */
     @Test
     fun notBlocked_asksForPermission() {
         var granted = 0

@@ -135,9 +135,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         const val BACKUP_LOG_TAG = "FreshNowBackup"
     }
 
-    /**
-     * 打开编辑面板时用已落盘的值重置草稿，丢弃上次未保存的改动
-     */
     fun startEditing() {
         _uiState.update {
             it.copy(basicConfig = AiBasicConfigDraft.of(it.saved))
@@ -182,9 +179,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { behaviorRepository.save(updated) }
     }
 
-    /**
-     * 打开思考参数面板时用已落盘的值重置草稿
-     */
     fun startEditingExtra() {
         _uiState.update { it.copy(extraJson = it.saved.extraRequestJson) }
     }

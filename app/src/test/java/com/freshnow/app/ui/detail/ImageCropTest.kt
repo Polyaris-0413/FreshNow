@@ -34,7 +34,6 @@ class ImageCropTest {
         assertEquals(300f, maxPan(imageExtent = 1200, scale = 1f, viewportSide = 600f))
     }
 
-    /** 缩放后两轴都可拖，上限按缩放后的尺寸算 */
     @Test
     fun maxPan_scalesWithZoom() {
         assertEquals(300f, maxPan(imageExtent = 600, scale = 2f, viewportSide = 600f))
@@ -66,7 +65,6 @@ class ImageCropTest {
         assertEquals(600, left.left)
     }
 
-    /** 放大后裁下来的那一块更小，位置跟着平移走 */
     @Test
     fun cropWindow_zoomShrinksTheWindow() {
         val zoomed = window(imageWidth = 600, imageHeight = 600, scale = 2f)

@@ -31,7 +31,6 @@ internal const val CROP_SOURCE_MAX_DIMENSION = 2048
 
 private const val JPEG_QUALITY = 80
 
-/** 居中正方形裁剪区域 */
 internal data class SquareCrop(val left: Int, val top: Int, val side: Int)
 
 /**

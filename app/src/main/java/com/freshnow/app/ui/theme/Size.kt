@@ -9,10 +9,8 @@ import androidx.compose.ui.unit.dp
  * 取值来自 Material Design 3：48dp 同时是列表缩略图与空态图标的常用边长，也是触控目标下限
  */
 object FreshNowSize {
-    /** 列表缩略图边长 */
     val thumbnail = 48.dp
 
-    /** 空态/占位图标边长，与缩略图同档 */
     val icon = 48.dp
 
     /**

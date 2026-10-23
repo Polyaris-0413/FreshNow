@@ -240,7 +240,6 @@ object FreshNowTransitions {
     const val FADE_THROUGH_IN_MS = 210
     const val FADE_THROUGH_SCALE = 0.92f
 
-    /** fade through 的进入：淡入 + 从 92% 放大 */
     val fadeThroughEnter: EnterTransition =
         fadeIn(tween(FADE_THROUGH_IN_MS, easing = StandardDecelerate)) +
             scaleIn(
@@ -248,7 +247,6 @@ object FreshNowTransitions {
                 initialScale = FADE_THROUGH_SCALE
             )
 
-    /** fade through 的退出：淡出 + 缩到 92% */
     val fadeThroughExit: ExitTransition =
         fadeOut(tween(FADE_THROUGH_OUT_MS, easing = StandardAccelerate)) +
             scaleOut(

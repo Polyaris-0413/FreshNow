@@ -56,7 +56,6 @@ class ScanImageStoreTest {
         }
     }
 
-    /** 形状合法但文件真的不在：照样是 null，不是抛异常 */
     @Test
     fun find_wellFormedNameWithoutFile_returnsNull() {
         assertNull(store.find("0123456789abcdef0123456789abcdef.jpg"))

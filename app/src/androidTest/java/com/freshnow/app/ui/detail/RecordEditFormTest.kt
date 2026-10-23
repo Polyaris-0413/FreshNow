@@ -78,7 +78,6 @@ class RecordEditFormTest {
         composeRule.onNodeWithContentDescription("扫描照片").assertDoesNotExist()
     }
 
-    /** 有照片时画的是照片而不是占位图 */
     @Test
     fun showsPhotoWhenPresent() {
         val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
@@ -88,7 +87,6 @@ class RecordEditFormTest {
         composeRule.onNodeWithContentDescription("扫描照片").assertIsDisplayed()
     }
 
-    /** 草稿里几张，格子就几格 */
     @Test
     fun gridShowsEveryDraftPhoto() {
         setContent(uiState = EMPTY.copy(photos = listOf(photo(1), photo(2), photo(3))))
@@ -105,7 +103,6 @@ class RecordEditFormTest {
         composeRule.onAllNodesWithContentDescription("无图片").assertCountEquals(0)
     }
 
-    /** 点某一格是「看这张」，报的是那一格的下标 */
     @Test
     fun tappingAPhotoReportsItsIndex() {
         var opened = -1
@@ -119,7 +116,6 @@ class RecordEditFormTest {
         assertEquals("第二格要报回下标 1", 1, opened)
     }
 
-    /** 长按某一格是「问这张怎么办」（用作首图 / 移除照片），报的同样是那一格的下标 */
     @Test
     fun longPressingAPhotoReportsItsIndex() {
         var acted = -1

@@ -40,7 +40,6 @@ class RecordEditPhotoOrderTest {
         if (ids.isNotEmpty()) dao.hardDelete(ids)
     }
 
-    /** 两张都是这次新加的：设首图后，落库的名字顺序要跟着倒过来 */
     @Test
     fun firstPhotoChoiceSurvivesSaving() {
         val viewModel = RecordEditViewModel(application)

@@ -49,7 +49,6 @@ class SyncEngineTest {
         deviceB.close()
     }
 
-    /** 另一台有的记录要能拿过来 */
     @Test
     fun sync_bringsTheOtherDevicesRecordsOver() = runBlocking {
         deviceA.addRecord("纯牛奶")
@@ -86,7 +85,6 @@ class SyncEngineTest {
         assertEquals(1, deviceA.visible().size)
     }
 
-    /** 改一条已同步的记录，改动要跟着过去 */
     @Test
     fun sync_carriesAnEditOver() = runBlocking {
         deviceA.addRecord("纯牛奶")
@@ -169,7 +167,6 @@ class SyncEngineTest {
         assertEquals("两边存的应当是同一张图", onB.imageName, fetched.imageName)
     }
 
-    /** 对端一条记录两张图：取回来之后本机两张都在，顺序一致 */
     @Test
     fun severalPhotos_comeOverTogether() = runBlocking {
         deviceA.addRecord("纯牛奶", photos = listOf(PHOTO, PHOTO2))
@@ -337,7 +334,6 @@ class SyncEngineTest {
 
     // ---- 下面都是把两台设备摆到一起的辅助 ----
 
-    /** 让 B 用 A 显示出来的码配上 A */
     private suspend fun pair() {
         val code = deviceA.pairing.open()
         val response = requireNotNull(
@@ -436,7 +432,6 @@ private class TestDevice(label: String) {
         )
     }
 
-    /** 界面上看得见的那些（不含墓碑） */
     suspend fun visible(): List<ScanRecord> = records.snapshot().filter { it.deletedAt == 0L }
 
     fun close() {

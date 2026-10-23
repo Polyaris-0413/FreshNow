@@ -40,7 +40,6 @@ class ScanPhotoTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 没图时的占位块 */
     @Test
     fun placeholderIsSquare() {
         setContent { null }

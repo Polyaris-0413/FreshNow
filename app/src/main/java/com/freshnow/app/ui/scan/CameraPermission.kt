@@ -27,7 +27,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
  */
 @Stable
 class CameraPermissionState internal constructor(
-    /** 权限已授予 */
     val granted: Boolean,
     /** 请求已发过、且系统不会再弹窗。文案与动作都要据此换一套 */
     val blocked: Boolean,

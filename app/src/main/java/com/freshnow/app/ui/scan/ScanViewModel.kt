@@ -95,7 +95,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /** 状态胶囊的最短停留，见 [ScanStatusDwell] */
     private val statusDwell = ScanStatusDwell(FreshNowTransitions.STATUS_DWELL_MS)
 
-    /** 那句「正在识别…」的计时器；请求回来就把这榟事作废 */
+    /** 那句「正在识别…」的计时器；请求回来就把这件事作废 */
     private var statusJob: Job? = null
 
     /** 编辑态草稿照片的 id 发到哪儿了。只在草稿内部流转 */
@@ -249,12 +249,11 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.backToScanning() }
     }
 
-    /** 编辑态里改一项。表单报回来的是「哪一项 + 新值」*/
     fun onFieldChange(field: RecordField, value: String) {
         _uiState.update { it.onFieldChange(field, value) }
     }
 
-    /** 移除草稿里的某一张。只动草稿：落盘时它自然不在名字列表里 */
+    /** 只动草稿：落盘时它自然不在名字列表里 */
     fun onPhotoRemoved(index: Int) {
         _uiState.update { state ->
             if (index !in state.photos.indices) {
@@ -294,7 +293,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(cropSource = null) }
     }
 
-    /** 裁剪页确认：按摆好的框裁方、编码，接在草稿末尾等保存 */
     internal fun applyCrop(window: CropWindow) {
         val source = _uiState.value.cropSource ?: return
         viewModelScope.launch {
@@ -362,9 +360,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(serviceProblem = null) }
     }
 
-    /**
-     * 清空累加记录，开始扫描下一件商品。整体复位到刚进页的样子
-     */
     fun clearRecord() {
         latestFrame = null
         _uiState.update {

@@ -52,7 +52,6 @@ class SettledNavigatorTest {
         composeRule.onNodeWithText(B).assertExists()
     }
 
-    /** 转场中途的那一次导航要等这一程落定，落定之后照样是转场（不是硬切） */
     @Test
     fun navigationDuringTransition_waitsForItToSettle() {
         setContent()

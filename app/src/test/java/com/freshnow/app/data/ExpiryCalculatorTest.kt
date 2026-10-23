@@ -86,7 +86,6 @@ class ExpiryCalculatorTest {
         }
     }
 
-    /** 标签上写中文数字的情况，例如「十八个月」 */
     @Test
     fun computesFromChineseNumeralShelfLife() {
         assertEquals(

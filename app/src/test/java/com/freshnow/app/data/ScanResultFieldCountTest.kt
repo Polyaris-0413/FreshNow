@@ -33,7 +33,6 @@ class ScanResultFieldCountTest {
         assertEquals(1, record.filledFieldCount)
     }
 
-    /** 报的项数与「有没有内容」必须永远一致 */
     @Test
     fun countAndHasAnyValueNeverDisagree() {
         val records = listOf(

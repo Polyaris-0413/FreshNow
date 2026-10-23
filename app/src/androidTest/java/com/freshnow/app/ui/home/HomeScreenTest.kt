@@ -113,7 +113,6 @@ class HomeScreenTest {
         savePreview(PREVIEW_NAME)
     }
 
-    /** 有图显示图片、没图显示占位图标，数量要对得上 */
     @Test
     fun showsThumbnailOnlyForRecordsWithImage() {
         setContent(
@@ -591,7 +590,6 @@ class HomeScreenTest {
         composeRule.onNodeWithText("还没有扫描记录").assertDoesNotExist()
     }
 
-    /** 空态：一条记录都没有时要给一句话，正上方那枚曲奇也要真的画出来 */
     @Test
     fun emptyRecords_showEmptyHint() {
         setContent(items = emptyList<HomeRecordItem>())
@@ -782,7 +780,6 @@ class HomeScreenTest {
         abs(Color.green(pixel) - Color.green(primaryArgb)) <= CHANNEL_TOLERANCE &&
         abs(Color.blue(pixel) - Color.blue(primaryArgb)) <= CHANNEL_TOLERANCE
 
-    /** 连续 true 的段数 */
     private fun countRuns(flags: BooleanArray): Int {
         var runs = 0
         var previous = false

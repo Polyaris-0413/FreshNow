@@ -193,7 +193,6 @@ class ScanRecordRepositoryImageTest {
         }
     }
 
-    /** 一次写入挂上多张：两张都要在磁盘上，顺序就是传进来的顺序 */
     @Test
     fun update_keepsSeveralImagesInOrder() = runBlocking {
         val saved = insertWithPhoto(withPhoto = false)
@@ -212,7 +211,6 @@ class ScanRecordRepositoryImageTest {
         updated.imageNames.forEach { assertNotNull("每一张都要真的在磁盘上：$it", store.find(it)) }
     }
 
-    /** 编辑页那一路：旧图留一张、新加两张，保存后库里三个名字、磁盘上三个文件 */
     @Test
     fun editPath_writesSeveralPhotosInOneGo() = runBlocking {
         val saved = insertWithPhoto()
@@ -286,7 +284,6 @@ class ScanRecordRepositoryImageTest {
         )
     }
 
-    /** 三条里减去中间那条，另外两张的名字与顺序一个都不能动 */
     @Test
     fun update_droppingOneKeepsTheOthers() = runBlocking {
         val saved = insertWithPhoto(withPhoto = false)

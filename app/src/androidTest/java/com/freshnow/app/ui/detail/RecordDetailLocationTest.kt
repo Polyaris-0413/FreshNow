@@ -43,7 +43,6 @@ class RecordDetailLocationTest {
         composeRule.onNodeWithText("未知").assertIsDisplayed()
     }
 
-    /** 位置排在名称之下、日期组之上 */
     @Test
     fun locationSitsBelowTheNameAndAboveTheDates() {
         setContent(location = LOCATION)

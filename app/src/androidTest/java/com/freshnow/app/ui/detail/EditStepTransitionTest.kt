@@ -30,7 +30,6 @@ class EditStepTransitionTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /** 从表单进裁剪页：转场期间两页都在，动画结束后只剩裁剪页 */
     @Test
     fun enteringCropKeepsBothStepsWhileTransitionRuns() {
         var step by mutableStateOf<EditStep>(EditStep.Edit)
@@ -50,7 +49,6 @@ class EditStepTransitionTest {
         composeRule.onNodeWithText(EDIT).assertDoesNotExist()
     }
 
-    /** 退回表单同样是转场而不是硬切 */
     @Test
     fun leavingCropKeepsBothStepsWhileTransitionRuns() {
         var step by mutableStateOf<EditStep>(

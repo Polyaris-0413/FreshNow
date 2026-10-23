@@ -91,7 +91,6 @@ class SettingsScreenTest {
         assertEquals("开关关着时点一下应当是打开", listOf(true), changes)
     }
 
-    /** 「排序方式」也归「行为」段，行上的说明文字就是当前用的是哪种 */
     @Test
     fun sortOrderRow_showsCurrentOrderUnderBehavior() {
         setContent(sortOrder = SortOrder.EXPIRY_DATE)

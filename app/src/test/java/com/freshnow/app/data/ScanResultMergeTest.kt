@@ -59,7 +59,6 @@ class ScanResultMergeTest {
         assertEquals("原味酸奶", merged.mergeObservation(ScanResult(productName = "原味酸奶")).productName)
     }
 
-    /** 只读到品名也算有内容，据此给出「清空 / 保存」入口 */
     @Test
     fun productNameAloneCountsAsContent() {
         assertTrue(ScanResult(productName = "纯牛奶").hasAnyValue)

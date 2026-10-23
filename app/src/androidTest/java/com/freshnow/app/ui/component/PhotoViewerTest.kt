@@ -115,7 +115,6 @@ class PhotoViewerTest {
         assertEquals(0, dismissed)
     }
 
-    /** 截图里照片那种颜色的像素个数 */
     private fun photoPixels(): Int {
         val pixels = composeRule.onRoot().captureToImage().toPixelMap()
         var count = 0
