@@ -58,14 +58,14 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.roundToInt
 
 /**
- * 取景框的宽高比。必须是 1f：本组件会把送给 AI 的整帧裁成居中正方形，
+ * 必须是 1f：本组件会把送给 AI 的整帧裁成居中正方形，
  * 一旦调用方的取景框不是方的，「看到什么就裁什么」就会静默失效——
  * 用户看到整幅画面，模型只收到中间一块。相机页与拍照页共用它，取值不会分叉。
  */
 internal const val CAMERA_ASPECT_RATIO = 1f
 
 /**
- * 分析流的取帧尺寸。CameraX 的默认值是 640×480，而这条流同时是送 AI 的图与落盘照片的来源：
+ * CameraX 的默认值是 640×480，而这条流同时是送 AI 的图与落盘照片的来源：
  * 裁成正方形后只剩 480×480，详情页铺满屏幕时是硬放大，字边全是糊的。
  *
  * 要 4:3 是因为传感器原生比例就是它，正方形裁切因此与预览看到的一致；尺寸由设备的相机
@@ -74,7 +74,7 @@ internal const val CAMERA_ASPECT_RATIO = 1f
 private val ANALYSIS_RESOLUTION = Size(1280, 960)
 
 /**
- * 实时预览 + 取帧回调。取帧前先问 [canAcceptFrame]，避免在请求进行或冷却期内白做一次 JPEG 编码
+ * 取帧前先问 [canAcceptFrame]，避免在请求进行或冷却期内白做一次 JPEG 编码
  *
  * 点一下画面就在那一点合焦并测光：本应用没有变焦，凑近拍包装上的小字时全靠这一下把焦点
  * 从前后背景上拉回到字上（不点就一直是系统的连续对焦，它未必选得中有字的那一块）。

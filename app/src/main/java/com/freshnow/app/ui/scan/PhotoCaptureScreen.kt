@@ -27,7 +27,6 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * 拍一张照片，用于替换记录里的那张。
  * 不做成扫描页的「拍照模式」：扫描页的职责是连续识别，每一帧都在给 AI 发请求并累加读数；
  * 拍照要的是「按下去才定格一帧」，两者的状态机不是同一件事。
  * 相机复用 [CameraPreview]，包括那套「整帧裁成居中正方形 → 长边限到 768 → JPEG」：

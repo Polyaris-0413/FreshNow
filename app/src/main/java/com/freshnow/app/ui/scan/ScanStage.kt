@@ -17,11 +17,11 @@ import com.freshnow.app.ui.component.RecordFormFields
  */
 enum class ScanStage { SCANNING, EDITING }
 
-/** 翻面。已经在编辑态就什么都不做：重复点不该动草稿 */
+/** 已经在编辑态就什么都不做：重复点不该动草稿 */
 internal fun ScanUiState.startEditing(): ScanUiState =
     if (stage == ScanStage.EDITING) this else copy(stage = ScanStage.EDITING)
 
-/** 折回扫描态。相机只是收起来，草稿里的字与照片都留着 */
+/** 相机只是收起来，草稿里的字与照片都留着 */
 internal fun ScanUiState.backToScanning(): ScanUiState =
     if (stage == ScanStage.SCANNING) this else copy(stage = ScanStage.SCANNING)
 
@@ -76,8 +76,6 @@ internal val ScanUiState.formFields: RecordFormFields
     )
 
 /**
- * 能不能存：读到了内容，且三个日期字段都认得出。
- *
  * 判据沿用编辑页那一条：写错的日期会让推算与剩余天数静默失效，而界面上只剩一句「推不出」。
  */
 internal val ScanUiState.canSave: Boolean

@@ -17,8 +17,6 @@ import com.freshnow.app.ui.openAppSettings
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 取景框里装的东西：相机预览、手电筒开关，以及没有相机权限时的空态。
- *
  * 扫描页与拍照页的取景框装的是同一套，只有两处分岔：帧什么时候要（扫描页每帧都送，拍照页只在
  * 按下快门那一帧）、以及权限文案（两页的用途不同）。那两个由参数给，外壳（多大、是不是方、圆角与
  * 底色）由调用方给，这里只管内容。

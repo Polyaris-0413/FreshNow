@@ -123,7 +123,7 @@ fun ScanScreen(
         if (!permission.granted) permission.request()
     }
 
-    // 扫描页的整屏步骤：扫描态、编辑态、裁剪、拍照。四种都是一整屏、平级替换，
+    // 四种都是一整屏、平级替换，
     // 所以它们与编辑页共用同一套方向明确的过渡（见 [StepTransition]）
     val step: ScanStep = when {
         uiState.cropSource != null -> ScanStep.Crop
@@ -139,10 +139,8 @@ fun ScanScreen(
         step = step,
         direction = { from, to ->
             when {
-                // 回到扫描态、或从裁剪/拍照退回表单：都是「回到上一级」
                 to is ScanStep.Scanning -> StepDirection.BACK
                 from is ScanStep.Crop || from is ScanStep.Capture -> StepDirection.BACK
-                // 其余都是往下一级：翻一面接着编、进裁剪、进拍照
                 else -> StepDirection.FORWARD
             }
         },
@@ -441,8 +439,6 @@ internal fun ServiceUnavailableDialog(
 }
 
 /**
- * 编辑态：记录表单加底部两格（继续扫描 / 保存）。
- *
  * 表单与编辑记录页共用同一个（见 [RecordEditForm]）：两处各写一份的话，「过期日期留空即跟随推算」
  * 这类规则会从一个分支漏掉。
  *
@@ -495,7 +491,6 @@ internal fun ScanEditStage(
 }
 
 /**
- * 底部操作区：清空与保存。
  * 放在底部而非顶栏：这两个是屏幕级上下文操作，M3 给这类操作的位置就是底部；顶栏留给返回这类全局导航。
  * 就是一个 Row、不带自己的底色：套 BottomAppBar 会多出一层 surfaceContainer，在页面底部压出一条
  * 与顶栏不对称的色带（顶栏被刻意设成 background 正是为了避免色差）。
@@ -566,8 +561,6 @@ internal fun ScanActionBar(
 }
 
 /**
- * 识别结果一列：结果字段，外加可选的思维链面板。
- *
  * 只负责排布，不决定滚动方式——目前它与取景框同处一个滚动列，滚动交给调用方。
  * 块间距用 spacedBy 统一给出。
  */
@@ -596,7 +589,7 @@ private fun ScanResultColumn(
 }
 
 /**
- * 模型思维链面板，由「设置 → 显示思维链」控制是否出现。
+ * 由「设置 → 显示思维链」控制是否出现。
  * 不设高度上限、也不在内部滚动：整页只留一个滚动容器。它是本列最后一项，下面无物可顶，
  * 定高 + 内部滚动只会多出一层同轴滚动——手指落在框里时滚动被框吃掉，而框自己又没有「还能滚」的提示。
  */
@@ -626,8 +619,6 @@ private fun ReasoningPanel(reasoning: String) {
 }
 
 /**
- * 扫描页的取景框：按宽度定出正方形的外壳，内容交给 [CameraViewport]。
- *
  * 方形不是审美偏好而是功能约束——CameraPreview 会把送给 AI 的整帧裁成居中正方形，
  * 所以取景框一旦不是方的，「看到什么就裁什么」就会静默失效：用户看到整幅画面，模型只收到中间一块。
  */
