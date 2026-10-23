@@ -8,7 +8,6 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * 同步路上的加解密。
  * 用配对码派生的密钥直接加密载荷，而不是走 TLS 加自签证书：自签证书要求两端各自核对对方的指纹，
  * 于是「配对」被拆成两半——一半是配对码，另一半是指纹——而指纹得靠另一条信道送过去，
  * 局域网里并没有这样一条信道。配对码本身就是那条信道：用户看着一台设备的屏幕，在另一台上把码输进去。
@@ -28,7 +27,6 @@ internal object SyncCrypto {
     const val PAIRING_SALT_BYTES = 16
 
     /**
-     * 把配对码变成密钥。
      * 迭代十万次是为了抬高在线猜码的成本：6 位数字只有一百万种可能，一次派生要几十毫秒，
      * 猜穿一轮是十几个小时，而配对窗口只开两分钟。
      * [salt] 由发起方每次随机生成、随请求明文发出：它不保密，只让同一个码在两次配对里派生出不同的密钥。
@@ -42,7 +40,7 @@ internal object SyncCrypto {
     fun newPairingSalt(): ByteArray =
         ByteArray(PAIRING_SALT_BYTES).also { SecureRandom().nextBytes(it) }
 
-    /** 生成一把新密钥。配对时由发起方生成一次，之后两台设备共用它 */
+    /** 配对时由发起方生成一次，之后两台设备共用它 */
     fun newSecret(): ByteArray = ByteArray(SECRET_BYTES).also { SecureRandom().nextBytes(it) }
 
     /**
@@ -72,7 +70,7 @@ internal object SyncCrypto {
         return cipher.doFinal(sealed.copyOfRange(NONCE_BYTES, sealed.size))
     }
 
-    /** 随机一个 6 位配对码。前导零要留着，否则「000123」会变成五位 */
+    /** 前导零要留着，否则「000123」会变成五位 */
     fun newPairingCode(): String =
         SecureRandom().nextInt(1_000_000).toString().padStart(6, '0')
 }

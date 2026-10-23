@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * 冷启动自动检查更新：查一次，有新版本且没被「本次不再提醒」忽略过就弹对话框。
  * 只在冷启动查这一次，不挂定时器、也不在回到前台时再查：隔一会儿弹一次更新提示只会招人烦。
  * 「关闭」记住的是这一个版本（见 UpdateSettingsRepository）：下一个版本仍要提示。
  * 挂在整个导航之外（见 MainActivity）：对话框覆盖在所有页面之上，与当前停在哪一页无关。

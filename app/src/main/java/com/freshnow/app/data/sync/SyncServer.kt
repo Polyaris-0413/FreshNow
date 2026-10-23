@@ -46,7 +46,7 @@ internal const val UNKNOWN_PEER_MARKER = "unknown-peer"
 internal const val DEFAULT_PORT = 47820
 
 /**
- * 本机开的 HTTP 服务端。两台设备互为服务端又互为客户端：谁先发起并不重要，重要的是两边都能收。
+ * 两台设备互为服务端又互为客户端：谁先发起并不重要，重要的是两边都能收。
  * 端口优先用 [DEFAULT_PORT]（理由见它：手填地址那条路要一个可预期的端口），被占时才退回系统分配。
  */
 internal class SyncServer(
@@ -204,7 +204,6 @@ internal class SyncServer(
         runCatching { receive<ByteArray>() }.getOrNull()
 
     /**
-     * 配对请求来源那台设备的服务地址。
      * 端口取约定端口，**不能**取这次请求的来源端口：那是对方临时开的端口，关掉就没了，存下来等于存一个死地址。
      * 约定端口被占而换了随机端口时这个地址会连不上，那时会退回发现，而不是留一条「看着有地址、永远连不上」的记录。
      * 不记这个地址的话，被配对方每次同步都得等 mDNS 发现出结果，自动同步看起来就像从未发生过。
@@ -213,7 +212,7 @@ internal class SyncServer(
         "${request.origin.remoteHost}:$DEFAULT_PORT"
 
     /**
-     * 认出请求来自哪台已配对设备。认不出就当场回绝并返回 null，调用方直接 return。
+     * 认不出就当场回绝并返回 null，调用方直接 return。
      *
      * 只看请求头里的设备号，凭据本身由 GCM 的认证标签保证：能解开的载荷必然出自持有密钥的一方，
      * 而密钥只有配对过的两台设备有。设备号在这里是查找用的名字，不是用来证明身份的东西。
@@ -230,7 +229,7 @@ internal class SyncServer(
         return peer
     }
 
-    /** 解开请求体并反序列化。解不开（密钥不对、被改过）或解不成对象，都回绝并返回 null */
+    /** 解不开（密钥不对、被改过）或解不成对象，都回绝并返回 null */
     private suspend inline fun <reified T> ApplicationCall.readSealed(peer: SyncPeer): T? {
         val body = receiveBody()
         if (body == null) {

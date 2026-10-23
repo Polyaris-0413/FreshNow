@@ -35,8 +35,6 @@ object FreshNowRoute {
     const val OPEN_SOURCE = "openSource"
 
     /**
-     * 手动录入（行为开关开着时的「添加」）。
-     *
      * 不是 `record/new`：那条路会被 `record/{recordId}` 当成一个 id 去解析（NavType.LongType），
      * 对不上就会在导航时抛异常；这一页本来也不是「某条记录」，另起一个平级名字更清楚。
      */

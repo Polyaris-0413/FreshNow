@@ -6,8 +6,6 @@ import com.freshnow.app.data.local.ScanRecord
 import com.freshnow.app.data.local.SyncPeer
 
 /**
- * 一次同步的结果，供界面报一句话。
- *
  * [applied] 与 [sent] 分开记：用户真正关心的是「对方那边多了几条」，而自己这一份有多少条
  * 是每次都一样的整份状态，单独报出来只会让人以为发生了什么。
  */
@@ -18,7 +16,6 @@ internal data class SyncOutcome(
 )
 
 /**
- * 把两边的内容合到一起。
  * 一次同步就是一次往返（见 [SyncClient.exchange]）：本机送整份状态过去，对端先合、再送回它那一份，本机合上。
  * 不做增量：增量要维护「每台设备同步到哪了」的水位，而时钟不同步、设备长期离线时很容易算错，
  * 算错的代价是丢更新且很久才显形。
@@ -65,8 +62,6 @@ internal class SyncEngine(
         }
     }
     /**
-     * 把一条记录缺的照片都取到本地。本地都齐了就直接返回 true，不去打扰对端。
-     *
      * 返回 false 只表示这一趟没能把全部补齐（对端不在线、或者它那里也缺）：已经取回来的那些留着，
      * 下一次再补剩下的。取回来只挂在本地记录上（见 [ScanRecordRepository.attachImage]），
      * **不参与下一次同步**：它只是把对方的图缓存在本机，用户并没有改这条记录。
