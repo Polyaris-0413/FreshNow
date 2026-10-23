@@ -126,8 +126,9 @@
     <string name="app_settings_section_title">应用</string>
     <string name="app_settings_version_title">版本</string>
     <string name="app_settings_check_update_title">检查更新</string>
-    <!-- 点版本号弹的彩蛋，按原样显示：日期不做本地化 -->
-    <string name="app_settings_version_toast" translatable="false">2026-10-5</string>
+    <!-- 点版本号弹的彩蛋。前缀「项目始于」不能省：只给一串裸日期、又挨着「版本」这一行，
+         最自然的解读就是构建时间；这里指的是项目首次提交的那一天。日期部分原样显示，不本地化。 -->
+    <string name="app_settings_version_toast">项目始于 2026-10-05</string>
     <!-- 检查更新：手动与自动（冷启动）共用这几句，覆盖「正在查 / 已是最新 / 没查成 / 发现新版」 -->
     <string name="update_checking">正在检查更新…</string>
     <string name="update_latest">已是最新版本</string>
