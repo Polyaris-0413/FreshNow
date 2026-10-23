@@ -18,7 +18,6 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
 /**
- * 取景框左下角那枚状态胶囊。
  * 底色取容器色而不是半透明：背景是相机画面，也就是一张不归我们管的照片——拍牛奶盒是浅底，拍酱油瓶可能是深底。
  * 半透明底压上去，字要跟照片挣边界；实心容器色的取值来自主题，深浅两套各对一套，完全不看照片脸色。
  * 位置与手电筒按钮对称：那个在右上角，这个在左下角，边距都取 [FreshNowSpacing.xs]。

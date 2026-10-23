@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import com.freshnow.app.ui.theme.FreshNowTransitions
 
 /**
- * 按下快门那一下，取景框先收一下再弹回。
  * 【这是「我拍到了」的回执，不是「请等待」】相机的帧一直流着，快门只是取下一帧，从按到结果只有几十毫秒
  * （见 PhotoCaptureScreen 的注释）。给它配一句「正在拍摄…」等于把一段看不见的等待变成看得见的。
  * [trigger] 每按一次加一，用计数而不是布尔：连着按两下也各演一次。首次合成（trigger 为 0）不演。

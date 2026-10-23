@@ -4,7 +4,6 @@ import com.freshnow.app.data.ScanResult
 import com.freshnow.app.data.filledFieldCount
 
 /**
- * 取景框左下角那枚胶囊该说什么。
  * 三种取值互斥：还在读（[Recognizing]）、这一帧读到了几项（[Found]）、没什么可说（[Hidden]）。
  * 之所以是一句话而不是一根进度条：请求每帧发一次，这件事永远没有「做完」的那一刻。
  */

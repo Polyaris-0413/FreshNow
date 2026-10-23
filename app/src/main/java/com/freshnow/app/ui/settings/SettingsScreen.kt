@@ -192,7 +192,7 @@ fun SettingsScreen(
 }
 
 /**
- * 一次备份操作的结果。文案与提示的时机在界面这边定（与 SyncMessage.text 同一个做法）
+ * 文案与提示的时机在界面这边定（与 SyncMessage.text 同一个做法）
  */
 @Composable
 internal fun BackupMessage.text(): String = when (this) {

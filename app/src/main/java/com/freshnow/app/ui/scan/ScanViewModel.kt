@@ -38,7 +38,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * 服务用不了时的说明对话框长什么样，两种处境能做的事不一样
+ * 两种处境能做的事不一样
  */
 sealed interface ServiceProblem {
     /** 还没配过：没有服务端日志可复制，能给的只有去配置的入口 */
@@ -240,7 +240,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** 折回扫描态：相机重新展开，草稿里的字与照片都留着（见设计文档 D3）*/
+    /** 相机重新展开，草稿里的字与照片都留着（见设计文档 D3）*/
     fun backToScanning() {
         _uiState.update { it.backToScanning() }
     }

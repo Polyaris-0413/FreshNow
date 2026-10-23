@@ -67,8 +67,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * 把当前数据写成备份文件。
-     *
      * 失败一律当「没导成」提示：写不进去的原因（空间不足、位置只读、用户刚把 U 盘拔了）
      * 用户看得到、也只能自己换个位置，给一串系统错误码不如直接请他重试。
      */
