@@ -25,7 +25,7 @@ internal fun repositorySlug(repositoryUrl: String): String =
 internal fun latestReleaseApiUrl(repositoryUrl: String): String =
     "$API_PREFIX${repositorySlug(repositoryUrl)}/releases/latest"
 
-/** 发布页。接口没给 html_url 时退回这里，两条路都是同一页 */
+/** 接口没给 html_url 时退回这里，两条路都是同一页 */
 internal fun releasesPageUrl(repositoryUrl: String): String =
     "${trimmedRepositoryUrl(repositoryUrl)}/releases/latest"
 
@@ -133,7 +133,7 @@ internal fun parseLatestRelease(body: String, fallbackUrl: String): LatestReleas
 }
 
 /**
- * 从 assets 里取安装包的下载地址；没传 apk 时返回 null（由 [LatestRelease.downloadUrl] 退回发布页）。
+ * 没传 apk 时返回 null（由 [LatestRelease.downloadUrl] 退回发布页）。
  * 按后缀认而不是按名字认 "app-release.apk"：产物改名不该让「下载」退回发布页，而名字对上的其他文件也不一定是安装包。
  * 资产字段缺失或不是数组时同样给 null——接口多一个字段不该让整条检查更新变成「没查成」。
  */

@@ -13,7 +13,7 @@ interface ScanRecordDao {
     @Insert
     suspend fun insert(record: ScanRecord): Long
 
-    /** 按主键整行覆盖。照片文件名、保存时间都跟着传进来的记录一起保留，调用方只需在原有记录上改字段 */
+    /** 照片文件名、保存时间都跟着传进来的记录一起保留，调用方只需在原有记录上改字段 */
     @Update
     suspend fun update(record: ScanRecord)
 
@@ -72,7 +72,7 @@ interface ScanRecordDao {
     suspend fun updateImageNames(syncId: String, names: List<String>)
 
     /**
-     * 把一张照片接在记录的照片列表末尾。名字已在列表里就什么都不做：同一张图被重复收到是常事
+     * 名字已在列表里就什么都不做：同一张图被重复收到是常事
      * （对端每次同步都把它的整份状态发过来），而内容寻址下同名必然同图，重复追加只会让列表无限长。
      */
     @Transaction
@@ -84,7 +84,7 @@ interface ScanRecordDao {
     }
 
     /**
-     * 清掉过期的墓碑。照片不在这里删：行删了以后还要拿全文比对才知道哪张图没人要了，
+     * 照片不在这里删：行删了以后还要拿全文比对才知道哪张图没人要了，
      * 而那是 [ScanRecordRepository.reconcileImages] 的事，那里能顺带把各种原因留下的
      * 孤儿文件一并收走，不必在每次删除时都想一遍图该不该删。
      */

@@ -21,8 +21,6 @@ internal const val BACKUP_FORMAT_VERSION = 1
 class BackupFormatException(message: String) : Exception(message)
 
 /**
- * 备份文件的读写。
- *
  * 内容与同步载荷同源：记录直接走 [SyncRecordDto] 与 [syncJson]，墓碑、多图、位置的语义与
  * `data/sync/` 完全一致，同步那边加字段这里自动跟上，不必维护第二套映射。
  *
@@ -39,8 +37,6 @@ private data class BackupManifest(
 )
 
 /**
- * 写一份备份到 [out]。
- *
  * 照片只打包未删除记录引用的那些：墓碑记录的照片在界面上早已不可见，打包进来只让文件变大。
  * 记录本身连墓碑一起写——墓碑是「这条被删过」的唯一凭据，丢了它，导入到还有旧数据的设备上
  * 会把已删除的记录重新变成活的。反过来说，导入这份备份会把那些删除一并带过去（与同步一致）。
@@ -81,8 +77,6 @@ internal suspend fun exportBackup(
 }
 
 /**
- * 读回一份备份里的记录。
- *
  * [saveImage] 负责把一张照片落盘并返回它的名字；照片名字由内容算出，所以这里不需要（也不该）
  * 相信 zip 里的条目名——条目名只用来判断「这是不是一张照片」。落盘失败的那张跳过即可，
  * 记录仍然会导进来，缺的那张显示占位图。
@@ -133,7 +127,7 @@ private fun ZipOutputStream.writeBytes(name: String, bytes: ByteArray) {
 }
 
 /**
- * 照片按原样存（STORED）：JPEG 已经压过一遍，再 deflate 只能省几个字节，却要多花一次 CPU。
+ * JPEG 已经压过一遍，再 deflate 只能省几个字节，却要多花一次 CPU。
  * STORED 要求条目自带长度与校验和，这两个值都在内存里，算得出来。
  */
 private fun ZipOutputStream.writeStored(name: String, bytes: ByteArray) {

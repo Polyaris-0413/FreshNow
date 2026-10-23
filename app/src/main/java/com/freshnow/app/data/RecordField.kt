@@ -1,7 +1,6 @@
 package com.freshnow.app.data
 
 /**
- * 一条记录可编辑的一项。
  * 放在数据层而不是表单旁边：扫描页按它记住「哪几项是用户自己写的」（见 [mergeObservation]），
  * 那件事与表单长什么样无关。
  */

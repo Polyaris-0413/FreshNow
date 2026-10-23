@@ -7,8 +7,6 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * 扫描照片的存放处。
- *
  * 库里只存文件名，读的时候再按当前的 filesDir 拼出路径：应用数据目录的绝对路径不保证长期不变
  * （换设备恢复备份、迁移存储位置都会变），把绝对路径写进库迟早会失效。
  *
@@ -46,8 +44,6 @@ class ScanImageStore(private val directory: File) {
     }
 
     /**
-     * 按名字取照片文件。
-     *
      * 名字必须长得像内容散列（见 [contentName]）：它会与目录拼成路径，而这个名字可能来自对端
      * 或旧数据，不校验就等于允许 `../` 这类名字读到照片目录之外的文件。不合法一律当作「没有这张图」
      * ——与文件真的不在是同一种结果。
@@ -58,7 +54,7 @@ class ScanImageStore(private val directory: File) {
         ?.takeIf { it.isFile }
 
     /**
-     * 删除照片。文件本就不在也算删除成功——目标状态已经达成，没有需要调用方补救的余地。
+     * 文件本就不在也算删除成功——目标状态已经达成，没有需要调用方补救的余地。
      */
     suspend fun delete(name: String) {
         if (name.isBlank()) return
@@ -82,7 +78,6 @@ class ScanImageStore(private val directory: File) {
         const val NAME_BYTES = 16
 
         /**
-         * 合法的照片名：内容散列的十六进制（[NAME_BYTES] 字节写成双倍字符数）加文件后缀。
          * 由这两个常量拼出来，改任何一个都不会让校验与写入分家。
          */
         val NAME_PATTERN = Regex("^[0-9a-f]{${NAME_BYTES * 2}}${Regex.escape(FILE_SUFFIX)}$")

@@ -34,7 +34,7 @@ private const val JPEG_QUALITY = 80
 internal data class SquareCrop(val left: Int, val top: Int, val side: Int)
 
 /**
- * 算出居中的正方形裁剪区域。抽成纯函数是为了几何部分能直接单测，不必起相机或模拟器
+ * 抽成纯函数是为了几何部分能直接单测，不必起相机或模拟器
  */
 internal fun squareCrop(width: Int, height: Int): SquareCrop {
     val side = minOf(width, height)
@@ -42,7 +42,7 @@ internal fun squareCrop(width: Int, height: Int): SquareCrop {
 }
 
 /**
- * 居中裁方 → 长边缩到上限 → JPEG。失败（编码器拿不到内存等）返回 null，调用方按「没有照片」处理。
+ * 失败（编码器拿不到内存等）返回 null，调用方按「没有照片」处理。
  *
  * 不回收 `this`：传入的位图归调用方，本函数造出来的中间位图自己回收。这条约定写在这里，
  * 是因为两种所有权混在一处最容易变成「谁 recycle 都说不清」，而用错的表现是随机的崩溃。
@@ -79,15 +79,13 @@ internal fun Bitmap.toSquareJpegBytes(): ByteArray? {
 }
 
 /**
- * 读记录里存下的照片。文件不在、解码失败都返回 null——界面用占位图代替，
+ * 文件不在、解码失败都返回 null——界面用占位图代替，
  * 与「保存时就没有可用画面」是同一种呈现。
  */
 internal fun decodeScanImage(file: File?): Bitmap? =
     file?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath) }.getOrNull() }
 
 /**
- * 读相册选来的图，按 [CROP_SOURCE_MAX_DIMENSION] 降采样并摆正方向。
- *
  * 方向必须自己摆：BitmapFactory 不看 EXIF，竖拍的照片在文件里是横着的像素加一个旋转标记，
  * 直接解码出来会躺在裁剪框里。方向读不出来时按不旋转处理——认不出方向总比猜错方向好。
  *
@@ -111,7 +109,7 @@ internal fun decodePickedImage(resolver: ContentResolver, uri: Uri): Bitmap? {
 }
 
 /**
- * 降采样倍数：保证长边**不超过** [maxLongSide]。inSampleSize 只接受 2 的幂，故只能一路翻倍，
+ * 保证长边**不超过** [maxLongSide]。inSampleSize 只接受 2 的幂，故只能一路翻倍，
  * 结果是长边落在 (maxLongSide/2, maxLongSide] 之间。
  *
  * 与缩略图那套（thumbnailSampleSize）不同：那里的目标是「降到接近目标尺寸就够」，
@@ -142,8 +140,6 @@ private fun Bitmap.rotateByExif(resolver: ContentResolver, uri: Uri): Bitmap {
 }
 
 /**
- * 方向标记对应的顺时针旋转角。
- *
  * 用平台版 ExifInterface：它自 API 24 起与 androidx 版本是同一套实现，够读 JPEG 的方向，
  * 不必为一个属性引一个库。镜像翻转（FLIP_*）不处理：相册里的图极少是镜像的，
  * 真要按镜像还原得再定义一套坐标，而它错了也只是一张照片方向不对，不会错位到别处。

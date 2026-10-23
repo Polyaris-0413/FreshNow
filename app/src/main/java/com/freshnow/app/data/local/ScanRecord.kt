@@ -53,7 +53,6 @@ data class ScanRecord(
 ) {
 
     /**
-     * 代表图的名字，没有图片时空串。
      * 只给还没改到多图语义的读取点用（同步载荷里给旧版本看的兼容键、「有没有图」判断）；
      * 多张的地方一律用 [imageNames]。写成成员是因为扩展属性每处使用都要 import，而它只是这条记录的一个视图。
      */
@@ -61,7 +60,7 @@ data class ScanRecord(
 }
 
 /**
- * LWW 的判据：本条是不是比 [other] 新。时刻大的赢，时刻相同比设备号。相等返回 false，调用方据此跳过——
+ * LWW 的判据。相等返回 false，调用方据此跳过——
  * 重复合并同一版必须是无操作，否则每次同步都会重写本行、白触发一次界面刷新。
  */
 fun ScanRecord.beats(other: ScanRecord): Boolean =

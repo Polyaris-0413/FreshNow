@@ -3,8 +3,6 @@ package com.freshnow.app.data.local
 import androidx.room.TypeConverter
 
 /**
- * 一条记录的照片名列表与库里那一列文本之间的转换。
- *
  * 分隔符取换行：照片名是「三十二个十六进制字符 + .jpg」（见 ScanImageStore 的内容散列），
  * 不含换行，所以分隔符与内容不会撞。
  *
