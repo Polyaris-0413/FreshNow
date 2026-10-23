@@ -4,8 +4,6 @@ import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 /**
- * 把上下两档圆角拼成一个四角圆角矩形，用来做「一组拼接块」里的单块。
- *
  * 拼接的意思是：同一组里的几块填充容器读起来是一个整体（外圈大圆角、相接处小圆角），
  * 块与块之间只留 [com.freshnow.app.ui.theme.FreshNowSpacing.xxxs] 那么细的一条缝。
  * M3 里这叫分段列表（segmented list，Expressive）——它给的正是这套做法：同组的填充块用缝分开、

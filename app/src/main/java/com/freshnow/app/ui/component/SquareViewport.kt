@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 
 /**
- * 居中的正方形视窗：按可用宽高里较小的一边定边，四角与底色与取景框一致。
+ * 按可用宽高里较小的一边定边，四角与底色与取景框一致。
  * 拍照页的取景框与裁剪页的视窗共用它：两处要的都是「一块方的、能装下整幅画面的框」，
  * 各写一遍的话尺寸算法与外观会分叉。
  * 用 BoxWithConstraints 只是为了量「这块地方有多大」，不是在判窗口尺寸类——本项目不做多窗格

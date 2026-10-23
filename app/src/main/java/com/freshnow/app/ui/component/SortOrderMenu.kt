@@ -8,7 +8,7 @@ import com.freshnow.app.R
 import com.freshnow.app.data.SortOrder
 
 /**
- * 排序方式的两张卡：主页顶栏的排序动作与设置页的「排序方式」共用同一份。
+ * 主页顶栏的排序动作与设置页的「排序方式」共用同一份。
  * 同一件事在两个入口长成一个样（[label] 是文案的唯一来源），「当前项」也交给这里标出，两处才不会一个标一个不标。
  */
 @Composable
@@ -27,7 +27,7 @@ fun ColumnScope.SortOrderMenuItems(
     }
 }
 
-/** 排序方式在界面上的名字。落盘的是枚举名，用户看到的说法只有这一处来源 */
+/** 落盘的是枚举名，用户看到的说法只有这一处来源 */
 @Composable
 fun SortOrder.label(): String = stringResource(
     when (this) {

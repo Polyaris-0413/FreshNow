@@ -13,8 +13,6 @@ import com.freshnow.app.data.RecordField
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 记录表单的字段值，不含照片与推算结果。
- *
  * 三个 `xxxInvalid` 是「认不出这个写法」：空白不算错（模型没读到、还没填都正常），但只要写了
  * 认不出的东西就算，用于挡下保存与显示错误文案。
  */
@@ -49,8 +47,6 @@ data class EditPhoto(
 )
 
 /**
- * 记录表单：照片九宫格加五个字段（名称、位置、生产日期、保质期、过期日期）。
- *
  * 编辑记录页与扫描页的编辑态共用这一个（设计文档里的反目标 A3）：两处各写一份的话，
  * 「过期日期留空即跟随推算」「写错了什么时候才报」这类规则会从一个分支漏掉。
  *
@@ -142,7 +138,7 @@ internal fun RecordEditForm(
     }
 }
 
-/** 过期日期留空时的说明：算得出就给日期，算不出就如实说推不出（哪个字段错了由那个字段自己报） */
+/** 算得出就给日期，算不出就如实说推不出（哪个字段错了由那个字段自己报） */
 @Composable
 private fun derivedExpiryHint(derived: ExpiryOutcome): String = when (derived) {
     is ExpiryOutcome.Resolved -> stringResource(R.string.record_edit_expiry_hint, derived.date)

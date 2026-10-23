@@ -32,8 +32,6 @@ import com.freshnow.app.ui.theme.FreshNowSpacing
 import kotlin.math.roundToInt
 
 /**
- * 把相册选来的图裁成正方形。
- *
  * 记录照片的不变量是「正方形」，而相册里的图什么比例都有（见 ScanPhoto 的说明），所以这里
  * 不是可选的美化步骤，而是唯一能把相册图落到同一规格的地方。相机那条路不必经过这里——
  * 它的取景框本来就是方的。

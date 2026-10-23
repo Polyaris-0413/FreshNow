@@ -41,7 +41,6 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * 看图：双指放大 / 双击缩放 / 拖动查看 / 单击关闭，放大后拖不出屏幕。
  * M3 没有「看图」组件。沿用本项目对全屏照片的一贯做法（与裁剪页同一套 transformable 手势），
  * 倍率上限取得更高——剪裁是构图，看图的用途之一是看清标签上的小字。
  * 照片节点的尺寸就是它按 [ContentScale.Fit] 铺进视窗后的那块矩形，蒙版（圆角）也落在照片上：

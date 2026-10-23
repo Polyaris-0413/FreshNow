@@ -9,7 +9,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.freshnow.app.ui.theme.FreshNowSpacing
 
 /**
- * 分区标题：M3 无专门组件，采用 Settings 惯例的 Title Small + primary。
+ * M3 没有分区标题这个组件，采用 Settings 惯例的 Title Small + primary。
  *
  * 左右留白写在这里，与上下留白分开：上下间距随场景不同（页首、段间、页内小节），调用方用
  * modifier 给；左右对齐则各处必须一致——标题与它下面的行要朝同一条边对齐。

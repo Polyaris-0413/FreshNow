@@ -8,8 +8,6 @@ import androidx.compose.ui.res.stringResource
 import com.freshnow.app.R
 
 /**
- * 发现新版本：告知版本号，给一条去下载的路。
- *
  * 冷启动自动检查与关于页的手动检查共用这一个对话框，两处的差别只在「关闭」之后做什么
  * （自动检查记住该版本，手动检查不记，见各自的调用处）。
  *

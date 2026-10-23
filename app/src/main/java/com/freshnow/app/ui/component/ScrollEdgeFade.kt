@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import com.freshnow.app.ui.theme.FreshNowSize
 
 /**
- * 滚动区底边的渐隐：内容被折叠线裁掉时，用渐隐代替硬边，提示「下面还有」。
+ * 内容被折叠线裁掉时，用渐隐代替硬边，提示「下面还有」。
  * 只在 [visible]（调用方读的 `ScrollState.canScrollForward`）为真时出现。
  * 用渐隐而不是滚动条：M3 的滚动条组件要 material3 1.5（本项目锁在 1.4.0 稳定线），
  * 而渐隐是 Google 一贯的手法（Android 15 起平台对内容滚到系统栏下方也做同样的边缘渐隐），

@@ -120,7 +120,7 @@ fun RecordDetailScreen(
     }
 }
 
-/** 记录本身那一屏。它常驻：看图页是盖在它上面的覆盖层 */
+/** 它常驻：看图页是盖在它上面的覆盖层 */
 @Composable
 private fun RecordDetailContent(
     uiState: RecordDetailUiState,
