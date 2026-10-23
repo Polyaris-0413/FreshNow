@@ -13,7 +13,8 @@ enum class SortOrder {
 
 /**
  * 行为：应用该怎么做事，而不是它连到哪儿、怎么连（那些在 [AiSettings]）。
- * 与 [AiSettings] 分开存：合在一份里会让「恢复 AI 配置」之类的操作连带碰到行为开关。
+ * 与 [AiSettings] 分开存是为了各管各的默认值，两者唯一的关系是都摆在设置页上：
+ * 合在一份里会让「恢复 AI 配置」之类的操作连带碰到行为开关。
  */
 data class BehaviorSettings(
     /**

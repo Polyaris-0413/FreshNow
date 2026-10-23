@@ -14,7 +14,7 @@ private val Context.onboardingDataStore: DataStore<Preferences> by preferencesDa
 /**
  * 「这次安装走到哪一步了」。
  * 与 [AiSettings]、[BehaviorSettings] 分开存：那两份记的是用户的选择，这份记引导有没有走过；
- * 合在一起的话，「恢复 AI 配置」之类操作会连带把引导标记清掉。
+ * 合在一起的话，「恢复 AI 配置」之类操作会连带把引导标记清掉，用户下次启动又被请去走一遍。
  * 落盘 key 不带版本号：将来要重放引导，换个 key 名即可，已走过的用户不会被卷进来。
  */
 class OnboardingRepository(private val dataStore: DataStore<Preferences>) {
