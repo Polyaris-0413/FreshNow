@@ -110,7 +110,7 @@ val RecordEditUiState.hasAnyValue: Boolean
  * 这一页有没有东西会因为返回而丢掉：有才先问一句（与扫描页「有结果才问」同一条规矩）。
  * 新记录比的是「输没输入过」，照片也是这次输入的一部分。
  * 已有记录比的是「与进页时那条记录差多少」：改了一种写法又改回去（落库只有一种写法，见 [ScanValueFormat]）、
- * 或者删了照片又原样加回来，都不算改动。位置也算，它在这份草稿里。
+ * 或者删了照片又原样加回来，都不算改动。位置也算：它在这份草稿里，返回时一样会丢。
  * [baseline] 为 null 表示手上是一份手填的新记录，没有可比的旧版。
  */
 internal fun RecordEditUiState.isDirtyAgainst(baseline: RecordBaseline?): Boolean {

@@ -29,7 +29,8 @@ interface ScanRecordDao {
     suspend fun findById(id: Long): ScanRecord?
 
     /**
-     * 同步交换用：连墓碑一起交出去。墓碑不出去，对端只会看到「它没有这条」并把这条当成新增推回来。
+     * 同步交换用：连墓碑一起交出去。墓碑不出去，对端只会看到「它没有这条」并把这条当成新增推回来，
+     * 删除就永远生效不了。
      */
     @Query("SELECT * FROM scan_records")
     suspend fun findAll(): List<ScanRecord>
