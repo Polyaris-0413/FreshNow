@@ -372,16 +372,9 @@ private fun PairedDeviceRow(peer: SyncPeer, onForget: () -> Unit, modifier: Modi
 /** 本机配对码。字号给到 display：对面那台设备的人要照着念，越大越省事 */
 @Composable
 private fun PairingCodeContent(code: String, addresses: List<String>) {
-    Column(modifier = Modifier.padding(bottom = FreshNowSpacing.lg)) {
-        Text(
-            text = stringResource(R.string.sync_pairing_code_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(
-                start = FreshNowSpacing.sm,
-                end = FreshNowSpacing.sm,
-                bottom = FreshNowSpacing.xs
-            )
-        )
+    // 顶端这份内边距原来由标题占着；标题拿掉之后不留的话，配对码会贴在拖柄下面
+    // （数字那行自己只有纵向 8dp）。与设置页两个编辑面板同一处理。
+    Column(modifier = Modifier.padding(top = FreshNowSpacing.sm, bottom = FreshNowSpacing.lg)) {
         Text(
             text = code,
             style = MaterialTheme.typography.displaySmall,
