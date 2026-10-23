@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -369,38 +371,45 @@ private fun PairedDeviceRow(peer: SyncPeer, onForget: () -> Unit, modifier: Modi
     )
 }
 
-/** 本机配对码。字号给到 display：对面那台设备的人要照着念，越大越省事 */
+/**
+ * 本机配对码。字号给到 display：对面那台设备的人要照着念，越大越省事。
+ *
+ * 三块内容（码、说明、本机地址）排在一条中轴上，块与块之间统一 [FreshNowSpacing.xs]：
+ * 码居中而说明左对齐的话，同一块面板里会出现两个重心，读起来像两样东西拼在一起。
+ * 面板顶边的间距原来由标题占着，标题拿掉后接在这里——不然配对码会贴在拖柄下面。
+ *
+ * 底部取 [FreshNowSpacing.md] 而不是段间距 [FreshNowSpacing.lg]：面板底边不是段落分界，
+ * 用段间距那一档会在最下面多出一截，看着像还没排完。
+ */
 @Composable
 private fun PairingCodeContent(code: String, addresses: List<String>) {
-    // 顶端这份内边距原来由标题占着；标题拿掉之后不留的话，配对码会贴在拖柄下面
-    // （数字那行自己只有纵向 8dp）。与设置页两个编辑面板同一处理。
-    Column(modifier = Modifier.padding(top = FreshNowSpacing.sm, bottom = FreshNowSpacing.lg)) {
+    Column(
+        modifier = Modifier.padding(top = FreshNowSpacing.sm, bottom = FreshNowSpacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(FreshNowSpacing.xs)
+    ) {
         Text(
             text = code,
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = FreshNowSpacing.xs)
+            modifier = Modifier.fillMaxWidth()
         )
         Text(
             text = stringResource(R.string.sync_pairing_code_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = FreshNowSpacing.sm)
         )
 
         // 地址连同配对码一起给：发现不到的时候，对方除了这个码还要知道往哪个地址连
         addresses.forEach { address ->
             Text(
-                text = "${stringResource(R.string.sync_local_address_title)}：$address",
+                text = stringResource(R.string.sync_local_address_title) + "：" + address,
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(
-                    start = FreshNowSpacing.sm,
-                    end = FreshNowSpacing.sm,
-                    top = FreshNowSpacing.xs
-                )
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = FreshNowSpacing.sm)
             )
         }
     }
