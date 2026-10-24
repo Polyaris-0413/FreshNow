@@ -1,0 +1,116 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:ImageCrop.kt$imageWidth &lt;= 0 || imageHeight &lt;= 0 || viewportSide &lt;= 0f || scale &lt;= 0f</ID>
+    <ID>ComplexCondition:ImageCrop.kt$side == width &amp;&amp; side == height &amp;&amp; left == 0 &amp;&amp; top == 0</ID>
+    <ID>CyclomaticComplexMethod:PhotoViewer.kt$@Composable fun PhotoViewer( image: Bitmap, onDismiss: () -&gt; Unit, modifier: Modifier = Modifier, imageModifier: Modifier = Modifier )</ID>
+    <ID>CyclomaticComplexMethod:RecordEditScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class) @Composable fun RecordEditScreen( /** 要改的那条记录；null 表示手动录入一条新记录，库里还没有它 */ recordId: Long?, onBack: () -&gt; Unit, modifier: Modifier = Modifier, viewModel: RecordEditViewModel = viewModel() )</ID>
+    <ID>CyclomaticComplexMethod:ScanScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class) @Composable fun ScanScreen( onBack: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, modifier: Modifier = Modifier, viewModel: ScanViewModel = viewModel() )</ID>
+    <ID>CyclomaticComplexMethod:SyncServer.kt$SyncServer$private fun Application.routes()</ID>
+    <ID>CyclomaticComplexMethod:WelcomeScreen.kt$@Composable internal fun WelcomeSteps( basicConfig: AiBasicConfigDraft, configSavedCount: Int, cameraGrantedCount: Int, cameraPermissionBlocked: Boolean, onBaseUrlChange: (String) -&gt; Unit, onModelNameChange: (String) -&gt; Unit, onApiKeyChange: (String) -&gt; Unit, onSaveConfig: () -&gt; Unit, onRequestCamera: () -&gt; Unit, onOpenCameraSettings: () -&gt; Unit, onSkip: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:AboutScreen.kt$@Composable internal fun AboutList( onOpenUrl: (String) -&gt; Unit, onOpenSourceClick: () -&gt; Unit, onVersionClick: () -&gt; Unit, onCheckUpdateClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:CameraPreview.kt$@Composable fun CameraPreview( torchOn: Boolean, onTorchAvailabilityChange: (Boolean) -&gt; Unit, canAcceptFrame: () -&gt; Boolean, onFrame: (ByteArray) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen( records: List&lt;HomeRecordItem&gt;?, /** 刚存进来、还没演过淡入的那几条，见 HomeViewModel.newRecordIds */ newRecordIds: Set&lt;Long&gt;, /** 上一次查库把列表查空了且此前有记录，见 HomeViewModel.justEmptied */ justEmptied: Boolean, /** 这个 ViewModel 第一次查库就是空的（冷启动那一次），见 HomeViewModel.firstEmptyLoad */ firstEmptyLoad: Boolean, selectedIds: Set&lt;Long&gt;, /** 行为里的「手动输入」：开着时「添加」直接进录入页，见 [onNavigateToManualEntry] */ manualEntry: Boolean, /** 当前的排序方式，带进顶栏那个菜单里标出哪一项是选中的 */ sortOrder: SortOrder, onSortOrderChange: (SortOrder) -&gt; Unit, onRecordClick: (Long) -&gt; Unit, onRecordToggle: (Long) -&gt; Unit, onExitSelection: () -&gt; Unit, onDeleteSelected: () -&gt; Unit, /** 本页的下拉刷新在跑（只算本页发起的那一轮，见 HomeViewModel.refreshing） */ refreshing: Boolean, /** 这一下拉有没有用：还没有配对过设备时同步没有对方，见 HomeViewModel.canRefresh */ canRefresh: Boolean, /** 上一次手动同步的结果，报过一句就调 [onSyncMessageShown] 销掉 */ syncMessage: SyncMessage?, onSync: () -&gt; Unit, onSyncMessageShown: () -&gt; Unit, onNavigateToScan: () -&gt; Unit, onNavigateToManualEntry: () -&gt; Unit, onNavigateToAbout: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:RecordEditScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class) @Composable fun RecordEditScreen( /** 要改的那条记录；null 表示手动录入一条新记录，库里还没有它 */ recordId: Long?, onBack: () -&gt; Unit, modifier: Modifier = Modifier, viewModel: RecordEditViewModel = viewModel() )</ID>
+    <ID>LongMethod:ScanScreen.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class) @Composable fun ScanScreen( onBack: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, modifier: Modifier = Modifier, viewModel: ScanViewModel = viewModel() )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable internal fun SettingsList( summary: String, extraSummary: String, showReasoning: Boolean, manualEntry: Boolean, backupRunning: Boolean, sortOrder: SortOrder, onBasicConfigClick: () -&gt; Unit, onExtraRequestClick: () -&gt; Unit, onShowReasoningChange: (Boolean) -&gt; Unit, onManualEntryChange: (Boolean) -&gt; Unit, onBackupExportClick: () -&gt; Unit, onBackupImportClick: () -&gt; Unit, onSortOrderClick: () -&gt; Unit, onSyncClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen( onBack: () -&gt; Unit, onNavigateToSync: () -&gt; Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = viewModel() )</ID>
+    <ID>LongMethod:SyncScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable internal fun SyncContent( deviceName: String, peers: List&lt;SyncPeer&gt;, discovered: List&lt;DiscoveredPeer&gt;, permissionGranted: Boolean, permissionBlocked: Boolean, onRequestPermission: () -&gt; Unit, onShowPairingCode: () -&gt; Unit, onManualPair: () -&gt; Unit, onPick: (DiscoveredPeer) -&gt; Unit, onForget: (SyncPeer) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongMethod:WelcomeScreen.kt$@Composable internal fun WelcomeSteps( basicConfig: AiBasicConfigDraft, configSavedCount: Int, cameraGrantedCount: Int, cameraPermissionBlocked: Boolean, onBaseUrlChange: (String) -&gt; Unit, onModelNameChange: (String) -&gt; Unit, onApiKeyChange: (String) -&gt; Unit, onSaveConfig: () -&gt; Unit, onRequestCamera: () -&gt; Unit, onOpenCameraSettings: () -&gt; Unit, onSkip: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:AiBasicConfigForm.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, isError: Boolean, keyboardOptions: KeyboardOptions, modifier: Modifier = Modifier, visualTransformation: VisualTransformation = VisualTransformation.None )</ID>
+    <ID>LongParameterList:CameraViewport.kt$( permission: CameraPermissionState, torchOn: Boolean, onTorchChange: (Boolean) -&gt; Unit, canAcceptFrame: () -&gt; Boolean, onFrame: (ByteArray) -&gt; Unit, modifier: Modifier = Modifier, /** 未授予权限时的说明。各页的用途不同（扫描 / 拍照），措辞跟着不同 */ requiredMessage: String = stringResource(R.string.scan_permission_required) )</ID>
+    <ID>LongParameterList:EditField.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, modifier: Modifier = Modifier, error: String? = null, hint: String? = null, imeAction: ImeAction = ImeAction.Next )</ID>
+    <ID>LongParameterList:FreshNowResultFields.kt$( productName: String, productionDate: String, expiry: ExpiryOutcome, shelfLife: String, location: String? = null, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:HomeScreen.kt$( item: HomeRecordItem, today: LocalDate, selected: Boolean, onClick: () -&gt; Unit, onLongClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:HomeScreen.kt$( onNavigateToScan: () -&gt; Unit, onNavigateToManualEntry: () -&gt; Unit, onNavigateToAbout: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, onNavigateToRecord: (Long) -&gt; Unit, modifier: Modifier = Modifier, viewModel: HomeViewModel = viewModel() )</ID>
+    <ID>LongParameterList:HomeScreen.kt$( records: List&lt;HomeRecordItem&gt;?, /** 刚存进来、还没演过淡入的那几条，见 HomeViewModel.newRecordIds */ newRecordIds: Set&lt;Long&gt;, /** 上一次查库把列表查空了且此前有记录，见 HomeViewModel.justEmptied */ justEmptied: Boolean, /** 这个 ViewModel 第一次查库就是空的（冷启动那一次），见 HomeViewModel.firstEmptyLoad */ firstEmptyLoad: Boolean, selectedIds: Set&lt;Long&gt;, /** 行为里的「手动输入」：开着时「添加」直接进录入页，见 [onNavigateToManualEntry] */ manualEntry: Boolean, /** 当前的排序方式，带进顶栏那个菜单里标出哪一项是选中的 */ sortOrder: SortOrder, onSortOrderChange: (SortOrder) -&gt; Unit, onRecordClick: (Long) -&gt; Unit, onRecordToggle: (Long) -&gt; Unit, onExitSelection: () -&gt; Unit, onDeleteSelected: () -&gt; Unit, /** 本页的下拉刷新在跑（只算本页发起的那一轮，见 HomeViewModel.refreshing） */ refreshing: Boolean, /** 这一下拉有没有用：还没有配对过设备时同步没有对方，见 HomeViewModel.canRefresh */ canRefresh: Boolean, /** 上一次手动同步的结果，报过一句就调 [onSyncMessageShown] 销掉 */ syncMessage: SyncMessage?, onSync: () -&gt; Unit, onSyncMessageShown: () -&gt; Unit, onNavigateToScan: () -&gt; Unit, onNavigateToManualEntry: () -&gt; Unit, onNavigateToAbout: () -&gt; Unit, onNavigateToSettings: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:HomeScreen.kt$( records: List&lt;HomeRecordItem&gt;?, newRecordIds: Set&lt;Long&gt;, justEmptied: Boolean, firstEmptyLoad: Boolean, selectedIds: Set&lt;Long&gt;, inSelectionMode: Boolean, onRecordClick: (Long) -&gt; Unit, onRecordToggle: (Long) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:Http.kt$( url: String, method: String, connectTimeoutMs: Int, readTimeoutMs: Int, headers: Map&lt;String, String&gt; = emptyMap(), body: ByteArray? = null, )</ID>
+    <ID>LongParameterList:ImageCrop.kt$( imageWidth: Int, imageHeight: Int, viewportSide: Float, scale: Float, offsetX: Float, offsetY: Float )</ID>
+    <ID>LongParameterList:ImageCropTest.kt$ImageCropTest$( imageWidth: Int, imageHeight: Int, viewportSide: Float = 600f, scale: Float = coverScale(imageWidth, imageHeight, viewportSide), offsetX: Float = 0f, offsetY: Float = 0f )</ID>
+    <ID>LongParameterList:LeaveDialog.kt$( title: String, message: String, onSave: () -&gt; Unit, onDiscard: () -&gt; Unit, onDismiss: () -&gt; Unit, canSave: Boolean = true )</ID>
+    <ID>LongParameterList:PhotoGrid.kt$( items: List&lt;PhotoGridItem&gt;, onOpen: (Int) -&gt; Unit, onActions: (Int) -&gt; Unit, onAdd: () -&gt; Unit, modifier: Modifier = Modifier, /** * 每一格额外的修饰（看图的共享元素就挂在它上面）。默认什么都不加：组件不该知道调用方 * 在用什么过渡。 */ tileModifier: @Composable (Int) -&gt; Modifier = { Modifier } )</ID>
+    <ID>LongParameterList:RecordDetailScreen.kt$( uiState: RecordDetailUiState, onBack: () -&gt; Unit, onNavigateToEdit: () -&gt; Unit, onOpenImage: () -&gt; Unit, onSelectImage: (Int) -&gt; Unit, photoModifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:RecordEditForm.kt$( fields: RecordFormFields, photos: List&lt;PhotoGridItem&gt;, derivedExpiry: ExpiryOutcome, onFieldChange: (RecordField, String) -&gt; Unit, onOpenPhoto: (Int) -&gt; Unit, onPhotoActions: (Int) -&gt; Unit, onAddPhoto: () -&gt; Unit, modifier: Modifier = Modifier, /** 每格额外的修饰（看图的共享元素挂在它上面），由哪一页决定了用它做什么 */ photoTileModifier: @Composable (Int) -&gt; Modifier = { Modifier } )</ID>
+    <ID>LongParameterList:RecordEditScreen.kt$( uiState: RecordEditUiState, onBack: () -&gt; Unit, onSave: () -&gt; Unit, onFieldChange: (RecordField, String) -&gt; Unit, onOpenPhoto: (Int) -&gt; Unit, onPhotoActions: (Int) -&gt; Unit, onAddPhoto: () -&gt; Unit, photoTileModifier: @Composable (Int) -&gt; Modifier )</ID>
+    <ID>LongParameterList:ScanPhoto.kt$( image: Bitmap?, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, onClickLabel: String? = null, contentScale: ContentScale = ContentScale.FillWidth, shape: Shape = MaterialTheme.shapes.medium, placeholderIconSize: Dp = FreshNowSize.icon )</ID>
+    <ID>LongParameterList:ScanScreen.kt$( permission: CameraPermissionState, torchOn: Boolean, onTorchChange: (Boolean) -&gt; Unit, status: ScanStatus, canAcceptFrame: () -&gt; Boolean, onFrame: (ByteArray) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:ScanScreen.kt$( uiState: ScanUiState, onFieldChange: (RecordField, String) -&gt; Unit, onOpenPhoto: (Int) -&gt; Unit, onPhotoActions: (Int) -&gt; Unit, onAddPhoto: () -&gt; Unit, onContinueScanning: () -&gt; Unit, onSave: () -&gt; Unit, photoTileModifier: @Composable (Int) -&gt; Modifier, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( draft: AiBasicConfigDraft, onBaseUrlChange: (String) -&gt; Unit, onModelNameChange: (String) -&gt; Unit, onApiKeyChange: (String) -&gt; Unit, onCancel: () -&gt; Unit, onSave: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( summary: String, extraSummary: String, showReasoning: Boolean, manualEntry: Boolean, backupRunning: Boolean, sortOrder: SortOrder, onBasicConfigClick: () -&gt; Unit, onExtraRequestClick: () -&gt; Unit, onShowReasoningChange: (Boolean) -&gt; Unit, onManualEntryChange: (Boolean) -&gt; Unit, onBackupExportClick: () -&gt; Unit, onBackupImportClick: () -&gt; Unit, onSortOrderClick: () -&gt; Unit, onSyncClick: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:SyncScreen.kt$( deviceName: String, peers: List&lt;SyncPeer&gt;, discovered: List&lt;DiscoveredPeer&gt;, permissionGranted: Boolean, permissionBlocked: Boolean, onRequestPermission: () -&gt; Unit, onShowPairingCode: () -&gt; Unit, onManualPair: () -&gt; Unit, onPick: (DiscoveredPeer) -&gt; Unit, onForget: (SyncPeer) -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:WelcomeScreen.kt$( basicConfig: AiBasicConfigDraft, configSavedCount: Int, cameraGrantedCount: Int, cameraPermissionBlocked: Boolean, onBaseUrlChange: (String) -&gt; Unit, onModelNameChange: (String) -&gt; Unit, onApiKeyChange: (String) -&gt; Unit, onSaveConfig: () -&gt; Unit, onRequestCamera: () -&gt; Unit, onOpenCameraSettings: () -&gt; Unit, onSkip: () -&gt; Unit, modifier: Modifier = Modifier )</ID>
+    <ID>LongParameterList:WelcomeScreen.kt$( step: WelcomeStep, basicConfig: AiBasicConfigDraft, onBaseUrlChange: (String) -&gt; Unit, onModelNameChange: (String) -&gt; Unit, onApiKeyChange: (String) -&gt; Unit, cameraPermissionBlocked: Boolean, modifier: Modifier = Modifier )</ID>
+    <ID>LoopWithTooManyJumpStatements:BackupArchive.kt$for</ID>
+    <ID>LoopWithTooManyJumpStatements:SyncCoordinator.kt$SyncCoordinator$for</ID>
+    <ID>MagicNumber:AiVisionClient.kt$AiVisionClient$200</ID>
+    <ID>MagicNumber:AiVisionClient.kt$AiVisionClient$299</ID>
+    <ID>MagicNumber:CameraPreview.kt$1280</ID>
+    <ID>MagicNumber:CameraPreview.kt$960</ID>
+    <ID>MagicNumber:HomeScreen.kt$1_000L</ID>
+    <ID>MagicNumber:Http.kt$200</ID>
+    <ID>MagicNumber:Http.kt$299</ID>
+    <ID>MagicNumber:Migrations.kt$&lt;no name provided&gt;$3</ID>
+    <ID>MagicNumber:Migrations.kt$&lt;no name provided&gt;$4</ID>
+    <ID>MagicNumber:Migrations.kt$&lt;no name provided&gt;$5</ID>
+    <ID>MagicNumber:Migrations.kt$&lt;no name provided&gt;$6</ID>
+    <ID>MagicNumber:PeerDiscovery.kt$PeerDiscovery$8</ID>
+    <ID>MagicNumber:ScanImageCodec.kt$180</ID>
+    <ID>MagicNumber:ScanImageCodec.kt$270</ID>
+    <ID>MagicNumber:ScanImageCodec.kt$90</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$10</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$3</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$4</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$5</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$6</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$7</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$8</ID>
+    <ID>MagicNumber:ScanValueFormat.kt$ScanValueFormat$9</ID>
+    <ID>MagicNumber:SyncClient.kt$SyncClient.Companion$20_000</ID>
+    <ID>MagicNumber:SyncClient.kt$SyncClient.Companion$5_000</ID>
+    <ID>MagicNumber:SyncCoordinator.kt$SyncCoordinator$8</ID>
+    <ID>MagicNumber:SyncCrypto.kt$SyncCrypto$1_000_000</ID>
+    <ID>MagicNumber:SyncCrypto.kt$SyncCrypto$6</ID>
+    <ID>MagicNumber:SyncScreen.kt$8</ID>
+    <ID>MagicNumber:UpdateChecker.kt$UpdateChecker$200</ID>
+    <ID>MagicNumber:UpdateChecker.kt$UpdateChecker$299</ID>
+    <ID>MaxLineLength:BehaviorSettingsRepository.kt$private val Context.behaviorSettingsDataStore: DataStore&lt;Preferences&gt; by preferencesDataStore(name = "behavior_settings")</ID>
+    <ID>NestedBlockDepth:BackupArchive.kt$internal suspend fun exportBackup( out: OutputStream, records: List&lt;ScanRecord&gt;, imageBytes: suspend (String) -&gt; ByteArray? )</ID>
+    <ID>NewLineAtEndOfFile:Migrations.kt$com.freshnow.app.data.local.Migrations.kt</ID>
+    <ID>NewLineAtEndOfFile:ScanStatus.kt$com.freshnow.app.ui.scan.ScanStatus.kt</ID>
+    <ID>ReturnCount:ExpiryCalculator.kt$ExpiryCalculator$fun resolve(printedExpiry: String, productionDate: String, shelfLife: String): ExpiryOutcome</ID>
+    <ID>ReturnCount:ScanImageCodec.kt$internal fun decodePickedImage(resolver: ContentResolver, uri: Uri): Bitmap?</ID>
+    <ID>ReturnCount:ScanValueFormat.kt$ScanValueFormat$private fun parseChineseNumber(text: String): Int?</ID>
+    <ID>ReturnCount:SyncClient.kt$SyncClient$private suspend fun request( label: String, call: suspend () -&gt; HttpResponse ): HttpResponse?</ID>
+    <ID>ReturnCount:SyncClient.kt$SyncClient$suspend fun exchange( address: String, myDeviceId: String, peer: SyncPeer, payload: SyncPayload ): SyncExchange</ID>
+    <ID>ReturnCount:SyncClient.kt$SyncClient$suspend fun pair( address: String, code: String, request: PairRequest ): PairResponse?</ID>
+    <ID>ReturnCount:SyncCoordinator.kt$SyncCoordinator$private suspend fun syncOne(peer: SyncPeer): SyncOutcome?</ID>
+    <ID>ReturnCount:SyncServer.kt$SyncServer$private suspend inline fun &lt;reified T&gt; ApplicationCall.readSealed(peer: SyncPeer): T?</ID>
+    <ID>SwallowedException:RecordEditViewModel.kt$RecordEditViewModel$e: Exception</ID>
+    <ID>SwallowedException:ScanViewModel.kt$ScanViewModel$e: Exception</ID>
+    <ID>SwallowedException:SyncServer.kt$SyncServer$e: Exception</ID>
+    <ID>ThrowsCount:BackupArchive.kt$internal suspend fun readBackup( input: InputStream, saveImage: suspend (ByteArray) -&gt; String? ): List&lt;ScanRecord&gt;</ID>
+    <ID>TooGenericExceptionCaught:RecordEditViewModel.kt$RecordEditViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ScanViewModel.kt$ScanViewModel$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SyncClient.kt$SyncClient$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SyncServer.kt$SyncServer$e: Exception</ID>
+    <ID>TooManyFunctions:HomeScreen.kt$com.freshnow.app.ui.home.HomeScreen.kt</ID>
+    <ID>TooManyFunctions:RecordEditViewModel.kt$RecordEditViewModel : AndroidViewModel</ID>
+    <ID>TooManyFunctions:ScanRecordDao.kt$ScanRecordDao</ID>
+    <ID>TooManyFunctions:ScanRecordRepository.kt$ScanRecordRepository</ID>
+    <ID>TooManyFunctions:ScanValueFormat.kt$ScanValueFormat</ID>
+    <ID>TooManyFunctions:ScanViewModel.kt$ScanViewModel : AndroidViewModel</ID>
+    <ID>TooManyFunctions:SettingsViewModel.kt$SettingsViewModel : AndroidViewModel</ID>
+    <ID>TooManyFunctions:SyncCoordinator.kt$SyncCoordinator</ID>
+    <ID>TooManyFunctions:SyncServer.kt$SyncServer</ID>
+    <ID>TooManyFunctions:Transitions.kt$FreshNowTransitions</ID>
+    <ID>UnusedParameter:SyncClient.kt$SyncClient$peer: SyncPeer</ID>
+    <ID>UnusedPrivateMember:HomeScreen.kt$@Preview(showBackground = true, name = "列表") @Composable private fun HomeScreenPreview()</ID>
+    <ID>UnusedPrivateMember:HomeScreen.kt$@Preview(showBackground = true, name = "选择模式") @Composable private fun HomeScreenSelectionPreview()</ID>
+    <ID>UnusedPrivateMember:SettingsScreen.kt$@Preview(showBackground = true) @Composable private fun AiBasicConfigEditorPreview()</ID>
+    <ID>UnusedPrivateProperty:ScanScreen.kt$val scope = rememberCoroutineScope()</ID>
+    <ID>UseCheckOrError:AiVisionClient.kt$AiVisionClient$throw IllegalStateException("HTTP ${response.code} ${response.body.take(ERROR_BODY_LIMIT)}")</ID>
+    <ID>UseCheckOrError:AiVisionClient.kt$AiVisionClient$throw IllegalStateException("模型未返回 JSON：${content.take(ERROR_BODY_LIMIT)}")</ID>
+  </CurrentIssues>
+</SmellBaseline>

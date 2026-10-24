@@ -9,6 +9,27 @@ plugins {
     alias(libs.plugins.baselineprofile)
     // 开源署名的数据源：从依赖元数据生成 artifacts.json 并打进 APK（见 OpenSourceScreen）
     alias(libs.plugins.licensee)
+    // 复杂度与代码异味的长期检查，阈值集中在 config/detekt/detekt.yml
+    alias(libs.plugins.detekt)
+}
+
+// 完整体检模式：-PdetektFullReport 时不套用 baseline、也不判失败，用于看存量清单。
+// 默认模式恰好相反——baseline 静音存量，新增问题让构建失败
+val detektFullReport = providers.gradleProperty("detektFullReport").isPresent
+
+detekt {
+    // 只覆盖阈值、不写全量规则表：规则集随版本演进时新规则才能自动生效
+    buildUponDefaultConfig = true
+    config.setFrom(rootDir.resolve("config/detekt/detekt.yml"))
+    baseline = if (detektFullReport) null else file("detekt-baseline.xml")
+    parallel = true
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    // 不指定时取运行 Gradle 的 JVM 版本（JDK 21），与实际产出字节码的版本不一致；
+    // 以编译目标为准
+    jvmTarget = android.compileOptions.targetCompatibility.majorVersion
+    if (detektFullReport) ignoreFailures = true
 }
 
 licensee {

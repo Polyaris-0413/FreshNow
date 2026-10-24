@@ -1,0 +1,46 @@
+# detekt 叠加在默认规则集之上（见 app/build.gradle.kts 的 buildUponDefaultConfig），
+# 因此这里只写与本项目约定冲突的覆盖项，其余阈值一律跟随 detekt 默认值。
+
+naming:
+  FunctionNaming:
+    # Compose 的约定是界面函数用 PascalCase，而命名规则只有 functionPattern 一个旋钮，
+    # 放松它等于放弃数据层的检查，所以按目录排除界面代码（默认的测试目录排除项一并保留）
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
+      - '**/main/java/com/freshnow/app/ui/**'
+  MatchingDeclarationName:
+    # 本项目的界面文件按「一个界面 + 它的状态类」组织，文件名取自界面函数而不是文件里
+    # 唯一的类声明，规则对这类文件必然误报
+    active: false
+
+complexity:
+  LongMethod:
+    # Compose 的界面函数按界面树展开，60 行的默认上限等于把整屏界面都判成超长；
+    # 100 行仍能抓住真正该拆的函数（数据层函数极少接近这个长度）
+    threshold: 100
+
+style:
+  ReturnCount:
+    # 提前返回是 Kotlin 的惯用写法，守卫分支不该计入返回点
+    excludeGuardClauses: true
+  MagicNumber:
+    # ui/theme 是设计源（色板、动画曲线令牌），那里的字面量就是定义本身；
+    # 其余目录照旧检查（默认的测试目录排除项一并保留）
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
+      - '**/*.kts'
+      - '**/main/java/com/freshnow/app/ui/theme/**'

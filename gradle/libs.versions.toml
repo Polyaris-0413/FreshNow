@@ -24,6 +24,9 @@ ktor = "3.6.0"
 kotlinxSerialization = "1.11.0"
 # 开源署名页的数据源：构建期从依赖元数据生成 artifacts.json 并打进 APK
 licensee = "1.14.1"
+# detekt 1.23.8 内嵌的 Kotlin 2.0.21 编译器只认到 JDK 22（JavaVersion.parse 直接拒绝 25），
+# 因此 gradle-daemon-jvm.properties 把 Gradle daemon 锁在 21，见该文件
+detekt = "1.23.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -65,4 +68,5 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }
 licensee = { id = "app.cash.licensee", version.ref = "licensee" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 
