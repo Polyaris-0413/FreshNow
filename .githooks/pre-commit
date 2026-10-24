@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+./gradlew -q detekt
+! git diff --cached -- app/detekt-baseline.xml | grep -q '^+.*<ID>' || { echo "baseline 不许新增"; exit 1; }
+! git diff --cached -- '*.kt' | grep -q '^+.*@Suppress' || { echo "不许加 @Suppress"; exit 1; }
