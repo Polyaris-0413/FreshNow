@@ -17,7 +17,7 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: gitee-release-${{ github.event.release.tag_name || inputs.tag }}
@@ -29,9 +29,6 @@ env:
   # 镜像触发的最短间隔是 5 分钟，tag 到达 Gitee 会晚于启动本任务，故先等 tag 落地再建发行版
   TAG_WAIT_ATTEMPTS: 20
   TAG_WAIT_SECONDS: 30
-  # 版本文件：放在仓库默认分支根目录，App 按 raw 通道读（与 data/UpdateSource.kt 的常量对齐）
-  VERSION_FILE: version.json
-  VERSION_FILE_BRANCH: main
 
 jobs:
   sync:
@@ -39,6 +36,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     steps:
+      # 提交 version.json 需要工作区；release 事件默认检出 tag，这里明确要 main
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: 取出版本号与发行说明
         id: meta
         env:
@@ -198,53 +200,31 @@ jobs:
 
           echo "### Gitee 发行版：https://gitee.com/$GITEE_REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
 
-      # 客户端不读 Gitee 的发布接口：匿名调用按 IP 限流，超了直接 403 且十多分钟不恢复，
-      # 而 raw 与下载直链不受那套配额约束。所以版本号写进仓库里的一个文件，App 去 raw 上取。
-      - name: 写入版本文件
+      # 版本文件写在 GitHub 仓库里，由 Gitee 镜像带过去。
+      # 不能直接写 Gitee：镜像是用 GitHub 的 main 强制覆盖 Gitee 的 main，
+      # 往镜像仓库上单独加的提交会在下一次同步时整批消失（实测丢过一次 version.json）。
+      - name: 更新版本文件
         env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
           set -euo pipefail
-          IFS='/' read -r OWNER REPO <<< "$GITEE_REPO"
-          file="https://gitee.com/api/v5/repos/$OWNER/$REPO/contents/$VERSION_FILE"
+          # 先同步远端：release 事件检出的可能不是 main 的最新状态，直接 push 会被拒
+          git pull --rebase origin main
 
           # 字段与 App 侧的解析一一对应（见 data/UpdateChecker.kt 的 parseVersionFile）
-          json=$(jq -cn \
+          jq -cn \
             --arg tag "$TAG" \
             --arg apk "https://gitee.com/$GITEE_REPO/releases/download/$TAG/app-release.apk" \
-            '{version: $tag, apk: $apk}')
-          content=$(printf '%s' "$json" | base64 -w0)
+            '{version: $tag, apk: $apk}' > version.json
 
-          # Gitee 这个接口的三个坑（均实测）：
-          # 1. Content-Type 不带 charset 回 400 HTML 页
-          # 2. 文件不存在时回 200 + 空数组（不是 404）
-          # 3. 中文 message 回 400，所以提交说明写英文
-          code=$(curl -sS -m 30 -o existing.json -w '%{http_code}' \
-            "$file?access_token=$GITEE_TOKEN&ref=$VERSION_FILE_BRANCH")
-          if [ "$code" = "200" ] && jq -e 'type == "object" and (.sha | strings)' existing.json >/dev/null 2>&1; then
-            # 更新走 DELETE + POST：PUT 在这个接口上恒回 400
-            sha=$(jq -r '.sha' existing.json)
-            del=$(curl -sS -m 30 -o deleted.json -w '%{http_code}' -X DELETE \
-              "$file?access_token=$GITEE_TOKEN&sha=$sha&message=rewrite+version+file&branch=$VERSION_FILE_BRANCH")
-            if [ "$del" != "200" ] && [ "$del" != "204" ]; then
-              echo "::error::删除旧的 $VERSION_FILE 失败（HTTP $del）：$(head -c 500 deleted.json)"
-              exit 1
-            fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          # 重跑同一版时内容没变，不造空提交
+          if git diff --cached --quiet; then
+            echo "### 版本文件已是 $TAG，无需提交" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
-
-          payload=$(jq -cn \
-            --arg content "$content" \
-            --arg branch "$VERSION_FILE_BRANCH" \
-            '{content: $content, message: "release version file", branch: $branch}')
-          code=$(curl -sS -m 60 -o written.json -w '%{http_code}' \
-            -X POST "$file?access_token=$GITEE_TOKEN" \
-            -H 'Content-Type: application/json;charset=UTF-8' \
-            -d "$payload")
-          if [ "$code" != "201" ] && [ "$code" != "200" ]; then
-            echo "::error::写入 $VERSION_FILE 失败（HTTP $code）：$(head -c 800 written.json)"
-            exit 1
-          fi
-
-          # raw 对新建文件会缓存一段时间的 404（几分钟），这里只确认能拿到内容，不等它过期
-          echo "### 版本文件已更新：$VERSION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          git commit -m "release: $TAG"
+          git push
+          echo "### 版本文件已提交，等镜像同步到 Gitee 后客户端即可看到" >> "$GITHUB_STEP_SUMMARY"
