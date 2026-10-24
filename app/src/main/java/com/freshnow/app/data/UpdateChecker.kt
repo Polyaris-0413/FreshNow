@@ -13,7 +13,7 @@ import java.net.HttpURLConnection
 private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 10_000
 
-/** 两个平台的匿名接口都要求带 User-Agent，缺了 GitHub 直接 403；HttpURLConnection 不自带 */
+/** 只有 GitHub 那条通道用到这两个头（Gitee 走 raw，不调接口）；它的接口缺了 User-Agent 直接 403，HttpURLConnection 不自带 */
 private val REQUEST_HEADERS = mapOf(
     "Accept" to "application/vnd.github+json",
     "User-Agent" to "FreshNow"

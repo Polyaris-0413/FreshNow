@@ -1,6 +1,7 @@
 package com.freshnow.app.ui.about
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.freshnow.app.BuildConfig
+import com.freshnow.app.R
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -154,13 +156,15 @@ class AboutScreenTest {
         composeRule.setContent {
             FreshNowTheme() {
                 Column {
+                    // 仓库地址取真实资源：下面那条用例断言的就是「点访问仓库去的是哪」，
+                    // 换成占位串就验不到资源与跳转对得上
+                    val repositoryUrl = stringResource(R.string.project_repository_url)
                     AppInfoSection(
                         onVersionClick = onVersionClick,
                         onCheckUpdateClick = onCheckUpdateClick
                     )
                     ProjectSection(
-                        // 这一层不关心仓库地址怎么选，只验行本身的行为
-                        repositoryUrl = "https://example.invalid/repo",
+                        repositoryUrl = repositoryUrl,
                         onOpenUrl = onOpenUrl
                     )
                     LegalSection(onOpenSourceClick = onOpenSourceClick)

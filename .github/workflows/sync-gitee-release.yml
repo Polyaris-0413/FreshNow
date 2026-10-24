@@ -162,13 +162,29 @@ jobs:
             exit 1
           fi
 
-          # 幂等：同名附件已存在（比如上次传到一半失败）就不再重复上传
+          # 同名附件要先比大小：Gitee 上的同名文件可能是发布者手工传错的包（实测碰到过一个标 v1.9.0
+          # 但 versionName 是 1.8.1 的），一律跳过的话客户端会一直下到旧包、装完又提示有新版
           for apk in "${apks[@]}"; do
             name=$(basename "$apk")
-            if jq -e --arg n "$name" 'any(.[]; .name == $n)' attached.json >/dev/null; then
-              echo "### 附件 $name 已存在，跳过" >> "$GITHUB_STEP_SUMMARY"
-              continue
+            size=$(stat -c%s "$apk")
+            existing_id=$(jq -r --arg n "$name" '.[] | select(.name == $n) | .id' attached.json | head -1)
+            existing_size=$(jq -r --arg n "$name" '.[] | select(.name == $n) | .size' attached.json | head -1)
+
+            if [ -n "$existing_id" ]; then
+              if [ "$existing_size" = "$size" ]; then
+                echo "### 附件 $name 已存在且大小一致（$size 字节），跳过" >> "$GITHUB_STEP_SUMMARY"
+                continue
+              fi
+              # 大小不同就是两个不同的二进制，留着旧的等于让客户端下错包
+              del=$(curl -sS -m 60 -o del_attach.json -w '%{http_code}' -X DELETE \
+                "$api/releases/$RELEASE_ID/attach_files/$existing_id?access_token=$GITEE_TOKEN")
+              if [ "$del" != "200" ] && [ "$del" != "204" ]; then
+                echo "::error::删除旧的附件 $name 失败（HTTP $del）：$(head -c 500 del_attach.json)"
+                exit 1
+              fi
+              echo "### 附件 $name 旧文件大小不符（$existing_size → $size），已删除重传" >> "$GITHUB_STEP_SUMMARY"
             fi
+
             code=$(curl -sS -m 900 -o upload.json -w '%{http_code}' \
               -X POST "$api/releases/$RELEASE_ID/attach_files" \
               -F "access_token=$GITEE_TOKEN" \
@@ -177,7 +193,7 @@ jobs:
               echo "::error::上传 $name 到 Gitee 失败（HTTP $code）：$(head -c 800 upload.json)"
               exit 1
             fi
-            echo "### 已上传 $name" >> "$GITHUB_STEP_SUMMARY"
+            echo "### 已上传 $name（$size 字节）" >> "$GITHUB_STEP_SUMMARY"
           done
 
           echo "### Gitee 发行版：https://gitee.com/$GITEE_REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
