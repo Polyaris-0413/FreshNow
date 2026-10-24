@@ -9,10 +9,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freshnow.app.BuildConfig
 import com.freshnow.app.R
-import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.LatestRelease
 import com.freshnow.app.data.UpdateChecker
@@ -35,21 +33,18 @@ fun AutoUpdateCheck() {
     val settings = remember { UpdateSettingsRepository(context.applicationContext) }
     val behaviorSettings = remember { BehaviorSettingsRepository(context.applicationContext) }
     val dismissedToast = stringResource(R.string.update_dismissed)
-    // 更新源取自行为设置，仓库地址按源选（两个平台的仓库路径不同，见 UpdateSource）
-    val behavior by behaviorSettings.behaviorSettings.collectAsStateWithLifecycle(
-        initialValue = BehaviorSettings()
-    )
-    val updateSource = behavior.updateSource
-    val repositoryUrl = stringResource(
-        if (updateSource == UpdateSource.GITEE) R.string.project_repository_url_gitee
-        else R.string.project_repository_url
-    )
-    val checker = remember(updateSource, repositoryUrl) { UpdateChecker(updateSource, repositoryUrl) }
+    // 两个源的仓库地址都在合成期取好：LaunchedEffect 里不是 composable，取不了资源
+    val githubUrl = stringResource(R.string.project_repository_url)
+    val giteeUrl = stringResource(R.string.project_repository_url_gitee)
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf<LatestRelease?>(null) }
 
     LaunchedEffect(Unit) {
-        val result = checker.checkLatest()
+        // 先把落盘的行为设置读出来再查：collectAsState 的初始值是默认值（GitHub），
+        // 按它发请求的话，选了 Gitee 的人每次冷启动查的都还是 GitHub
+        val updateSource = behaviorSettings.behaviorSettings.first().updateSource
+        val repositoryUrl = if (updateSource == UpdateSource.GITEE) giteeUrl else githubUrl
+        val result = UpdateChecker(updateSource, repositoryUrl).checkLatest()
         if (result !is UpdateCheckResult.Latest) return@LaunchedEffect
         val release = result.release
         // 该不该提示整个判据在 data 层（见 shouldPromptUpdate），界面只负责拿结果
