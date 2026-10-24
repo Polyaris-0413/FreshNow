@@ -138,7 +138,9 @@
     <string name="update_latest">已是最新版本</string>
     <string name="update_check_failed">检查更新失败，请稍后重试</string>
     <string name="update_found_title">发现新版本</string>
-    <string name="update_found_message">新版本 %1$s\n点击「下载」将前往 GitHub 下载安装包。</string>
+    <!-- 不写平台名：源有 GitHub 与 Gitee 两种，写死其中一个会与实际跳转的地方对不上。
+         目标也可能是发布页而不是安装包（这个 release 没传 apk 时），所以只说「在浏览器中打开」 -->
+    <string name="update_found_message">新版本 %1$s\n点击「下载」将在浏览器中打开。</string>
     <string name="update_download">下载</string>
     <string name="update_close">关闭</string>
     <string name="update_dismissed">本次更新不再提醒</string>

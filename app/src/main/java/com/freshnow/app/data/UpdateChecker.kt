@@ -10,31 +10,14 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
 
-/**
- * 从仓库页地址（strings.xml 的 project_repository_url / project_repository_url_gitee）取出仓库标识 owner/name。
- *
- * 不把仓库标识另存一份：那样「访问仓库」与「检查更新」就有两个来源，改仓库时漏一处，
- * 而漏掉的表现是「界面上的仓库是对的、检查更新却查不到东西」。主机名从 [source] 取，
- * 两个平台的仓库路径写法相同但域名不同，一个写死的域名会把另一个源的地址切出空 slug。
- * 不是该源地址时返回空串：那样接口会 404，由调用方按「这次没查成」处理，
- * 而不会把整条地址拼进接口路径里当成 owner/name。
- */
-internal fun repositorySlug(source: UpdateSource, repositoryUrl: String): String =
-    trimmedRepositoryUrl(repositoryUrl).substringAfter("${source.host}/", missingDelimiterValue = "")
-
-internal fun latestReleaseApiUrl(source: UpdateSource, repositoryUrl: String): String =
-    "${source.apiPrefix}${repositorySlug(source, repositoryUrl)}/releases/latest"
-
-/** 接口没给 html_url 时退回这里，两条路都是同一页（两个平台的 /releases/latest 都可用） */
-internal fun releasesPageUrl(repositoryUrl: String): String =
-    "${trimmedRepositoryUrl(repositoryUrl)}/releases/latest"
-
-/** 去掉首尾空白、末尾斜杠与 .git 后缀，网页地址与 clone 地址因此推出同一结果 */
-private fun trimmedRepositoryUrl(repositoryUrl: String): String =
-    repositoryUrl.trim().trimEnd('/').removeSuffix(".git")
-
 private const val CONNECT_TIMEOUT_MS = 10_000
 private const val READ_TIMEOUT_MS = 10_000
+
+/** 两个平台的匿名接口都要求带 User-Agent，缺了 GitHub 直接 403；HttpURLConnection 不自带 */
+private val REQUEST_HEADERS = mapOf(
+    "Accept" to "application/vnd.github+json",
+    "User-Agent" to "FreshNow"
+)
 
 data class LatestRelease(
     /** 版本串，与 release 的 tag 一致（如 v1.0.1） */
@@ -63,53 +46,73 @@ sealed interface UpdateCheckResult {
 }
 
 /**
- * 查所选平台的的最新 release（两个平台的公开接口都不需要认证）。
- * [repositoryUrl] 由调用方从 strings.xml 的仓库地址资源传进来——每个源各一条，
- * 接口与发布页都从它推出来（见 [latestReleaseApiUrl]）。
+ * 按所选源的通道查最新版本。
+ * [repositoryUrl] 由调用方从 strings.xml 的仓库地址资源传进来——每个源各一条，请求与发布页都从它推出来。
  * 用 HttpURLConnection 而不是 OkHttp：本应用只有这一处 GET，为它引一个 HTTP 客户端不划算
  * （识别请求走的也是同一个原生接口，见 AiVisionClient）。
- * 差别要记住：**GitHub 的接口要求带 User-Agent**，缺了直接 403；OkHttp 自带，HttpURLConnection 不自带。
- * Gitee 不要求这个头，带了也无害。
+ *
+ * 两条通道的差别见 [UpdateChannel]：GitHub 读发布接口，Gitee 读仓库里的版本文件。
  */
 class UpdateChecker(
     private val source: UpdateSource,
     private val repositoryUrl: String
 ) {
 
-    private val latestReleaseUrl: String get() = latestReleaseApiUrl(source, repositoryUrl)
-
     suspend fun checkLatest(): UpdateCheckResult = withContext(Dispatchers.IO) {
-        val response = runCatching {
-            httpRequest(
-                url = latestReleaseUrl,
-                method = "GET",
-                connectTimeoutMs = CONNECT_TIMEOUT_MS,
-                readTimeoutMs = READ_TIMEOUT_MS,
-                headers = mapOf(
-                    // GitHub 的接口用它选版本，Gitee 不认这个头也无害（实测两者都回 200）
-                    "Accept" to "application/vnd.github+json",
-                    // GitHub 的接口要求带 User-Agent，缺了直接 403；HttpURLConnection 不自带
-                    "User-Agent" to "FreshNow"
-                )
-            )
-        }.getOrElse { e ->
-            // 断网、超时、地址写错都归到「失败」：调用方对这三者的反应是同一个——说一句没查成就完，
-            // 检查更新失败不该打断用户手上的事，所以不往上抛
-            Log.w(TAG, "检查更新失败：${e.message}")
-            return@withContext UpdateCheckResult.Failed
+        when (source.channel()) {
+            is UpdateChannel.ReleaseApi -> checkReleaseApi()
+            is UpdateChannel.VersionFile -> checkVersionFile()
         }
+    }
 
-        when (response.code) {
-            // 仓库一个 release 都没发过时接口就是 404（两个平台都是这个语义）
+    private fun checkReleaseApi(): UpdateCheckResult {
+        val response = request(latestReleaseApiUrl(source, repositoryUrl))
+            ?: return UpdateCheckResult.Failed
+
+        return when (response.code) {
+            // 仓库一个 release 都没发过时接口就是 404
             HttpURLConnection.HTTP_NOT_FOUND -> UpdateCheckResult.NoRelease
             in 200..299 -> parseLatestRelease(response.body, releasesPageUrl(repositoryUrl))
                 ?.let { UpdateCheckResult.Latest(it) }
                 ?: UpdateCheckResult.Failed
-            else -> {
-                Log.w(TAG, "检查更新失败：HTTP ${response.code}")
-                UpdateCheckResult.Failed
-            }
+            else -> fail(response.code)
         }
+    }
+
+    private fun checkVersionFile(): UpdateCheckResult {
+        val response = request(versionFileUrl(source, repositoryUrl))
+            ?: return UpdateCheckResult.Failed
+
+        return when (response.code) {
+            // 还没发过版时仓库里没有这个文件
+            HttpURLConnection.HTTP_NOT_FOUND -> UpdateCheckResult.NoRelease
+            in 200..299 -> parseVersionFile(response.body, repositoryUrl)
+                ?.let { UpdateCheckResult.Latest(it) }
+                ?: UpdateCheckResult.Failed
+            else -> fail(response.code)
+        }
+    }
+
+    /**
+     * 断网、超时、地址写错都归到「失败」：调用方对这三者的反应是同一个——说一句没查成就完，
+     * 检查更新失败不该打断用户手上的事，所以不往上抛。
+     */
+    private fun request(url: String): HttpResult? = runCatching {
+        httpRequest(
+            url = url,
+            method = "GET",
+            connectTimeoutMs = CONNECT_TIMEOUT_MS,
+            readTimeoutMs = READ_TIMEOUT_MS,
+            headers = REQUEST_HEADERS
+        )
+    }.getOrElse { e ->
+        Log.w(TAG, "检查更新失败：${e.message}")
+        null
+    }
+
+    private fun fail(code: Int): UpdateCheckResult {
+        Log.w(TAG, "检查更新失败：HTTP $code")
+        return UpdateCheckResult.Failed
     }
 
     private companion object {
@@ -118,7 +121,7 @@ class UpdateChecker(
 }
 
 /**
- * 从 release 接口的返回里取出版本、发布页与安装包直链。取不出必需字段（tag 为空、JSON 不合法）
+ * 从发布接口的返回里取出版本、发布页与安装包直链。取不出必需字段（tag 为空、JSON 不合法）
  * 返回 null，由调用方按失败处理。
  *
  * [fallbackUrl] 是接口没给 html_url 时的退路（仓库的发布页，见 [releasesPageUrl]）——
@@ -135,6 +138,26 @@ internal fun parseLatestRelease(body: String, fallbackUrl: String): LatestReleas
     val htmlUrl = json["html_url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
         ?: fallbackUrl
     return LatestRelease(version = version, htmlUrl = htmlUrl, apkUrl = apkAssetUrl(json))
+}
+
+/**
+ * 从版本文件里取出版本与安装包直链。结构由发版流程写入（见 sync-gitee-release.yml）：
+ * `{"version":"v1.8.1","apk":"https://…/releases/download/v1.8.1/app-release.apk"}`。
+ *
+ * 缺 apk 时给 null，由 [LatestRelease.downloadUrl] 退回发布页——与接口那条路同一个约定，
+ * 「下载」按钮不会因为文件里少一个字段而按下去没反应。
+ */
+internal fun parseVersionFile(body: String, repositoryUrl: String): LatestRelease? {
+    val json = runCatching { appJson.parseToJsonElement(body).jsonObject }.getOrNull()
+        ?: return null
+    val version = json["version"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        ?: return null
+    val apkUrl = json["apk"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    return LatestRelease(
+        version = version,
+        htmlUrl = releaseTagUrl(repositoryUrl, version),
+        apkUrl = apkUrl
+    )
 }
 
 /**

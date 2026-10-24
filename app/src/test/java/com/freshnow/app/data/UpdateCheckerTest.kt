@@ -101,19 +101,28 @@ class UpdateCheckerTest {
 
     /**
      * Gitee 的仓库路径与 GitHub 不是同一个（用户名不同），地址也各有一份资源。
-     * 这里验的是：主机名取自源而不是写死的 github.com，否则切到 Gitee 后会得到一个没被切掉的 slug。
+     * 这里验的是：主机名取自源而不是写死的 github.com；而且 Gitee 走的是版本文件而不是发布接口。
      */
     @Test
-    fun giteeRepositoryResource_drivesApiAndReleasesPage() {
+    fun giteeRepositoryResource_drivesVersionFileAndPages() {
         val url = repositoryUrlFromStringsXml("project_repository_url_gitee")
         val slug = repositorySlug(UpdateSource.GITEE, url)
 
         assertEquals("资源里的仓库地址应是 https://gitee.com/<owner>/<name>：$url", 2, slug.split('/').size)
-        assertEquals(
-            "https://gitee.com/api/v5/repos/$slug/releases/latest",
-            latestReleaseApiUrl(UpdateSource.GITEE, url)
-        )
+        assertEquals("${url.trimEnd('/')}/raw/main/version.json", versionFileUrl(UpdateSource.GITEE, url))
         assertEquals("${url.trimEnd('/')}/releases/latest", releasesPageUrl(url))
+        assertEquals("${url.trimEnd('/')}/releases/tag/v1.8.1", releaseTagUrl(url, "v1.8.1"))
+    }
+
+    /** 两个通道各走各的：给错源时直接报出来，而不是拼出一个必然 404 的地址 */
+    @Test(expected = IllegalStateException::class)
+    fun giteeHasNoReleaseApi() {
+        latestReleaseApiUrl(UpdateSource.GITEE, "https://gitee.com/Polyaris/FreshNow")
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun githubHasNoVersionFile() {
+        versionFileUrl(UpdateSource.GITHUB, "https://github.com/Polyaris-0413/FreshNow")
     }
 
     /** 两个源的仓库标识各算各的：拿 GitHub 地址去问 Gitee 会得到空 slug，而不是把整条地址当路径 */

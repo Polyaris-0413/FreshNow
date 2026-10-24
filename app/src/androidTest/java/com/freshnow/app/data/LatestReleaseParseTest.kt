@@ -107,8 +107,59 @@ class LatestReleaseParseTest {
         assertNull(parseLatestRelease("", FALLBACK_URL))
     }
 
+    /**
+     * 版本文件是 Gitee 那条路的数据源（见 UpdateChannel.VersionFile）。
+     * 它没有发布页字段，页面地址按 tag 拼——发布页那个路由两个平台都有。
+     */
+    @Test
+    fun versionFile_takesVersionAndApk() {
+        val body = """
+            {
+              "version": "v1.8.1",
+              "apk": "https://gitee.com/Polyaris/FreshNow/releases/download/v1.8.1/app-release.apk"
+            }
+        """.trimIndent()
+
+        val release = requireNotNull(parseVersionFile(body, GITEE_REPO))
+
+        assertEquals("v1.8.1", release.version)
+        assertEquals("$GITEE_REPO/releases/tag/v1.8.1", release.htmlUrl)
+        assertEquals(
+            "https://gitee.com/Polyaris/FreshNow/releases/download/v1.8.1/app-release.apk",
+            release.downloadUrl
+        )
+    }
+
+    /** 文件里少 apk 时退回发布页：「下载」不能因为少个字段就按下去没反应 */
+    @Test
+    fun versionFileWithoutApk_fallsBackToTagPage() {
+        val release = requireNotNull(parseVersionFile("""{"version":"v1.8.1"}""", GITEE_REPO))
+
+        assertEquals("$GITEE_REPO/releases/tag/v1.8.1", release.downloadUrl)
+    }
+
+    /**
+     * 额外字段不该让整条检查更新变成「没查成」；而版本号缺失就等于没查成——
+     * 拿空版本号去比大小会静默得出「已是最新」。
+     */
+    @Test
+    fun versionFile_invalidInput_returnsNull() {
+        val withExtra = requireNotNull(
+            parseVersionFile("""{"version":"v1.8.1","notes":"x","files":[1,2]}""", GITEE_REPO)
+        )
+        assertEquals("v1.8.1", withExtra.version)
+
+        assertNull(parseVersionFile("""{"apk":"https://example.invalid/a.apk"}""", GITEE_REPO))
+        assertNull(parseVersionFile("""{"version":""}""", GITEE_REPO))
+        assertNull(parseVersionFile("not json", GITEE_REPO))
+        assertNull(parseVersionFile("", GITEE_REPO))
+    }
+
     private companion object {
         /** 仓库的发布页，由调用方从仓库地址推出来（见 data/UpdateChecker.kt 的 releasesPageUrl） */
         const val FALLBACK_URL = "https://github.com/Polyaris-0413/FreshNow/releases/latest"
+
+        /** Gitee 仓库页，版本文件的页面地址从它推出来 */
+        const val GITEE_REPO = "https://gitee.com/Polyaris/FreshNow"
     }
 }
