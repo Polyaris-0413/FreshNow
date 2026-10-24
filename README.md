@@ -47,7 +47,7 @@
 
 ## 群组
 
-你可以点击[这里](https://qm.qq.com/q/mtL1olGWwo)加入我们的 QQ 群组。
+你可以点击[这里](https://qm.qq.com/q/mtL1olGWwo)加入我们的 QQ 群组
 
 ## 下载
 
