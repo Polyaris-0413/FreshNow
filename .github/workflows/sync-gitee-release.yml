@@ -1,0 +1,171 @@
+name: 同步发行版到 Gitee
+
+# Gitee 的仓库镜像（仓库设置 → 仓库镜像管理）只同步分支、标签与提交记录，不同步发行版与附件，
+# 所以镜像过来的仓库里 releases 为空，大陆用户既查不到新版本也下不到 apk。
+# 出处：https://help.gitee.com/repository/settings/sync-between-gitee-github
+#
+# 这里补的正是镜像缺的那一段：GitHub 发布发行版后，用 Gitee OpenAPI 建一份同样的发行版并上传 apk。
+# 接口清单见 https://gitee.com/api/v5/swagger_doc（POST /repos/{owner}/{repo}/releases 与 .../attach_files）。
+on:
+  release:
+    types: [published]
+  # 手动补跑：镜像开通前发布的版本，以及同步失败后重试
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要补同步到 Gitee 的 tag（如 v1.8.1）
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitee-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  # Gitee 用户名与 GitHub 用户名不同，无法从 github.repository 推导，改仓库只改这一处
+  GITEE_REPO: Polyaris/FreshNow
+  # 镜像触发的最短间隔是 5 分钟，tag 到达 Gitee 会晚于启动本任务，故先等 tag 落地再建发行版
+  TAG_WAIT_ATTEMPTS: 20
+  TAG_WAIT_SECONDS: 30
+
+jobs:
+  sync:
+    # 预览版本不对外分发，不同步到 Gitee
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出版本号与发行说明
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          TAG="${EVENT_TAG:-$INPUT_TAG}"
+          if [ -z "$TAG" ]; then
+            echo "::error::既没有 release 事件里的 tag，也没有手动输入的 tag"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$EVENT_TAG" ]; then
+            jq -r '.release.name // .release.tag_name' "$GITHUB_EVENT_PATH" > title.txt
+            jq -r '.release.body // ""' "$GITHUB_EVENT_PATH" > body.md
+          else
+            # 手动补跑没有事件载荷，发行说明得回查到 GitHub 上的那一版
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > release.json
+            jq -r '.name // .tag_name' release.json > title.txt
+            jq -r '.body // ""' release.json > body.md
+          fi
+
+          # Gitee 建发行版时 name 与 body 都是必填，空值会被接口拒绝
+          [ -s title.txt ] || printf '%s' "$TAG" > title.txt
+          [ -s body.md ] || printf 'Release %s' "$TAG" > body.md
+
+      - name: 等待 tag 同步并创建 Gitee 发行版
+        id: create
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          IFS='/' read -r OWNER REPO <<< "$GITEE_REPO"
+          api="https://gitee.com/api/v5/repos/$OWNER/$REPO"
+
+          # 逐页找 tag：仓库 tag 数量会一直增长，只查第一页迟早漏掉旧版本的回填
+          tag_exists() {
+            local page=1 body count
+            while :; do
+              # 接口出错时会返回对象而不是数组，这里按「本页没有 tag」处理，由外层重试兜住
+              body=$(curl -sS -m 30 "$api/tags?per_page=100&page=$page") || return 2
+              count=$(printf '%s' "$body" | jq 'if type == "array" then length else 0 end' 2>/dev/null) || count=0
+              [ "$count" -eq 0 ] && return 1
+              if printf '%s' "$body" | jq -e --arg t "$TAG" 'any(.[]; .name == $t)' >/dev/null; then
+                return 0
+              fi
+              [ "$count" -lt 100 ] && return 1
+              page=$((page + 1))
+              [ "$page" -gt 50 ] && return 2
+            done
+          }
+
+          ready=false
+          for _ in $(seq 1 "$TAG_WAIT_ATTEMPTS"); do
+            if tag_exists; then ready=true; break; fi
+            sleep "$TAG_WAIT_SECONDS"
+          done
+          if [ "$ready" != true ]; then
+            echo "::error::Gitee 仓库 $GITEE_REPO 上找不到 tag $TAG（已等待 $((TAG_WAIT_ATTEMPTS * TAG_WAIT_SECONDS)) 秒）。镜像未开启或同步失败时会出现这种情况。"
+            exit 1
+          fi
+
+          # 幂等：这个 tag 已经有发行版就不再建，重跑不会产生重复发行版
+          code=$(curl -sS -m 30 -o existing.json -w '%{http_code}' "$api/releases/tags/$TAG")
+          if [ "$code" = "200" ]; then
+            echo "release_id=$(jq -r '.id' existing.json)" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "### Gitee 已存在 $TAG 的发行版，跳过创建" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          payload=$(jq -n \
+            --arg token "$GITEE_TOKEN" \
+            --arg tag "$TAG" \
+            --arg name "$(cat title.txt)" \
+            --arg body "$(cat body.md)" \
+            --arg target "$TAG" \
+            '{access_token: $token, tag_name: $tag, name: $name, body: $body, target_commitish: $target, prerelease: false}')
+          code=$(curl -sS -m 60 -o created.json -w '%{http_code}' \
+            -X POST "$api/releases" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+          if [ "$code" != "201" ] && [ "$code" != "200" ]; then
+            echo "::error::创建 Gitee 发行版失败（HTTP $code）：$(head -c 800 created.json)"
+            exit 1
+          fi
+          echo "release_id=$(jq -r '.id' created.json)" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: 上传 apk 到 Gitee 发行版
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_ID: ${{ steps.create.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          IFS='/' read -r OWNER REPO <<< "$GITEE_REPO"
+          api="https://gitee.com/api/v5/repos/$OWNER/$REPO"
+
+          # 附件直接取 GitHub 上已发布的产物，不重新构建：两边必须是同一个二进制
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --dir dist
+          shopt -s nullglob
+          apks=(dist/*.apk)
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "::error::GitHub 上的 $TAG 没有 apk 附件"
+            exit 1
+          fi
+
+          # 幂等：同名附件已存在（比如上次传到一半失败）就不再重复上传
+          curl -sS -m 30 "$api/releases/$RELEASE_ID/attach_files?per_page=100" > attached.json
+          for apk in "${apks[@]}"; do
+            name=$(basename "$apk")
+            if jq -e --arg n "$name" 'any(.[]; .name == $n)' attached.json >/dev/null; then
+              echo "### 附件 $name 已存在，跳过" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            code=$(curl -sS -m 900 -o upload.json -w '%{http_code}' \
+              -X POST "$api/releases/$RELEASE_ID/attach_files" \
+              -F "access_token=$GITEE_TOKEN" \
+              -F "file=@$apk")
+            if [ "$code" != "201" ] && [ "$code" != "200" ]; then
+              echo "::error::上传 $name 到 Gitee 失败（HTTP $code）：$(head -c 800 upload.json)"
+              exit 1
+            fi
+            echo "### 已上传 $name" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo "### Gitee 发行版：https://gitee.com/$GITEE_REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
