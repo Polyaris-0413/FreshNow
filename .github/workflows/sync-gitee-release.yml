@@ -104,7 +104,8 @@ jobs:
 
           # 幂等：这个 tag 已经有发行版就不再建，重跑不会产生重复发行版
           code=$(curl -sS -m 30 -o existing.json -w '%{http_code}' "$api/releases/tags/$TAG")
-          if [ "$code" = "200" ]; then
+          # 200 但内容不是发行版对象时不能当成命中，否则会拿空 id 去上传
+          if [ "$code" = "200" ] && jq -e '.id | numbers' existing.json >/dev/null 2>&1; then
             echo "release_id=$(jq -r '.id' existing.json)" >> "$GITHUB_OUTPUT"
             echo "created=false" >> "$GITHUB_OUTPUT"
             echo "### Gitee 已存在 $TAG 的发行版，跳过创建" >> "$GITHUB_STEP_SUMMARY"
@@ -149,8 +150,16 @@ jobs:
             exit 1
           fi
 
+          # 建发行版与传附件分在两个 step，中间这一版可能被删掉（例如发布者手动删除），
+          # 此时接口回的是 HTML 错误页而不是 JSON，直接喂给 jq 只会得到看不出原因的解析错误
+          code=$(curl -sS -m 30 -o attached.json -w '%{http_code}' \
+            "$api/releases/$RELEASE_ID/attach_files?per_page=100")
+          if [ "$code" != "200" ] || ! jq -e 'type == "array"' attached.json >/dev/null 2>&1; then
+            echo "::error::读取 Gitee 发行版 $RELEASE_ID 的附件列表失败（HTTP $code），该发行版可能已被删除；重新运行本任务即可重建：$(head -c 500 attached.json)"
+            exit 1
+          fi
+
           # 幂等：同名附件已存在（比如上次传到一半失败）就不再重复上传
-          curl -sS -m 30 "$api/releases/$RELEASE_ID/attach_files?per_page=100" > attached.json
           for apk in "${apks[@]}"; do
             name=$(basename "$apk")
             if jq -e --arg n "$name" 'any(.[]; .name == $n)' attached.json >/dev/null; then
