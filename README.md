@@ -37,7 +37,7 @@
 <p align="center">
   <img width="32%" alt="58847" src="https://github.com/user-attachments/assets/d16383f4-ea54-4c7b-8911-1957c57a6d46" />
   <img width="32%" alt="58845" src="https://github.com/user-attachments/assets/09b3067c-9cc7-4c9b-a217-2353ffd33c39" />
-  <img width="32%" alt="58846" src="https://github.com/user-attachments/assets/28709e44-af38-444c-93c0-3ffed861a689" />
+  <img width="32%" alt="58846" src="https://github.com/user-attachments/assets/bef760b2-a4ca-40af-ac19-785aa4b2bd10" />
 </p>
 
 ## 贡献
