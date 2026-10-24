@@ -9,11 +9,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freshnow.app.BuildConfig
 import com.freshnow.app.R
+import com.freshnow.app.data.BehaviorSettings
+import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.LatestRelease
 import com.freshnow.app.data.UpdateChecker
 import com.freshnow.app.data.UpdateCheckResult
+import com.freshnow.app.data.UpdateSource
 import com.freshnow.app.data.UpdateSettingsRepository
 import com.freshnow.app.data.shouldPromptUpdate
 import com.freshnow.app.ui.component.UpdateDialog
@@ -29,10 +33,18 @@ import kotlinx.coroutines.launch
 fun AutoUpdateCheck() {
     val context = LocalContext.current
     val settings = remember { UpdateSettingsRepository(context.applicationContext) }
+    val behaviorSettings = remember { BehaviorSettingsRepository(context.applicationContext) }
     val dismissedToast = stringResource(R.string.update_dismissed)
-    // 仓库地址取自资源，与关于页的「访问仓库」是同一份；检查更新不再自己存一个仓库常量
-    val repositoryUrl = stringResource(R.string.project_repository_url)
-    val checker = remember(repositoryUrl) { UpdateChecker(repositoryUrl) }
+    // 更新源取自行为设置，仓库地址按源选（两个平台的仓库路径不同，见 UpdateSource）
+    val behavior by behaviorSettings.behaviorSettings.collectAsStateWithLifecycle(
+        initialValue = BehaviorSettings()
+    )
+    val updateSource = behavior.updateSource
+    val repositoryUrl = stringResource(
+        if (updateSource == UpdateSource.GITEE) R.string.project_repository_url_gitee
+        else R.string.project_repository_url
+    )
+    val checker = remember(updateSource, repositoryUrl) { UpdateChecker(updateSource, repositoryUrl) }
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf<LatestRelease?>(null) }
 

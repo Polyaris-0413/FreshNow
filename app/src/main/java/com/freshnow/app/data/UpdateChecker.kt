@@ -10,22 +10,22 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
 
-private const val API_PREFIX = "https://api.github.com/repos/"
-
 /**
- * 从仓库页地址（strings.xml 的 project_repository_url）取出仓库标识 owner/name。
+ * 从仓库页地址（strings.xml 的 project_repository_url / project_repository_url_gitee）取出仓库标识 owner/name。
  *
  * 不把仓库标识另存一份：那样「访问仓库」与「检查更新」就有两个来源，改仓库时漏一处，
- * 而漏掉的表现是「界面上的仓库是对的、检查更新却查不到东西」。不是 GitHub 地址时原样返回，
- * 接口会 404，由调用方按「这次没查成」处理。
+ * 而漏掉的表现是「界面上的仓库是对的、检查更新却查不到东西」。主机名从 [source] 取，
+ * 两个平台的仓库路径写法相同但域名不同，一个写死的域名会把另一个源的地址切出空 slug。
+ * 不是该源地址时返回空串：那样接口会 404，由调用方按「这次没查成」处理，
+ * 而不会把整条地址拼进接口路径里当成 owner/name。
  */
-internal fun repositorySlug(repositoryUrl: String): String =
-    trimmedRepositoryUrl(repositoryUrl).substringAfter("github.com/")
+internal fun repositorySlug(source: UpdateSource, repositoryUrl: String): String =
+    trimmedRepositoryUrl(repositoryUrl).substringAfter("${source.host}/", missingDelimiterValue = "")
 
-internal fun latestReleaseApiUrl(repositoryUrl: String): String =
-    "$API_PREFIX${repositorySlug(repositoryUrl)}/releases/latest"
+internal fun latestReleaseApiUrl(source: UpdateSource, repositoryUrl: String): String =
+    "${source.apiPrefix}${repositorySlug(source, repositoryUrl)}/releases/latest"
 
-/** 接口没给 html_url 时退回这里，两条路都是同一页 */
+/** 接口没给 html_url 时退回这里，两条路都是同一页（两个平台的 /releases/latest 都可用） */
 internal fun releasesPageUrl(repositoryUrl: String): String =
     "${trimmedRepositoryUrl(repositoryUrl)}/releases/latest"
 
@@ -63,16 +63,20 @@ sealed interface UpdateCheckResult {
 }
 
 /**
- * 查 GitHub 的最新 release（公开接口，不需要认证）。
- * [repositoryUrl] 由调用方从 strings.xml 的 project_repository_url 传进来——仓库地址因此只有那一条资源可用，
+ * 查所选平台的的最新 release（两个平台的公开接口都不需要认证）。
+ * [repositoryUrl] 由调用方从 strings.xml 的仓库地址资源传进来——每个源各一条，
  * 接口与发布页都从它推出来（见 [latestReleaseApiUrl]）。
  * 用 HttpURLConnection 而不是 OkHttp：本应用只有这一处 GET，为它引一个 HTTP 客户端不划算
  * （识别请求走的也是同一个原生接口，见 AiVisionClient）。
  * 差别要记住：**GitHub 的接口要求带 User-Agent**，缺了直接 403；OkHttp 自带，HttpURLConnection 不自带。
+ * Gitee 不要求这个头，带了也无害。
  */
-class UpdateChecker(private val repositoryUrl: String) {
+class UpdateChecker(
+    private val source: UpdateSource,
+    private val repositoryUrl: String
+) {
 
-    private val latestReleaseUrl: String get() = latestReleaseApiUrl(repositoryUrl)
+    private val latestReleaseUrl: String get() = latestReleaseApiUrl(source, repositoryUrl)
 
     suspend fun checkLatest(): UpdateCheckResult = withContext(Dispatchers.IO) {
         val response = runCatching {
@@ -82,6 +86,7 @@ class UpdateChecker(private val repositoryUrl: String) {
                 connectTimeoutMs = CONNECT_TIMEOUT_MS,
                 readTimeoutMs = READ_TIMEOUT_MS,
                 headers = mapOf(
+                    // GitHub 的接口用它选版本，Gitee 不认这个头也无害（实测两者都回 200）
                     "Accept" to "application/vnd.github+json",
                     // GitHub 的接口要求带 User-Agent，缺了直接 403；HttpURLConnection 不自带
                     "User-Agent" to "FreshNow"
@@ -95,7 +100,7 @@ class UpdateChecker(private val repositoryUrl: String) {
         }
 
         when (response.code) {
-            // 仓库一个 release 都没发过时接口就是 404
+            // 仓库一个 release 都没发过时接口就是 404（两个平台都是这个语义）
             HttpURLConnection.HTTP_NOT_FOUND -> UpdateCheckResult.NoRelease
             in 200..299 -> parseLatestRelease(response.body, releasesPageUrl(repositoryUrl))
                 ?.let { UpdateCheckResult.Latest(it) }

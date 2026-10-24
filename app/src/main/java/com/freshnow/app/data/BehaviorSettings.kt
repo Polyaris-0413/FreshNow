@@ -29,5 +29,11 @@ data class BehaviorSettings(
      * 默认按创建时间——那是列表本来的顺序（查库就是 savedAt 倒序），
      * 换成别的等于改了「刚存的那条在哪」，该由用户自己选。
      */
-    val sortOrder: SortOrder = SortOrder.CREATED_AT
+    val sortOrder: SortOrder = SortOrder.CREATED_AT,
+
+    /**
+     * 去哪里查新版本。默认 GitHub：历史上只有这一个源，老用户升级后行为不变。
+     * 与上面两项同一个分区：它决定的也是「这台设备怎么干活」，而不是连到哪个模型。
+     */
+    val updateSource: UpdateSource = UpdateSource.GITHUB
 )

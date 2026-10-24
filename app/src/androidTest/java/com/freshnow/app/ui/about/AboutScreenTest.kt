@@ -1,5 +1,6 @@
 package com.freshnow.app.ui.about
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
@@ -152,12 +153,18 @@ class AboutScreenTest {
     ) {
         composeRule.setContent {
             FreshNowTheme() {
-                AboutList(
-                    onOpenUrl = onOpenUrl,
-                    onOpenSourceClick = onOpenSourceClick,
-                    onVersionClick = onVersionClick,
-                    onCheckUpdateClick = onCheckUpdateClick
-                )
+                Column {
+                    AppInfoSection(
+                        onVersionClick = onVersionClick,
+                        onCheckUpdateClick = onCheckUpdateClick
+                    )
+                    ProjectSection(
+                        // 这一层不关心仓库地址怎么选，只验行本身的行为
+                        repositoryUrl = "https://example.invalid/repo",
+                        onOpenUrl = onOpenUrl
+                    )
+                    LegalSection(onOpenSourceClick = onOpenSourceClick)
+                }
             }
         }
     }

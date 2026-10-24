@@ -1,12 +1,15 @@
 package com.freshnow.app.ui.settings
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.SortOrder
+import com.freshnow.app.data.UpdateSource
 import com.freshnow.app.ui.theme.FreshNowTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -15,7 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 只摆 [SettingsList] 本体（不含落盘与编辑面板）：走真实的 SettingsScreen 会连设备上真实的
+ * 只摆四个分区（不含落盘与编辑面板）：走真实的 SettingsScreen 会连设备上真实的
  * DataStore，跑一次就把用户的 AI 配置覆盖掉——这一点 AiSettingsRepositoryTest 里已写明，
  * 这里同样避开。端到端那一遍留给用户手点。
  */
@@ -168,7 +171,9 @@ class SettingsScreenTest {
         onShowReasoningChange: (Boolean) -> Unit = {},
         onManualEntryChange: (Boolean) -> Unit = {},
         sortOrder: SortOrder = SortOrder.CREATED_AT,
+        updateSource: UpdateSource = UpdateSource.GITHUB,
         onSortOrderClick: () -> Unit = {},
+        onUpdateSourceClick: () -> Unit = {},
         onSyncClick: () -> Unit = {},
         backupRunning: Boolean = false,
         onBackupExportClick: () -> Unit = {},
@@ -176,22 +181,34 @@ class SettingsScreenTest {
     ) {
         composeRule.setContent {
             FreshNowTheme() {
-                SettingsList(
-                    summary = "未配置",
-                    extraSummary = "跟随服务商默认",
-                    showReasoning = true,
-                    manualEntry = false,
-                    backupRunning = backupRunning,
-                    sortOrder = sortOrder,
-                    onBasicConfigClick = {},
-                    onExtraRequestClick = {},
-                    onShowReasoningChange = onShowReasoningChange,
-                    onManualEntryChange = onManualEntryChange,
-                    onBackupExportClick = onBackupExportClick,
-                    onBackupImportClick = onBackupImportClick,
-                    onSortOrderClick = onSortOrderClick,
-                    onSyncClick = onSyncClick
-                )
+                Column {
+                    AiSection(
+                        summary = "未配置",
+                        extraSummary = "跟随服务商默认",
+                        onBasicConfigClick = {},
+                        onExtraRequestClick = {}
+                    )
+                    BehaviorSection(
+                        behavior = BehaviorSettings(
+                            manualEntry = false,
+                            sortOrder = sortOrder,
+                            updateSource = updateSource
+                        ),
+                        onManualEntryChange = onManualEntryChange,
+                        onSortOrderClick = onSortOrderClick,
+                        onUpdateSourceClick = onUpdateSourceClick,
+                        onSyncClick = onSyncClick
+                    )
+                    BackupSection(
+                        backupRunning = backupRunning,
+                        onBackupExportClick = onBackupExportClick,
+                        onBackupImportClick = onBackupImportClick
+                    )
+                    DebugSection(
+                        showReasoning = true,
+                        onShowReasoningChange = onShowReasoningChange
+                    )
+                }
             }
         }
     }

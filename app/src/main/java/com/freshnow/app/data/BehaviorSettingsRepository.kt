@@ -22,7 +22,8 @@ class BehaviorSettingsRepository(private val dataStore: DataStore<Preferences>) 
     val behaviorSettings: Flow<BehaviorSettings> = dataStore.data.map { preferences ->
         BehaviorSettings(
             manualEntry = preferences[KEY_MANUAL_ENTRY] ?: false,
-            sortOrder = preferences[KEY_SORT_ORDER].toSortOrder()
+            sortOrder = preferences[KEY_SORT_ORDER].toSortOrder(),
+            updateSource = preferences[KEY_UPDATE_SOURCE].toUpdateSource()
         )
     }
 
@@ -30,18 +31,23 @@ class BehaviorSettingsRepository(private val dataStore: DataStore<Preferences>) 
         dataStore.edit { preferences ->
             preferences[KEY_MANUAL_ENTRY] = settings.manualEntry
             preferences[KEY_SORT_ORDER] = settings.sortOrder.name
+            preferences[KEY_UPDATE_SOURCE] = settings.updateSource.name
         }
     }
 
     /**
      * 存的是枚举名。认不出的值（改过名、手改过配置文件）回落到默认：
-     * 排序方式是偏好的小事，不该让整份设置读不出来。
+     * 这两项都是偏好的小事，不该让整份设置读不出来。
      */
     private fun String?.toSortOrder(): SortOrder =
         SortOrder.entries.firstOrNull { it.name == this } ?: SortOrder.CREATED_AT
 
+    private fun String?.toUpdateSource(): UpdateSource =
+        UpdateSource.entries.firstOrNull { it.name == this } ?: UpdateSource.GITHUB
+
     private companion object {
         val KEY_MANUAL_ENTRY = booleanPreferencesKey("manual_entry")
         val KEY_SORT_ORDER = stringPreferencesKey("sort_order")
+        val KEY_UPDATE_SOURCE = stringPreferencesKey("update_source")
     }
 }

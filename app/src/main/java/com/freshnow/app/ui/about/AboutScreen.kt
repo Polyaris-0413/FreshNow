@@ -2,6 +2,7 @@ package com.freshnow.app.ui.about
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -22,11 +23,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freshnow.app.BuildConfig
 import com.freshnow.app.R
+import com.freshnow.app.data.BehaviorSettings
+import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.LatestRelease
 import com.freshnow.app.data.UpdateChecker
 import com.freshnow.app.data.UpdateCheckResult
+import com.freshnow.app.data.UpdateSource
 import com.freshnow.app.data.compareVersions
 import com.freshnow.app.ui.component.FreshNowSubPage
 import com.freshnow.app.ui.component.SectionHeading
@@ -55,9 +60,20 @@ fun AboutScreen(
     val failedToast = stringResource(R.string.update_check_failed)
 
     val scope = rememberCoroutineScope()
-    // 仓库地址取自资源：手动检查与冷启动自动检查用的是同一份（见 UpdateChecker）
-    val repositoryUrl = stringResource(R.string.project_repository_url)
-    val updateChecker = remember(repositoryUrl) { UpdateChecker(repositoryUrl) }
+    // 更新源与仓库地址都取自设置与资源：选 Gitee 的人多半连不上 GitHub，
+    // 「访问仓库」这一行也得跟着走，否则点下去还是打不开
+    val settings = remember(context) { BehaviorSettingsRepository(context.applicationContext) }
+    val behavior by settings.behaviorSettings.collectAsStateWithLifecycle(
+        initialValue = BehaviorSettings()
+    )
+    val updateSource = behavior.updateSource
+    val repositoryUrl = stringResource(
+        if (updateSource == UpdateSource.GITEE) R.string.project_repository_url_gitee
+        else R.string.project_repository_url
+    )
+    val updateChecker = remember(updateSource, repositoryUrl) {
+        UpdateChecker(updateSource, repositoryUrl)
+    }
     var update by remember { mutableStateOf<LatestRelease?>(null) }
 
     /**
@@ -91,16 +107,22 @@ fun AboutScreen(
         onBack = onBack,
         modifier = modifier
     ) { innerPadding ->
-        AboutList(
-            onOpenUrl = { url -> openInBrowser(context, url) },
-            onOpenSourceClick = onNavigateToOpenSource,
-            onVersionClick = { showToast(context, versionToast) },
-            onCheckUpdateClick = { checkUpdate() },
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-        )
+        ) {
+            AppInfoSection(
+                onVersionClick = { showToast(context, versionToast) },
+                onCheckUpdateClick = { checkUpdate() }
+            )
+            ProjectSection(
+                repositoryUrl = repositoryUrl,
+                onOpenUrl = { url -> openInBrowser(context, url) }
+            )
+            LegalSection(onOpenSourceClick = onNavigateToOpenSource)
+        }
     }
 
     update?.let { release ->
@@ -116,139 +138,146 @@ fun AboutScreen(
 }
 
 /**
- * 不含导航与浏览器——那两件事由 [AboutScreen] 接上，
+ * 关于页的三个分区。不含导航与浏览器——那两件事由 [AboutScreen] 接上，
  * 于是这里可以按定值直接断言（见 AboutScreenTest），不必验 intent。
+ * 拆成分区而不是一个长函数：版本、项目、法律三段各自只管自己的行。
  */
 @Composable
-internal fun AboutList(
-    onOpenUrl: (String) -> Unit,
-    onOpenSourceClick: () -> Unit,
+internal fun ColumnScope.AppInfoSection(
     onVersionClick: () -> Unit,
-    onCheckUpdateClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onCheckUpdateClick: () -> Unit
+) {
+    SectionHeading(
+        text = stringResource(R.string.app_settings_section_title),
+        modifier = Modifier.padding(top = FreshNowSpacing.sm)
+    )
+
+    // 版本号放右端：它是这一行的「值」。按 M3 列表项的解剖，说明在下（supporting-text）、短值在右
+    // （trailing-supporting-text），这里没有要解释的东西。
+    // 点它是彩蛋：弹一个日期——同页其余各行都可点，这一行也不该按下去毫无反应。
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.app_settings_version_title))
+        },
+        trailingContent = {
+            Text(
+                text = BuildConfig.VERSION_NAME,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier.clickable(onClick = onVersionClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+
+    // 查成且有新版才弹对话框，其余两种情况各给一句提示（见 AboutScreen.checkUpdate），
+    // 本行的形态与其余各行一致
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.app_settings_check_update_title))
+        },
+        modifier = Modifier.clickable(onClick = onCheckUpdateClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
+
+/**
+ * 项目分区。三行都去浏览器：链接从资源取，行本身不知道具体地址。
+ * 仓库地址由调用方传：它跟着更新源变（见 AboutScreen），这里不应自己再取一份默认值。
+ */
+@Composable
+internal fun ColumnScope.ProjectSection(
+    repositoryUrl: String,
+    onOpenUrl: (String) -> Unit
 ) {
     // 链接在合成期解析好：clickable 的 lambda 不是 composable，里面取不了资源
-    val repositoryUrl = stringResource(R.string.project_repository_url)
     val issueUrl = stringResource(R.string.project_issue_url)
     val groupUrl = stringResource(R.string.project_group_url)
     val authorUrl = stringResource(R.string.project_author_url)
 
-    Column(modifier = modifier) {
-        SectionHeading(
-            text = stringResource(R.string.app_settings_section_title),
-            modifier = Modifier.padding(top = FreshNowSpacing.sm)
-        )
+    SectionHeading(
+        text = stringResource(R.string.project_settings_section_title),
+        // 与上一段之间留段间距（设计源的 24），分区才分得开
+        modifier = Modifier.padding(top = FreshNowSpacing.md)
+    )
 
-        // 版本号放右端：它是这一行的「值」。按 M3 列表项的解剖，说明在下（supporting-text）、短值在右
-        // （trailing-supporting-text），这里没有要解释的东西。
-        // 点它是彩蛋：弹一个日期——同页其余各行都可点，这一行也不该按下去毫无反应。
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_version), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.app_settings_version_title))
-            },
-            trailingContent = {
-                Text(
-                    text = BuildConfig.VERSION_NAME,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            modifier = Modifier.clickable(onClick = onVersionClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 作者行放首行：先说这是谁做的，再说去哪看、去哪反馈；它指的是作者主页而不是仓库——
+    // 与「访问仓库」指向同一个仓库就成了重复入口（昵称与 GitHub 用户名也不同，由这一行落这处出处）。
+    // 昵称是这一行的「值」，与版本号同一种摆法，放右端。
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_author), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.project_author_title))
+        },
+        trailingContent = {
+            Text(
+                text = stringResource(R.string.project_author_name),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier.clickable { onOpenUrl(authorUrl) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        // 查成且有新版才弹对话框，其余两种情况各给一句提示（见 AboutScreen.checkUpdate），
-        // 本行的形态与其余各行一致
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_check_update), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.app_settings_check_update_title))
-            },
-            modifier = Modifier.clickable(onClick = onCheckUpdateClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_repository), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.project_repository_title))
+        },
+        modifier = Modifier.clickable { onOpenUrl(repositoryUrl) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        SectionHeading(
-            text = stringResource(R.string.project_settings_section_title),
-            // 与上一段之间留段间距（设计源的 24），分区才分得开
-            modifier = Modifier.padding(top = FreshNowSpacing.md)
-        )
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_issue), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.project_issue_title))
+        },
+        modifier = Modifier.clickable { onOpenUrl(issueUrl) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        // 三行都去浏览器：链接从资源取，行本身不知道具体地址。
-        // 作者行放首行：先说这是谁做的，再说去哪看、去哪反馈；它指的是作者主页而不是仓库——
-        // 与「访问仓库」指向同一个仓库就成了重复入口（昵称与 GitHub 用户名也不同，由这一行落这处出处）。
-        // 昵称是这一行的「值」，与版本号同一种摆法，放右端。
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_author), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.project_author_title))
-            },
-            trailingContent = {
-                Text(
-                    text = stringResource(R.string.project_author_name),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            modifier = Modifier.clickable { onOpenUrl(authorUrl) },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 群聊也进浏览器：加群页由 QQ 托管，应用里不另开聊天界面
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_group), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.project_group_title))
+        },
+        modifier = Modifier.clickable { onOpenUrl(groupUrl) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
 
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_repository), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.project_repository_title))
-            },
-            modifier = Modifier.clickable { onOpenUrl(repositoryUrl) },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+@Composable
+internal fun ColumnScope.LegalSection(onOpenSourceClick: () -> Unit) {
+    SectionHeading(
+        text = stringResource(R.string.legal_settings_section_title),
+        modifier = Modifier.padding(top = FreshNowSpacing.md)
+    )
 
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_issue), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.project_issue_title))
-            },
-            modifier = Modifier.clickable { onOpenUrl(issueUrl) },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-
-        // 群聊也进浏览器：加群页由 QQ 托管，应用里不另开聊天界面
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_group), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.project_group_title))
-            },
-            modifier = Modifier.clickable { onOpenUrl(groupUrl) },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-
-        SectionHeading(
-            text = stringResource(R.string.legal_settings_section_title),
-            modifier = Modifier.padding(top = FreshNowSpacing.md)
-        )
-
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_open_source), contentDescription = null)
-            },
-            headlineContent = {
-                Text(text = stringResource(R.string.legal_open_source_title))
-            },
-            modifier = Modifier.clickable(onClick = onOpenSourceClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-    }
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_open_source), contentDescription = null)
+        },
+        headlineContent = {
+            Text(text = stringResource(R.string.legal_open_source_title))
+        },
+        modifier = Modifier.clickable(onClick = onOpenSourceClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 }

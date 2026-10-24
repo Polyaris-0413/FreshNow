@@ -107,6 +107,10 @@
     <string name="manual_entry">手动输入</string>
     <string name="behavior_manual_entry_support">不再借助 AI 进行识别</string>
     <string name="behavior_sort_order_title">排序方式</string>
+    <string name="behavior_update_source_title">更新源</string>
+    <!-- 两个源在菜单与设置项行上各出现一次，文案只有这一份来源（见 UpdateSource.label） -->
+    <string name="update_source_github" translatable="false">GitHub</string>
+    <string name="update_source_gitee" translatable="false">Gitee</string>
     <!-- 两种排序在菜单与设置项行上各出现一次，文案只有这一份来源（见 SortOrder.label） -->
     <string name="sort_order_created_at">创建时间</string>
     <string name="sort_order_expiry_date">过期日期</string>
@@ -149,6 +153,8 @@
     <string name="project_author_name" translatable="false">Polyaris</string>
     <string name="project_author_url" translatable="false">https://github.com/Polyaris-0413</string>
     <string name="project_repository_url" translatable="false">https://github.com/Polyaris-0413/FreshNow</string>
+    <!-- Gitee 的用户名与 GitHub 不是同一个，仓库地址推不出来，只能各自一份（见 UpdateSource） -->
+    <string name="project_repository_url_gitee" translatable="false">https://gitee.com/Polyaris/FreshNow</string>
     <string name="project_issue_url" translatable="false">https://github.com/Polyaris-0413/FreshNow/issues</string>
     <!-- QQ 的加群页：链接由平台生成，不随语言变 -->
     <string name="project_group_url" translatable="false">https://qm.qq.com/q/mtL1olGWwo</string>

@@ -11,6 +11,7 @@ import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.BehaviorSettingsRepository
 import com.freshnow.app.data.ScanRecordRepository
 import com.freshnow.app.data.SortOrder
+import com.freshnow.app.data.UpdateSource
 import com.freshnow.app.data.backup.BackupRepository
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -173,6 +174,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** 排序方式同样即时生效，且与主页顶栏那个菜单写的是同一份设置 */
     fun onSortOrderChange(order: SortOrder) {
         val updated = _uiState.value.behavior.copy(sortOrder = order)
+        _uiState.update { it.copy(behavior = updated) }
+        viewModelScope.launch { behaviorRepository.save(updated) }
+    }
+
+    fun onUpdateSourceChange(source: UpdateSource) {
+        val updated = _uiState.value.behavior.copy(updateSource = source)
         _uiState.update { it.copy(behavior = updated) }
         viewModelScope.launch { behaviorRepository.save(updated) }
     }

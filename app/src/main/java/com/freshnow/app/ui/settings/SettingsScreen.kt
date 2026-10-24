@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,7 +43,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.freshnow.app.R
+import com.freshnow.app.data.BehaviorSettings
 import com.freshnow.app.data.SortOrder
+import com.freshnow.app.data.UpdateSource
 import com.freshnow.app.ui.component.AiBasicConfigDraft
 import com.freshnow.app.ui.component.AiBasicConfigForm
 import com.freshnow.app.ui.component.FreshNowBottomSheet
@@ -51,6 +54,7 @@ import com.freshnow.app.ui.component.ListItemText
 import com.freshnow.app.ui.component.MenuBottomSheet
 import com.freshnow.app.ui.component.SectionHeading
 import com.freshnow.app.ui.component.SortOrderMenuItems
+import com.freshnow.app.ui.component.UpdateSourceMenuItems
 import com.freshnow.app.ui.component.hideSheetThen
 import com.freshnow.app.ui.component.label
 import com.freshnow.app.ui.showToast
@@ -76,6 +80,8 @@ fun SettingsScreen(
     var editing by remember { mutableStateOf<SettingsEditor?>(null) }
     // 「排序方式」是单选，用的是动作面板而不是编辑面板（见 MenuBottomSheet），单独一个开关
     var choosingSortOrder by remember { mutableStateOf(false) }
+    // 「更新源」同样是单选，与排序方式用同一套面板
+    var choosingUpdateSource by remember { mutableStateOf(false) }
 
     // 备份走系统文件选择器（SAF）：不需要任何存储权限，文件存哪儿也由用户决定
     val exportLauncher = rememberLauncherForActivityResult(
@@ -100,34 +106,48 @@ fun SettingsScreen(
         // 落盘值到达前不渲染设置项：开关若先按默认值（false）组合出来，随后读到的真值会让
         // Switch 播一次关→开的动画，观感上就是「每次进设置页开关动画都重播」
         if (uiState.loaded) {
-            SettingsList(
-                summary = uiState.saved.modelName.ifBlank { stringResource(R.string.ai_settings_not_configured) },
-                extraSummary = uiState.saved.extraRequestJson.ifBlank {
-                    stringResource(R.string.ai_settings_extra_default)
-                },
-                showReasoning = uiState.saved.showReasoning,
-                manualEntry = uiState.behavior.manualEntry,
-                backupRunning = uiState.backupRunning,
-                onBackupExportClick = { exportLauncher.launch(backupFileName) },
-                onBackupImportClick = { importLauncher.launch(BACKUP_OPEN_MIME_TYPES) },
-                onBasicConfigClick = {
-                    viewModel.startEditing()
-                    editing = SettingsEditor.BasicConfig
-                },
-                onExtraRequestClick = {
-                    viewModel.startEditingExtra()
-                    editing = SettingsEditor.ExtraRequest
-                },
-                onShowReasoningChange = viewModel::onShowReasoningChange,
-                onManualEntryChange = viewModel::onManualEntryChange,
-                sortOrder = uiState.behavior.sortOrder,
-                onSortOrderClick = { choosingSortOrder = true },
-                onSyncClick = onNavigateToSync,
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
-            )
+            ) {
+                AiSection(
+                    summary = uiState.saved.modelName.ifBlank {
+                        stringResource(R.string.ai_settings_not_configured)
+                    },
+                    extraSummary = uiState.saved.extraRequestJson.ifBlank {
+                        stringResource(R.string.ai_settings_extra_default)
+                    },
+                    onBasicConfigClick = {
+                        viewModel.startEditing()
+                        editing = SettingsEditor.BasicConfig
+                    },
+                    onExtraRequestClick = {
+                        viewModel.startEditingExtra()
+                        editing = SettingsEditor.ExtraRequest
+                    }
+                )
+
+                BehaviorSection(
+                    behavior = uiState.behavior,
+                    onManualEntryChange = viewModel::onManualEntryChange,
+                    onSortOrderClick = { choosingSortOrder = true },
+                    onUpdateSourceClick = { choosingUpdateSource = true },
+                    onSyncClick = onNavigateToSync
+                )
+
+                BackupSection(
+                    backupRunning = uiState.backupRunning,
+                    onBackupExportClick = { exportLauncher.launch(backupFileName) },
+                    onBackupImportClick = { importLauncher.launch(BACKUP_OPEN_MIME_TYPES) }
+                )
+
+                DebugSection(
+                    showReasoning = uiState.saved.showReasoning,
+                    onShowReasoningChange = viewModel::onShowReasoningChange
+                )
+            }
         }
     }
 
@@ -154,6 +174,23 @@ fun SettingsScreen(
                 onSelect = { order ->
                     scope.hideSheetThen(sheetState, onHidden = { choosingSortOrder = false }) {
                         viewModel.onSortOrderChange(order)
+                    }
+                }
+            )
+        }
+    }
+
+    // 更新源也是「挑一个」，与排序方式同一套面板；选中项靠 UpdateSourceMenuItems 标出
+    if (choosingUpdateSource) {
+        MenuBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { choosingUpdateSource = false }
+        ) {
+            UpdateSourceMenuItems(
+                current = uiState.behavior.updateSource,
+                onSelect = { source ->
+                    scope.hideSheetThen(sheetState, onHidden = { choosingUpdateSource = false }) {
+                        viewModel.onUpdateSourceChange(source)
                     }
                 }
             )
@@ -211,181 +248,214 @@ private const val BACKUP_MIME_TYPE = "application/zip"
  */
 private val BACKUP_OPEN_MIME_TYPES = arrayOf("application/zip", "application/x-zip-compressed")
 /**
- * 设置项本体，不含编辑面板与落盘：便于按定值直接断言分区归属（见 SettingsScreenTest）
+ * 设置页的四个分区。不含编辑面板与落盘：便于按定值直接断言分区归属（见 SettingsScreenTest）。
+ * 拆成分区而不是一个大函数：一块只管一件事，改某一块时不必回看另外三块。
  */
 @Composable
-internal fun SettingsList(
+internal fun ColumnScope.AiSection(
     summary: String,
     extraSummary: String,
-    showReasoning: Boolean,
-    manualEntry: Boolean,
-    backupRunning: Boolean,
-    sortOrder: SortOrder,
     onBasicConfigClick: () -> Unit,
-    onExtraRequestClick: () -> Unit,
-    onShowReasoningChange: (Boolean) -> Unit,
-    onManualEntryChange: (Boolean) -> Unit,
-    onBackupExportClick: () -> Unit,
-    onBackupImportClick: () -> Unit,
-    onSortOrderClick: () -> Unit,
-    onSyncClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onExtraRequestClick: () -> Unit
 ) {
-    Column(modifier = modifier) {
-        SectionHeading(
-            text = stringResource(R.string.ai_settings_section_title),
-            modifier = Modifier.padding(top = FreshNowSpacing.sm)
-        )
+    SectionHeading(
+        text = stringResource(R.string.ai_settings_section_title),
+        modifier = Modifier.padding(top = FreshNowSpacing.sm)
+    )
 
-        // 字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
-        // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(stringResource(R.string.ai_settings_basic_group_title), summary)
-            },
-            modifier = Modifier.clickable(onClick = onBasicConfigClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 字号由 ListItem 默认值给出（headline Body Large / supporting Body Medium）
+    // 图标是装饰性的，名称已由标题给出，因此 contentDescription 为 null
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_base_config), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(stringResource(R.string.ai_settings_basic_group_title), summary)
+        },
+        modifier = Modifier.clickable(onClick = onBasicConfigClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(stringResource(R.string.ai_settings_extra_title), extraSummary)
-            },
-            modifier = Modifier.clickable(onClick = onExtraRequestClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_thinking_params), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(stringResource(R.string.ai_settings_extra_title), extraSummary)
+        },
+        modifier = Modifier.clickable(onClick = onExtraRequestClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
 
-        SectionHeading(
-            text = stringResource(R.string.behavior_settings_section_title),
-            // 与上一段之间留段间距（设计源的 24），两个分区才分得开
-            modifier = Modifier.padding(top = FreshNowSpacing.md)
-        )
+/**
+ * 行为分区。[BehaviorSettings] 整个传进来而不摊成三个值：摊开的话这一段就是七个参数，
+ * 而那些值本来就是同一个对象的三项。
+ */
+@Composable
+internal fun ColumnScope.BehaviorSection(
+    behavior: BehaviorSettings,
+    onManualEntryChange: (Boolean) -> Unit,
+    onSortOrderClick: () -> Unit,
+    onUpdateSourceClick: () -> Unit,
+    onSyncClick: () -> Unit
+) {
+    SectionHeading(
+        text = stringResource(R.string.behavior_settings_section_title),
+        // 与上一段之间留段间距（设计源的 24），两个分区才分得开
+        modifier = Modifier.padding(top = FreshNowSpacing.md)
+    )
 
-        // 与「显示思维链」同一种行：整行可点、角色给 Switch（开关自己不吃点击），
-        // 说明文字写在下面一行而不是摆在标题里——开关说的是「怎么用「添加」」，标题只给出名字
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(
-                    stringResource(R.string.manual_entry),
-                    stringResource(R.string.behavior_manual_entry_support)
-                )
-            },
-            trailingContent = {
-                Switch(checked = manualEntry, onCheckedChange = null)
-            },
-            modifier = Modifier.toggleable(
-                value = manualEntry,
-                role = Role.Switch,
-                onValueChange = onManualEntryChange
-            ),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 与「显示思维链」同一种行：整行可点、角色给 Switch（开关自己不吃点击），
+    // 说明文字写在下面一行而不是摆在标题里——开关说的是怎么用「添加」，标题只给出名字
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_manual_entry), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.manual_entry),
+                stringResource(R.string.behavior_manual_entry_support)
+            )
+        },
+        trailingContent = {
+            Switch(checked = behavior.manualEntry, onCheckedChange = null)
+        },
+        modifier = Modifier.toggleable(
+            value = behavior.manualEntry,
+            role = Role.Switch,
+            onValueChange = onManualEntryChange
+        ),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        // 与「基础配置」那一行同一种做法：行上显示当前值，点开面板换一个。
-        // 当前值就是这一行的说明文字——设置页里「现在用的是哪种」得看得见
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(stringResource(R.string.behavior_sort_order_title), sortOrder.label())
-            },
-            modifier = Modifier.clickable(onClick = onSortOrderClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 与「基础配置」那一行同一种做法：行上显示当前值，点开面板换一个。
+    // 当前值就是这一行的说明文字——设置页里「现在用的是哪种」得看得见
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_sort), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(stringResource(R.string.behavior_sort_order_title), behavior.sortOrder.label())
+        },
+        modifier = Modifier.clickable(onClick = onSortOrderClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        // 同步是跨设备的行为，排在这一分区的末尾：上面的三项都只影响本机
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_sync), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(
-                    stringResource(R.string.sync_title),
-                    stringResource(R.string.sync_settings_support),
-                    trailingLabel = stringResource(R.string.sync_beta_label)
-                )
-            },
-            modifier = Modifier.clickable(onClick = onSyncClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 更新源挨着排序方式：两项都是本机的可调项。说明文字给出当前源——
+    // 大陆网络下 GitHub 连不上，这一行得看得见现在是哪个源，
+    // 否则用户不知道「检查更新失败」该不该来这里改
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_update_source), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.behavior_update_source_title),
+                behavior.updateSource.label()
+            )
+        },
+        modifier = Modifier.clickable(onClick = onUpdateSourceClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        SectionHeading(
-            text = stringResource(R.string.backup_section_title),
-            // 与上一段之间留段间距（设计源的 24）
-            modifier = Modifier.padding(top = FreshNowSpacing.md)
-        )
+    // 同步是跨设备的行为，排在这一分区的末尾：上面的各项都只影响本机
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_sync), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.sync_title),
+                stringResource(R.string.sync_settings_support),
+                trailingLabel = stringResource(R.string.sync_beta_label)
+            )
+        },
+        modifier = Modifier.clickable(onClick = onSyncClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
 
-        // 导出与导入成对排在一起：一个把数据交出去，一个把交出去的那份拿回来。
-        // 两者都不带 API Key 与同步密钥（见 BackupArchive），备份文件可以放心放进网盘
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_upload), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(
-                    stringResource(R.string.backup_export_title),
-                    stringResource(R.string.backup_export_support)
-                )
-            },
-            // 读写期间两行一起置灰：同一次操作还没完就再点一次，只会让两份写入撞在一起
-            modifier = Modifier.clickable(enabled = !backupRunning, onClick = onBackupExportClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+@Composable
+internal fun ColumnScope.BackupSection(
+    backupRunning: Boolean,
+    onBackupExportClick: () -> Unit,
+    onBackupImportClick: () -> Unit
+) {
+    SectionHeading(
+        text = stringResource(R.string.backup_section_title),
+        // 与上一段之间留段间距（设计源的 24）
+        modifier = Modifier.padding(top = FreshNowSpacing.md)
+    )
 
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_download), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(
-                    stringResource(R.string.backup_import_title),
-                    stringResource(R.string.backup_import_support)
-                )
-            },
-            modifier = Modifier.clickable(enabled = !backupRunning, onClick = onBackupImportClick),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+    // 导出与导入成对排在一起：一个把数据交出去，一个把交出去的那份拿回来。
+    // 两者都不带 API Key 与同步密钥（见 BackupArchive），备份文件可以放心放进网盘
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_upload), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.backup_export_title),
+                stringResource(R.string.backup_export_support)
+            )
+        },
+        // 读写期间两行一起置灰：同一次操作还没完就再点一次，只会让两份写入撞在一起
+        modifier = Modifier.clickable(enabled = !backupRunning, onClick = onBackupExportClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 
-        SectionHeading(
-            text = stringResource(R.string.debug_settings_section_title),
-            // 与上一段之间留段间距（设计源的 24），两个分区才分得开
-            modifier = Modifier.padding(top = FreshNowSpacing.md)
-        )
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_download), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.backup_import_title),
+                stringResource(R.string.backup_import_support)
+            )
+        },
+        modifier = Modifier.clickable(enabled = !backupRunning, onClick = onBackupImportClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
 
-        // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
-        // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
-        ListItem(
-            leadingContent = {
-                Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
-            },
-            headlineContent = {
-                ListItemText(
-                    stringResource(R.string.ai_settings_show_reasoning_title),
-                    stringResource(R.string.ai_settings_show_reasoning_support)
-                )
-            },
-            trailingContent = {
-                Switch(checked = showReasoning, onCheckedChange = null)
-            },
-            modifier = Modifier.toggleable(
-                value = showReasoning,
-                role = Role.Switch,
-                onValueChange = onShowReasoningChange
-            ),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-        // 应用、项目、法律信息三段在关于页，不在设置里：设置只管可调项
-    }
+/**
+ * 调试分区。应用、项目、法律信息三段在关于页，不在设置里：设置只管可调项。
+ */
+@Composable
+internal fun ColumnScope.DebugSection(
+    showReasoning: Boolean,
+    onShowReasoningChange: (Boolean) -> Unit
+) {
+    SectionHeading(
+        text = stringResource(R.string.debug_settings_section_title),
+        // 与上一段之间留段间距（设计源的 24），两个分区才分得开
+        modifier = Modifier.padding(top = FreshNowSpacing.md)
+    )
+
+    // 整行可点，Switch 自己不再处理点击（onCheckedChange = null）；整行用 toggleable + Role.Switch
+    // 而不是 clickable，才能让读屏软件把这一行读成带开/关状态的开关
+    ListItem(
+        leadingContent = {
+            Icon(painter = painterResource(R.drawable.ic_reasoning), contentDescription = null)
+        },
+        headlineContent = {
+            ListItemText(
+                stringResource(R.string.ai_settings_show_reasoning_title),
+                stringResource(R.string.ai_settings_show_reasoning_support)
+            )
+        },
+        trailingContent = {
+            Switch(checked = showReasoning, onCheckedChange = null)
+        },
+        modifier = Modifier.toggleable(
+            value = showReasoning,
+            role = Role.Switch,
+            onValueChange = onShowReasoningChange
+        ),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 }
 
 @Composable

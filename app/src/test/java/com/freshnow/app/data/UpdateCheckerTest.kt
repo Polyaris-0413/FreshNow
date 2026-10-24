@@ -88,23 +88,56 @@ class UpdateCheckerTest {
      */
     @Test
     fun repositoryResource_drivesApiAndReleasesPage() {
-        val url = repositoryUrlFromStringsXml()
-        val slug = repositorySlug(url)
+        val url = repositoryUrlFromStringsXml("project_repository_url")
+        val slug = repositorySlug(UpdateSource.GITHUB, url)
 
         assertEquals("资源里的仓库地址应是 https://github.com/<owner>/<name>：$url", 2, slug.split('/').size)
-        assertEquals("https://api.github.com/repos/$slug/releases/latest", latestReleaseApiUrl(url))
+        assertEquals(
+            "https://api.github.com/repos/$slug/releases/latest",
+            latestReleaseApiUrl(UpdateSource.GITHUB, url)
+        )
         assertEquals("${url.trimEnd('/')}/releases/latest", releasesPageUrl(url))
+    }
+
+    /**
+     * Gitee 的仓库路径与 GitHub 不是同一个（用户名不同），地址也各有一份资源。
+     * 这里验的是：主机名取自源而不是写死的 github.com，否则切到 Gitee 后会得到一个没被切掉的 slug。
+     */
+    @Test
+    fun giteeRepositoryResource_drivesApiAndReleasesPage() {
+        val url = repositoryUrlFromStringsXml("project_repository_url_gitee")
+        val slug = repositorySlug(UpdateSource.GITEE, url)
+
+        assertEquals("资源里的仓库地址应是 https://gitee.com/<owner>/<name>：$url", 2, slug.split('/').size)
+        assertEquals(
+            "https://gitee.com/api/v5/repos/$slug/releases/latest",
+            latestReleaseApiUrl(UpdateSource.GITEE, url)
+        )
+        assertEquals("${url.trimEnd('/')}/releases/latest", releasesPageUrl(url))
+    }
+
+    /** 两个源的仓库标识各算各的：拿 GitHub 地址去问 Gitee 会得到空 slug，而不是把整条地址当路径 */
+    @Test
+    fun slugIsDerivedFromTheChosenSourceOnly() {
+        assertEquals(
+            "Polyaris/FreshNow",
+            repositorySlug(UpdateSource.GITEE, "https://gitee.com/Polyaris/FreshNow")
+        )
+        assertEquals(
+            "",
+            repositorySlug(UpdateSource.GITEE, "https://github.com/Polyaris-0413/FreshNow")
+        )
     }
 
     @Test
     fun repositoryUrl_toleratesTrailingSlashAndGitSuffix() {
         val expected = "Polyaris-0413/FreshNow"
 
-        assertEquals(expected, repositorySlug("https://github.com/Polyaris-0413/FreshNow/"))
-        assertEquals(expected, repositorySlug("https://github.com/Polyaris-0413/FreshNow.git"))
+        assertEquals(expected, repositorySlug(UpdateSource.GITHUB, "https://github.com/Polyaris-0413/FreshNow/"))
+        assertEquals(expected, repositorySlug(UpdateSource.GITHUB, "https://github.com/Polyaris-0413/FreshNow.git"))
         assertEquals(
             "https://api.github.com/repos/$expected/releases/latest",
-            latestReleaseApiUrl("https://github.com/Polyaris-0413/FreshNow.git")
+            latestReleaseApiUrl(UpdateSource.GITHUB, "https://github.com/Polyaris-0413/FreshNow.git")
         )
     }
 
@@ -114,21 +147,17 @@ class UpdateCheckerTest {
      * 与 ThemeWindowBackgroundTest 同一个办法：那类「两处必须一致」的取值只有读真文件才验得到，
      * 而这里是同一类约束——仓库地址从资源推到接口地址。
      */
-    private fun repositoryUrlFromStringsXml(): String {
+    private fun repositoryUrlFromStringsXml(name: String): String {
         val relativePath = "src/main/res/values/strings.xml"
         val file = listOf(File(relativePath), File("app/$relativePath"))
             .firstOrNull { it.isFile }
             ?: error("找不到 $relativePath（当前工作目录 ${File("").absolutePath}）")
 
-        return REPOSITORY_URL.find(file.readText())?.groupValues?.get(1)
-            ?: error("$relativePath 里没有 project_repository_url")
+        return Regex("""<string name="$name"[^>]*>([^<]+)</string>""")
+            .find(file.readText())?.groupValues?.get(1)
+            ?: error("$relativePath 里没有 $name")
     }
 
     private fun release(version: String) =
         LatestRelease(version = version, htmlUrl = "https://example.invalid/releases/latest")
-
-    private companion object {
-        val REPOSITORY_URL =
-            Regex("""<string name="project_repository_url"[^>]*>([^<]+)</string>""")
-    }
 }
